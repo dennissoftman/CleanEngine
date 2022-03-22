@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS_DEBUG_INIT "-Wall -Og -ggdb")
 
-option(COMPILE_GL "Compile using OpenGL renderer" OFF)
+option(COMPILE_GL "Compile using OpenGL renderer" ON)
 option(COMPILE_VK "Compile using Vulkan renderer" OFF)
 
 # Vulkan version

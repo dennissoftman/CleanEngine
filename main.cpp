@@ -117,6 +117,9 @@ void mainLoop()
         glfwPollEvents();
 
         rend->draw();
+#ifdef RENDERER_OPENGL
+        glfwSwapBuffers(mainWindow);
+#endif
     }
 
     delete rend;

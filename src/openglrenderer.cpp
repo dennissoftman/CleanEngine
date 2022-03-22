@@ -11,7 +11,7 @@ static const GLfloat modelData[] = {
 GLuint VAO, VBO;
 
 OpenGLRenderer::OpenGLRenderer()
-    : m_was_init(false), m_currentShader(NULL)
+    : m_currentShader(NULL), m_was_init(false)
 {
 
 }
@@ -38,6 +38,10 @@ void OpenGLRenderer::init(const VideoMode &mode)
 
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_MULTISAMPLE);
+
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glFrontFace(GL_CW);
 
 
     // TEMP
