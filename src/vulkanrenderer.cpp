@@ -15,6 +15,9 @@
 #include <stdexcept>
 #include <limits>
 #include <algorithm>
+#include <source_location>
+
+#include "servicelocator.hpp"
 
 // ---------------------------------------------------------------------------------------------
 VkResult CreateDebugUtilsMessengerEXT(VkInstance instance,
@@ -46,11 +49,16 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL customVkDebugCallback(VkDebugUtilsMessageS
                                                     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
                                                     void* pUserData)
 {
+    (void)messageType;
+    (void)pUserData;
+
     if(messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
         fprintf(stderr, "[%s] %s\n", pCallbackData->pMessageIdName, pCallbackData->pMessage);
     return VK_FALSE;
 }
 // =============================================================================================
+
+const std::string MODULE_NAME = "VulkanRenderer";
 
 VulkanRenderer::VulkanRenderer()
     : m_requiredFeatures({}),
@@ -63,6 +71,14 @@ VulkanRenderer::VulkanRenderer()
 VulkanRenderer::~VulkanRenderer()
 {
     vkDeviceWaitIdle(m_vkDevice);
+
+    //
+    for(const VkRenderObject &obj : m_createdObjects)
+    {
+        vkFreeMemory(m_vkDevice, obj.vertexBufferMemory, nullptr);
+        vkDestroyBuffer(m_vkDevice, obj.vertexBuffer, nullptr);
+    }
+    //
 
     vkDestroyFence(m_vkDevice, m_vkInFlightFence, nullptr);
     vkDestroySemaphore(m_vkDevice, m_vkRenderFinishedSemaphore, nullptr);
@@ -143,6 +159,8 @@ void VulkanRenderer::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreat
 
 void VulkanRenderer::init(const VideoMode &mode)
 {
+    Logger &logger = ServiceLocator::getLogger();
+
     m_viewWidth = mode.width;
     m_viewHeight = mode.height;
 
@@ -171,10 +189,9 @@ void VulkanRenderer::init(const VideoMode &mode)
         instanceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(m_instanceExtensions.size());
         instanceCreateInfo.ppEnabledExtensionNames = m_instanceExtensions.data();
 
-#pragma message("TODO:Logger")
-        fprintf(stderr, "Creating VkInstance with extensions:\n");
+        logger.info(MODULE_NAME, "Creating VkInstance with extensions:");
         for(auto &ext : m_instanceExtensions)
-            fprintf(stderr, "\t%s\n", ext);
+            logger.info(MODULE_NAME, "\t"+std::string(ext));
 
         if(vkCreateInstance(&instanceCreateInfo, nullptr, &m_vkInstance) != VK_SUCCESS)
         {
@@ -191,8 +208,7 @@ void VulkanRenderer::init(const VideoMode &mode)
         populateDebugMessengerCreateInfo(debugCreateInfo);
         if(CreateDebugUtilsMessengerEXT(m_vkInstance, &debugCreateInfo, nullptr, &m_vkDebugMessenger) != VK_SUCCESS)
         {
-#pragma message("TODO:Logger")
-            fprintf(stderr, "Failed to create VkDebugUtilsMessenger\n");
+            ServiceLocator::getLogger().info(__PRETTY_FUNCTION__, "Failed to create VkDebugUtilsMessenger");
         }
 #endif
     }
@@ -208,14 +224,18 @@ void VulkanRenderer::init(const VideoMode &mode)
     vkEnumeratePhysicalDevices(m_vkInstance, &pDevCount, nullptr);
     std::vector<VkPhysicalDevice> pDevs(pDevCount);
     vkEnumeratePhysicalDevices(m_vkInstance, &pDevCount, pDevs.data());
-    fprintf(stderr, "Detected devices:\n");
+
+    logger.info(MODULE_NAME, "Detected devices:");
     for(const VkPhysicalDevice &pDev : pDevs)
     {
         VkPhysicalDeviceProperties props;
         vkGetPhysicalDeviceProperties(pDev, &props);
-        fprintf(stderr, "\t%04X:%04X %s\n",
+        char buff[256];
+        sprintf(buff,
+                "\t%04X:%04X %s",
                 props.vendorID, props.deviceID,
                 props.deviceName);
+        logger.info(MODULE_NAME, buff);
 
         VkPhysicalDeviceFeatures feats;
         vkGetPhysicalDeviceFeatures(pDev, &feats);
@@ -228,13 +248,17 @@ void VulkanRenderer::init(const VideoMode &mode)
     }
 
     if(targetPDev == VK_NULL_HANDLE)
-        throw std::runtime_error("Failed to find vulkan-compatible device");
+    {
+        logger.error(MODULE_NAME, "Failed to find suitable vulkan device");
+        throw std::runtime_error("Failed to find suitable vulkan device");
+    }
+    m_vkPhysicalDevice = targetPDev;
 
     // Create logical device
     uint32_t queueFamilyCount = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(targetPDev, &queueFamilyCount, nullptr);
+    vkGetPhysicalDeviceQueueFamilyProperties(m_vkPhysicalDevice, &queueFamilyCount, nullptr);
     std::vector<VkQueueFamilyProperties> queueFamilyProps(queueFamilyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(targetPDev, &queueFamilyCount, queueFamilyProps.data());
+    vkGetPhysicalDeviceQueueFamilyProperties(m_vkPhysicalDevice, &queueFamilyCount, queueFamilyProps.data());
 
     struct QueueFamilyIndicies
     {
@@ -253,7 +277,7 @@ void VulkanRenderer::init(const VideoMode &mode)
             queueIdx.graphicsQueueID = i;
 
         VkBool32 presentSupport = VK_FALSE;
-        vkGetPhysicalDeviceSurfaceSupportKHR(targetPDev, i, m_vkSurface, &presentSupport);
+        vkGetPhysicalDeviceSurfaceSupportKHR(m_vkPhysicalDevice, i, m_vkSurface, &presentSupport);
 
         if(presentSupport)
             queueIdx.presentationQueueID = i;
@@ -265,7 +289,10 @@ void VulkanRenderer::init(const VideoMode &mode)
     }
 
     if(!queueIdx.isComplete())
-        throw std::runtime_error("Failed to find sufficient device");
+    {
+        logger.error(MODULE_NAME, "Failed to find device with graphics and presentation queues");
+        throw std::runtime_error("Failed to find device with graphics and presentation queues");
+    }
 
     float queuePriorities = 1.f;
 
@@ -285,13 +312,15 @@ void VulkanRenderer::init(const VideoMode &mode)
     deviceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(m_deviceExtensions.size());
     deviceCreateInfo.ppEnabledExtensionNames = m_deviceExtensions.data();
 
-#pragma message("TODO:Logger")
-    fprintf(stderr, "Creating VkDevice with extensions:\n");
+    logger.info(MODULE_NAME, "Creating VkDevice with extensions:");
     for(auto &ext : m_deviceExtensions)
-        fprintf(stderr, "\t%s\n", ext);
+        logger.info(MODULE_NAME, "\t"+std::string(ext));
 
-    if(vkCreateDevice(targetPDev, &deviceCreateInfo, nullptr, &m_vkDevice) != VK_SUCCESS)
+    if(vkCreateDevice(m_vkPhysicalDevice, &deviceCreateInfo, nullptr, &m_vkDevice) != VK_SUCCESS)
+    {
+        logger.error(MODULE_NAME, "Failed to create VkDevice");
         throw std::runtime_error("Failed to create VkDevice");
+    }
 
     // Get queues
     vkGetDeviceQueue(m_vkDevice, queueIdx.graphicsQueueID.value(), 0, &m_vkGraphicsQueue);
@@ -301,7 +330,7 @@ void VulkanRenderer::init(const VideoMode &mode)
     {
         SwapChainSupportDetails swapChainSupport;
 
-        swapChainSupport = querySwapChainSupport(targetPDev, m_vkSurface);
+        swapChainSupport = querySwapChainSupport(m_vkPhysicalDevice, m_vkSurface);
 
         VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
         VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
@@ -343,7 +372,10 @@ void VulkanRenderer::init(const VideoMode &mode)
         createInfo.oldSwapchain = VK_NULL_HANDLE;
 
         if (vkCreateSwapchainKHR(m_vkDevice, &createInfo, nullptr, &m_vkSwapChain) != VK_SUCCESS)
+        {
+            logger.error(MODULE_NAME, "Failed to create VkSwapChainKHR");
             throw std::runtime_error("Failed to create VkSwapChainKHR");
+        }
 
         vkGetSwapchainImagesKHR(m_vkDevice, m_vkSwapChain, &imageCount, nullptr);
         m_vkSwapChainImages.resize(imageCount);
@@ -380,6 +412,7 @@ void VulkanRenderer::init(const VideoMode &mode)
 
             if(vkCreateImageView(m_vkDevice, &createInfo, nullptr, &m_vkSwapChainImageViews[i]) != VK_SUCCESS)
             {
+                logger.error(MODULE_NAME, "Failed to create image view");
                 throw std::runtime_error("Failed to create image view");
             }
         }
@@ -416,7 +449,8 @@ void VulkanRenderer::init(const VideoMode &mode)
 
         if (vkCreateRenderPass(m_vkDevice, &renderPassInfo, nullptr, &m_vkRenderPass) != VK_SUCCESS)
         {
-            throw std::runtime_error("failed to create render pass!");
+            logger.error(MODULE_NAME, "Failed to create render pass");
+            throw std::runtime_error("Failed to create render pass");
         }
     }
     // =========================================================================================
@@ -443,12 +477,30 @@ void VulkanRenderer::init(const VideoMode &mode)
 
         VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
+        //
+        VkVertexInputBindingDescription bindingDescription{};
+        bindingDescription.binding = 0;
+        bindingDescription.stride = sizeof(glm::vec2) + sizeof(glm::vec3);
+        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+        std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
+        attributeDescriptions[0].binding = 0;
+        attributeDescriptions[0].location = 0;
+        attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+        attributeDescriptions[0].offset = 0;
+
+        attributeDescriptions[1].binding = 0;
+        attributeDescriptions[1].location = 1;
+        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+        attributeDescriptions[1].offset = sizeof(glm::vec2);
+        //
+
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
         vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        vertexInputInfo.vertexBindingDescriptionCount = 0;
-        vertexInputInfo.pVertexBindingDescriptions = nullptr; // Optional
-        vertexInputInfo.vertexAttributeDescriptionCount = 0;
-        vertexInputInfo.pVertexAttributeDescriptions = nullptr; // Optional
+        vertexInputInfo.vertexBindingDescriptionCount = 1;
+        vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+        vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+        vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
         VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
         inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -457,9 +509,9 @@ void VulkanRenderer::init(const VideoMode &mode)
 
         VkViewport viewport{};
         viewport.x = 0.0f;
-        viewport.y = 0.0f;
+        viewport.y = m_vkSwapChainExtent.height;
         viewport.width = (float)m_vkSwapChainExtent.width;
-        viewport.height = (float)m_vkSwapChainExtent.height;
+        viewport.height = -(float)m_vkSwapChainExtent.height;
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
 
@@ -531,16 +583,21 @@ void VulkanRenderer::init(const VideoMode &mode)
         dynamicState.pDynamicStates = dynamicStates.data();
         */
 
-        VkPipelineLayout m_vkPipelineLayout;
+        VkPushConstantRange pushConstant;
+        pushConstant.offset = 0;
+        pushConstant.size = sizeof(glm::mat4);
+        pushConstant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         pipelineLayoutInfo.setLayoutCount = 0; // Optional
         pipelineLayoutInfo.pSetLayouts = nullptr; // Optional
-        pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
-        pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
+        pipelineLayoutInfo.pushConstantRangeCount = 1;
+        pipelineLayoutInfo.pPushConstantRanges = &pushConstant;
 
-        if (vkCreatePipelineLayout(m_vkDevice, &pipelineLayoutInfo, nullptr, &m_vkPipelineLayout) != VK_SUCCESS)
+        if(vkCreatePipelineLayout(m_vkDevice, &pipelineLayoutInfo, nullptr, &m_vkPipelineLayout) != VK_SUCCESS)
         {
+            logger.error(MODULE_NAME, "Failed to create pipeline layout");
             throw std::runtime_error("Failed to create pipeline layout");
         }
 
@@ -564,6 +621,7 @@ void VulkanRenderer::init(const VideoMode &mode)
 
         if(vkCreateGraphicsPipelines(m_vkDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_vkGraphicsPipeline) != VK_SUCCESS)
         {
+            logger.error(MODULE_NAME, "Failed to create graphics pipeline");
             throw std::runtime_error("Failed to create graphics pipeline");
         }
     }
@@ -590,6 +648,7 @@ void VulkanRenderer::init(const VideoMode &mode)
 
             if (vkCreateFramebuffer(m_vkDevice, &framebufferInfo, nullptr, &m_vkSwapChainFramebuffers[i]) != VK_SUCCESS)
             {
+                logger.error(MODULE_NAME, "Failed to create framebuffer");
                 throw std::runtime_error("Failed to create framebuffer");
             }
         }
@@ -605,6 +664,7 @@ void VulkanRenderer::init(const VideoMode &mode)
 
         if(vkCreateCommandPool(m_vkDevice, &poolInfo, nullptr, &m_vkCommandPool) != VK_SUCCESS)
         {
+            logger.error(MODULE_NAME, "Failed to create command pool");
             throw std::runtime_error("Failed to create command pool");
         }
 
@@ -614,7 +674,9 @@ void VulkanRenderer::init(const VideoMode &mode)
         allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         allocInfo.commandBufferCount = 1;
 
-        if (vkAllocateCommandBuffers(m_vkDevice, &allocInfo, &m_vkCommandBuffer) != VK_SUCCESS) {
+        if (vkAllocateCommandBuffers(m_vkDevice, &allocInfo, &m_vkCommandBuffer) != VK_SUCCESS)
+        {
+            logger.error(MODULE_NAME, "Failed to allocate command buffers");
             throw std::runtime_error("Failed to allocate command buffers");
         }
     }
@@ -631,12 +693,80 @@ void VulkanRenderer::init(const VideoMode &mode)
 
         if(vkCreateSemaphore(m_vkDevice, &semaphoreInfo, nullptr, &m_vkImageAvailableSemaphore) != VK_SUCCESS ||
            vkCreateSemaphore(m_vkDevice, &semaphoreInfo, nullptr, &m_vkRenderFinishedSemaphore) != VK_SUCCESS ||
-           vkCreateFence(m_vkDevice, &fenceInfo, nullptr, &m_vkInFlightFence) != VK_SUCCESS){
-
+           vkCreateFence(m_vkDevice, &fenceInfo, nullptr, &m_vkInFlightFence) != VK_SUCCESS)
+        {
+            logger.error(MODULE_NAME, "Failed to create sync objects");
             throw std::runtime_error("Failed to create sync objects");
         }
     }
     // =========================================================================================
+}
+
+void VulkanRenderer::queueRenderObject(RenderObject *obj)
+{
+    for(const VkRenderObject &vObj : m_createdObjects)
+    {
+        if(vObj.parent == obj) // do not create duplicates
+        {
+            queueRenderObject(vObj);
+            return;
+        }
+    }
+    VkRenderObject vObj = createRenderObject(obj);
+    m_createdObjects.push_back(vObj);
+    queueRenderObject(vObj);
+}
+
+void VulkanRenderer::queueRenderObject(VkRenderObject obj)
+{
+    m_renderQueue.push(obj);
+}
+
+VkRenderObject VulkanRenderer::createRenderObject(RenderObject *obj)
+{
+    VkRenderObject vObj;
+    vObj.parent = obj;
+    //
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = obj->model->tris.size() * sizeof(Triangle2D);
+    bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if(vkCreateBuffer(m_vkDevice, &bufferInfo, nullptr, &vObj.vertexBuffer) != VK_SUCCESS)
+    {
+        ServiceLocator::getLogger().error(MODULE_NAME, "Failed to create VkBuffer");
+        throw std::runtime_error("Failed to create VkBuffer");
+    }
+
+    // Check for memory, meh
+    VkMemoryRequirements memReqs;
+    vkGetBufferMemoryRequirements(m_vkDevice, vObj.vertexBuffer, &memReqs);
+
+    // Allocate memory
+    VkDeviceMemory vertexBufferMemory;
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memReqs.size;
+    allocInfo.memoryTypeIndex = findMemoryType(m_vkPhysicalDevice,
+                                               memReqs.memoryTypeBits,
+                                               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                               VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+    if(vkAllocateMemory(m_vkDevice, &allocInfo, nullptr, &vertexBufferMemory) != VK_SUCCESS)
+    {
+        ServiceLocator::getLogger().error(MODULE_NAME, "Failed to allocate memory for vertex buffer");
+        throw std::runtime_error("Failed to allocate memory for vertex buffer");
+    }
+    vkBindBufferMemory(m_vkDevice, vObj.vertexBuffer, vertexBufferMemory, 0);
+
+    // Map memory
+    void *data;
+    vkMapMemory(m_vkDevice, vertexBufferMemory, 0, bufferInfo.size, 0, &data);
+    memcpy(data, obj->model->tris.data(), obj->model->tris.size() * sizeof(Triangle2D));
+    vkUnmapMemory(m_vkDevice, vertexBufferMemory);
+
+    return vObj;
 }
 
 SwapChainSupportDetails VulkanRenderer::querySwapChainSupport(const VkPhysicalDevice &device, const VkSurfaceKHR &surface)
@@ -714,13 +844,31 @@ VkExtent2D VulkanRenderer::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capa
     }
 }
 
+uint32_t VulkanRenderer::findMemoryType(VkPhysicalDevice pDev, uint32_t typeFilter, VkMemoryPropertyFlags properties)
+{
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(pDev, &memProperties);
+
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+            return i;
+        }
+    }
+
+    throw std::runtime_error("failed to find suitable memory type!");
+}
+
 void VulkanRenderer::recordCommandBuffer(VkCommandBuffer buffer, int imageIdx)
 {
+    Logger &logger = ServiceLocator::getLogger();
+
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
-    if (vkBeginCommandBuffer(buffer, &beginInfo) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to begin recording command buffer");
+    if (vkBeginCommandBuffer(buffer, &beginInfo) != VK_SUCCESS)
+    {
+        logger.error(MODULE_NAME, "Failed to begin record command buffer");
+        throw std::runtime_error("Failed to begin record command buffer");
     }
 
     VkRenderPassBeginInfo renderPassInfo{};
@@ -736,19 +884,46 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer buffer, int imageIdx)
 
     vkCmdBeginRenderPass(buffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
         vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_vkGraphicsPipeline);
-        vkCmdDraw(buffer, 3, 1, 0, 0);
+        while(m_renderQueue.size() > 0)
+        {
+            VkRenderObject obj = m_renderQueue.front();
+            if(obj.parent == NULL)
+            {
+                m_renderQueue.pop();
+                continue;
+            }
+
+            VkBuffer vertexBuffers[] = {obj.vertexBuffer};
+            VkDeviceSize offsets[] = {0};
+
+            vkCmdPushConstants(buffer,
+                               m_vkPipelineLayout,
+                               VK_SHADER_STAGE_VERTEX_BIT,
+                               0, sizeof(glm::mat4), &obj.parent->modelMatrix[0][0]);
+
+            vkCmdBindVertexBuffers(buffer, 0, 1, vertexBuffers, offsets);
+            vkCmdDraw(buffer, obj.parent->model->tris.size()*3, 1, 0, 0);
+
+            m_renderQueue.pop();
+        }
     vkCmdEndRenderPass(buffer);
 
     if(vkEndCommandBuffer(buffer) != VK_SUCCESS)
     {
-        throw std::runtime_error("Failed to record command buffer");
+        logger.error(MODULE_NAME, "Failed to end record command buffer");
+        throw std::runtime_error("Failed to end record command buffer");
     }
 }
 
 void VulkanRenderer::createSurface()
 {
+    Logger &logger = ServiceLocator::getLogger();
+
     if(!m_nativeProps.isComplete())
+    {
+        logger.error(MODULE_NAME, "Native surface properties are not set");
         throw std::runtime_error("Native surface properties are not set");
+    }
 #ifdef __linux__
     VkXcbSurfaceCreateInfoKHR surfaceCreateInfo{};
     surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
@@ -757,7 +932,8 @@ void VulkanRenderer::createSurface()
 
     if(vkCreateXcbSurfaceKHR(m_vkInstance, &surfaceCreateInfo, nullptr, &m_vkSurface) != VK_SUCCESS)
     {
-        throw std::runtime_error("Failed to create vulkan xcb surface");
+        logger.error(MODULE_NAME, "Failed to create vulkan XCB surface");
+        throw std::runtime_error("Failed to create vulkan XCB surface");
     }
 #elif _WIN32
     VkWin32SurfaceCreateInfoKHR createInfo{};
@@ -811,8 +987,9 @@ void VulkanRenderer::draw()
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
-    if (vkQueueSubmit(m_vkGraphicsQueue, 1, &submitInfo, m_vkInFlightFence) != VK_SUCCESS) {
-        throw std::runtime_error("failed to submit draw command buffer!");
+    if (vkQueueSubmit(m_vkGraphicsQueue, 1, &submitInfo, m_vkInFlightFence) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to submit draw command buffer!");
     }
 
     VkPresentInfoKHR presentInfo{};

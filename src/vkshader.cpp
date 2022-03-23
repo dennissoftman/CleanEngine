@@ -74,3 +74,8 @@ void VkShader::use()
 {
 
 }
+
+void VkShader::setMat4(const std::string_view &id, const glm::mat4 &mat)
+{
+
+}

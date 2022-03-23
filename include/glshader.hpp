@@ -13,6 +13,8 @@ public:
     void load(const std::string &vs, const std::string &fs) override;
 
     void use() override;
+
+    void setMat4(const std::string_view &id, const glm::mat4 &mat) override;
 private:
     GLuint m_pid;
 };

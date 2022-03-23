@@ -46,8 +46,8 @@ void GLShader::load(const std::string &vs, const std::string &fs)
     if(ilen > 0)
     {
         std::vector<char> pErrMsg(ilen+1);
-        glGetProgramInfoLog(m_pid, ilen, NULL, pErrMsg.data());
-        fprintf(stderr, "Failed to compile vertex shader:\n%s\n", pErrMsg.data());
+        glGetShaderInfoLog(vs_id, ilen, NULL, pErrMsg.data());
+        fprintf(stderr, "'%s': %s\n", vs.c_str(), pErrMsg.data());
     }
 
     char const *fshData = fshCode.c_str();
@@ -59,8 +59,8 @@ void GLShader::load(const std::string &vs, const std::string &fs)
     if(ilen > 0)
     {
         std::vector<char> pErrMsg(ilen+1);
-        glGetProgramInfoLog(m_pid, ilen, NULL, pErrMsg.data());
-        fprintf(stderr, "Failed to compile fragment shader:\n%s\n", pErrMsg.data());
+        glGetShaderInfoLog(fs_id, ilen, NULL, pErrMsg.data());
+        fprintf(stderr, "'%s': %s\n", fs.c_str(), pErrMsg.data());
     }
 
     m_pid = glCreateProgram();
@@ -84,4 +84,9 @@ void GLShader::load(const std::string &vs, const std::string &fs)
 void GLShader::use()
 {
     glUseProgram(m_pid);
+}
+
+void GLShader::setMat4(const std::string_view &id, const glm::mat4 &mat)
+{
+    glUniformMatrix4fv(glGetUniformLocation(m_pid, id.data()), 1, GL_FALSE, &mat[0][0]);
 }

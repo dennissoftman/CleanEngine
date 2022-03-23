@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(CleanEngineVk LANGUAGES CXX VERSION 0.1)
-project(CleanEngineGL LANGUAGES CXX VERSION 0.1)
+project(CleanEngine LANGUAGES CXX VERSION 0.1)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -26,6 +25,14 @@ if(COMPILE_VK)
       ${CMAKE_SOURCE_DIR}/include/shader.hpp
       ${CMAKE_SOURCE_DIR}/src/vkshader.cpp
       ${CMAKE_SOURCE_DIR}/include/vkshader.hpp
+      ${CMAKE_SOURCE_DIR}/include/logger.hpp
+      ${CMAKE_SOURCE_DIR}/src/dummylogger.cpp
+      ${CMAKE_SOURCE_DIR}/include/dummylogger.hpp
+      ${CMAKE_SOURCE_DIR}/src/debuglogger.cpp
+      ${CMAKE_SOURCE_DIR}/include/debuglogger.hpp
+      ${CMAKE_SOURCE_DIR}/src/servicelocator.cpp
+      ${CMAKE_SOURCE_DIR}/include/servicelocator.hpp
+
   )
 
   target_compile_definitions(CleanEngineVk PRIVATE RENDERER_VULKAN)
@@ -61,6 +68,13 @@ if(COMPILE_GL)
       ${CMAKE_SOURCE_DIR}/include/shader.hpp
       ${CMAKE_SOURCE_DIR}/src/glshader.cpp
       ${CMAKE_SOURCE_DIR}/include/glshader.hpp
+      ${CMAKE_SOURCE_DIR}/include/logger.hpp
+      ${CMAKE_SOURCE_DIR}/src/dummylogger.cpp
+      ${CMAKE_SOURCE_DIR}/include/dummylogger.hpp
+      ${CMAKE_SOURCE_DIR}/src/debuglogger.cpp
+      ${CMAKE_SOURCE_DIR}/include/debuglogger.hpp
+      ${CMAKE_SOURCE_DIR}/src/servicelocator.cpp
+      ${CMAKE_SOURCE_DIR}/include/servicelocator.hpp
   )
 
   target_compile_definitions(CleanEngineGL PRIVATE RENDERER_OPENGL)

@@ -2,13 +2,13 @@
 layout(location = 0) in vec2 vertexPos;
 layout(location = 1) in vec3 vertexColor;
 
+uniform mat4 modelMatrix;
+
 out vec3 color;
 
 void main()
 {
     color = vertexColor;
 
-    gl_Position.xy = vertexPos;
-    gl_Position.z = 0;
-    gl_Position.w = 1;
+    gl_Position = modelMatrix * vec4(vertexPos, 0.0, 1.0);
 }

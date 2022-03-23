@@ -1,21 +1,18 @@
 #version 450
 
-vec2 positions[3] = vec2[](
-    vec2(-0.5, 0.5),
-    vec2(0.0, -0.5),
-    vec2(0.5, 0.5)
-);
+layout(location = 0) in vec2 vertexPos;
+layout(location = 1) in vec3 vertexColor;
 
-vec3 colors[3] = vec3[](
-    vec3(1, 0, 0),
-    vec3(0, 1, 0),
-    vec3(0, 0, 1)
-);
+layout(location = 0) out vec3 color;
 
-layout(location = 0) out vec3 vertColor;
+layout(push_constant) uniform constants
+{
+    mat4 modelMatrix;
+} obj;
 
 void main()
 {
-    vertColor = colors[gl_VertexIndex];
-    gl_Position = vec4(positions[gl_VertexIndex], 0.0, 1.0);
+    color = vertexColor;
+    
+    gl_Position = obj.modelMatrix * vec4(vertexPos + vec2(gl_InstanceIndex%10, gl_InstanceIndex/10)*0.01, 0.0, 1.0);
 } 
