@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(CleanEngine LANGUAGES CXX VERSION 0.1)
+project(CleanEngineVk LANGUAGES CXX VERSION 0.1)
+project(CleanEngineGL LANGUAGES CXX VERSION 0.1)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -33,7 +34,14 @@ if(COMPILE_VK)
     ${CMAKE_SOURCE_DIR}/include
   )
 
-  target_link_libraries(CleanEngineVk -lglfw -lvulkan -lX11-xcb -ldl -lpthread)
+  if(MSVC)
+    add_compile_options("/std:c++20")
+    add_compile_definitions(NOMINMAX)
+    target_link_directories(CleanEngineVk PUBLIC win64)
+    target_link_libraries(CleanEngineVk glfw3.lib vulkan-1.lib)
+  elseif(UNIX)
+    target_link_libraries(CleanEngineVk -lglfw -lvulkan -lX11-xcb -ldl -lpthread)
+  endif()
 endif()
 # OpenGL version
 
@@ -61,5 +69,12 @@ if(COMPILE_GL)
     ${CMAKE_SOURCE_DIR}/include
   )
 
-  target_link_libraries(CleanEngineGL -lglfw -lGLEW -lGL -ldl -lpthread)
+  if(MSVC)
+    add_compile_options("/std:c++20")
+    add_compile_definitions(NOMINMAX)
+    target_link_directories(CleanEngineGL PUBLIC win64)
+    target_link_libraries(CleanEngineGL glfw3.lib glew32.lib opengl32.lib)
+  elseif(UNIX)
+    target_link_libraries(CleanEngineGL -lglfw -lGLEW -lGL -ldl -lpthread)
+  endif()
 endif()

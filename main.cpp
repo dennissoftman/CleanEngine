@@ -1,6 +1,3 @@
-#include "openglrenderer.hpp"
-#include "vulkanrenderer.hpp"
-
 #ifdef RENDERER_VULKAN
     #define GLFW_INCLUDE_VULKAN
     #ifdef __linux__
@@ -9,13 +6,17 @@
     #elif _WIN32
         #define GLFW_EXPOSE_NATIVE_WIN32
     #endif
+    #include "vulkanrenderer.hpp"
+#elif RENDERER_OPENGL
+    #include "openglrenderer.hpp"
 #endif
+
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
 
-#include <cstdio>
 #include <string>
 #include <stdexcept>
+#include <cstdio>
 
 #ifdef RENDERER_OPENGL
 #include "glshader.hpp"
@@ -88,7 +89,8 @@ void mainLoop()
     if(props.window.value() == None)
         throw std::runtime_error("XCB window is NULL");
 #elif _WIN32
-    // select hwnd and hinstance
+    props.hwnd = glfwGetWin32Window(mainWindow);
+    props.hInstance = GetModuleHandle(NULL);
 #endif
 
 #ifndef NDEBUG

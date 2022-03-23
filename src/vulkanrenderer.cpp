@@ -5,6 +5,7 @@
 #ifdef __linux__
 #include <X11/Xlib-xcb.h>
 #elif _WIN32
+#include <Windows.h>
 #endif
 
 #include <cstring>
@@ -13,6 +14,7 @@
 #include <optional>
 #include <stdexcept>
 #include <limits>
+#include <algorithm>
 
 // ---------------------------------------------------------------------------------------------
 VkResult CreateDebugUtilsMessengerEXT(VkInstance instance,
@@ -159,14 +161,14 @@ void VulkanRenderer::init(const VideoMode &mode)
         VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
         if(checkValidationLayerSupport())
         {
-            instanceCreateInfo.enabledLayerCount = m_validationLayers.size();
+            instanceCreateInfo.enabledLayerCount = static_cast<uint32_t>(m_validationLayers.size());
             instanceCreateInfo.ppEnabledLayerNames = m_validationLayers.data();
 
             populateDebugMessengerCreateInfo(debugCreateInfo);
             instanceCreateInfo.pNext = &debugCreateInfo;
         }
 #endif
-        instanceCreateInfo.enabledExtensionCount = m_instanceExtensions.size();
+        instanceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(m_instanceExtensions.size());
         instanceCreateInfo.ppEnabledExtensionNames = m_instanceExtensions.data();
 
 #pragma message("TODO:Logger")
@@ -277,10 +279,10 @@ void VulkanRenderer::init(const VideoMode &mode)
 
     VkDeviceCreateInfo deviceCreateInfo{};
     deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    deviceCreateInfo.queueCreateInfoCount = queueCreateInfos.size();
+    deviceCreateInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
     deviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
     deviceCreateInfo.pEnabledFeatures = &m_requiredFeatures;
-    deviceCreateInfo.enabledExtensionCount = m_deviceExtensions.size();
+    deviceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(m_deviceExtensions.size());
     deviceCreateInfo.ppEnabledExtensionNames = m_deviceExtensions.data();
 
 #pragma message("TODO:Logger")
@@ -760,10 +762,10 @@ void VulkanRenderer::createSurface()
 #elif _WIN32
     VkWin32SurfaceCreateInfoKHR createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-    createInfo.hwnd = GetActiveWindow();
-    createInfo.hinstance = GetModuleHandle(nullptr);
+    createInfo.hwnd = m_nativeProps.hwnd.value();
+    createInfo.hinstance = m_nativeProps.hInstance.value();
 
-    if(vkCreateWin32SurfaceKHR(instance, &createInfo, nullptr, &surface) != VK_SUCCESS)
+    if(vkCreateWin32SurfaceKHR(m_vkInstance, &createInfo, nullptr, &m_vkSurface) != VK_SUCCESS)
     {
         throw std::runtime_error("Failed to create vulkan win32 surface");
     }

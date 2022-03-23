@@ -1,0 +1,50 @@
+﻿{
+  "configurations": [
+    {
+      "name": "win64debugVk",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "buildRoot": "${projectDir}\\build",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "variables": [
+        {
+          "name": "COMPILE_GL",
+          "value": "False",
+          "type": "BOOL"
+        },
+        {
+          "name": "COMPILE_VK",
+          "value": "True",
+          "type": "BOOL"
+        }
+      ]
+    },
+    {
+      "name": "win64debugGL",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "buildRoot": "${projectDir}\\build",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "variables": [
+        {
+          "name": "COMPILE_GL",
+          "value": "True",
+          "type": "BOOL"
+        },
+        {
+          "name": "COMPILE_VK",
+          "value": "False",
+          "type": "BOOL"
+        }
+      ]
+    }
+  ]
+}

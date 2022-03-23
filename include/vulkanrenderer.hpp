@@ -25,7 +25,13 @@ struct NativeSurfaceProps
         return connection.has_value() && window.has_value();
     }
 #elif _WIN32
+    std::optional<HWND> hwnd;
+    std::optional<HINSTANCE> hInstance;
 
+    bool isComplete() const
+    {
+        return hwnd.has_value() && hInstance.has_value();
+    }
 #endif
 };
 
