@@ -50,9 +50,11 @@ struct VkRenderObject
     VkDeviceMemory vertexBufferMemory;
 };
 
-struct VkRenderObjectData
+struct VkShaderTransformData
 {
     glm::mat4 modelMatrix;
+    glm::mat4 viewMatrix;
+    glm::mat4 projMatrix;
 };
 
 class VulkanRenderer : public Renderer
@@ -66,6 +68,9 @@ public:
     void queueRenderObject(RenderObject *obj) override;
     void queueRenderObject(VkRenderObject obj);
     void draw() override;
+
+    void setProjectionMatrix(const glm::mat4 &projmx) override;
+    void setViewMatrix(const glm::mat4 &viewmx) override;
 
     // vulkan-only
     VkRenderObject createRenderObject(RenderObject *obj);
@@ -85,9 +90,16 @@ private:
     static VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR> &availablePresentModes);
     static VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &availableFormats);
     static VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities, int viewWidth, int viewHeight);
+
+    static void createBuffer(VkDevice lDev, VkPhysicalDevice pDev, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags props, VkBuffer &buffer, VkDeviceMemory &bufferMemory);
+
     static uint32_t findMemoryType(VkPhysicalDevice pDev, uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
     void recordCommandBuffer(VkCommandBuffer buffer, int imageIdx);
+
+    std::vector<VkRenderObject> m_createdObjects;
+    std::queue<VkRenderObject> m_renderQueue;
+    glm::mat4 m_projMatrix, m_viewMatrix;
 
     int m_viewWidth, m_viewHeight;
     std::vector<const char*> m_instanceExtensions, m_deviceExtensions;
@@ -113,6 +125,14 @@ private:
 
     std::vector<VkImageView> m_vkSwapChainImageViews;
 
+    // DSL, UBO
+    VkDescriptorSetLayout m_descriptorSetLayout;
+    std::vector<VkBuffer> m_uniformBuffers;
+    std::vector<VkDeviceMemory> m_uniformBuffersMemory;
+    VkDescriptorPool m_descriptorPool;
+    std::vector<VkDescriptorSet> m_descriptorSets;
+    //
+
     VkRenderPass m_vkRenderPass;
     VkPipelineLayout m_vkPipelineLayout;
     VkPipeline m_vkGraphicsPipeline;
@@ -127,10 +147,6 @@ private:
     VkSemaphore m_vkRenderFinishedSemaphore;
     VkFence m_vkInFlightFence;
     // =======================================
-
-    VkDescriptorSetLayout m_DSL;
-    std::vector<VkRenderObject> m_createdObjects;
-    std::queue<VkRenderObject> m_renderQueue;
 };
 
 #endif // VULKANRENDERER_HPP

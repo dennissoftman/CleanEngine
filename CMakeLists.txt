@@ -20,6 +20,8 @@ if(COMPILE_VK)
       ${CMAKE_SOURCE_DIR}/src/enginecore.cpp
       ${CMAKE_SOURCE_DIR}/include/enginecore.hpp
       ${CMAKE_SOURCE_DIR}/include/renderer.hpp
+      ${CMAKE_SOURCE_DIR}/src/dummyrenderer.cpp
+      ${CMAKE_SOURCE_DIR}/include/dummyrenderer.hpp
       ${CMAKE_SOURCE_DIR}/src/vulkanrenderer.cpp
       ${CMAKE_SOURCE_DIR}/include/vulkanrenderer.hpp
       ${CMAKE_SOURCE_DIR}/include/shader.hpp
@@ -32,9 +34,23 @@ if(COMPILE_VK)
       ${CMAKE_SOURCE_DIR}/include/debuglogger.hpp
       ${CMAKE_SOURCE_DIR}/src/servicelocator.cpp
       ${CMAKE_SOURCE_DIR}/include/servicelocator.hpp
-
+      ${CMAKE_SOURCE_DIR}/src/eventmanager.cpp
+      ${CMAKE_SOURCE_DIR}/include/eventmanager.hpp
+      ${CMAKE_SOURCE_DIR}/src/camera3d.cpp
+      ${CMAKE_SOURCE_DIR}/include/camera3d.hpp
+      ${CMAKE_SOURCE_DIR}/include/material.hpp
+      ${CMAKE_SOURCE_DIR}/src/vkmaterial.cpp
+      ${CMAKE_SOURCE_DIR}/include/vkmaterial.hpp
+      ${CMAKE_SOURCE_DIR}/src/materialmanager.cpp
+      ${CMAKE_SOURCE_DIR}/include/materialmanager.hpp
+      ${CMAKE_SOURCE_DIR}/src/dummymaterialmanager.cpp
+      ${CMAKE_SOURCE_DIR}/include/dummymaterialmanager.hpp
+      ${CMAKE_SOURCE_DIR}/include/scriptengine.hpp
+      ${CMAKE_SOURCE_DIR}/src/luascriptengine.cpp
+      ${CMAKE_SOURCE_DIR}/include/luascriptengine.hpp
   )
 
+  target_compile_definitions(CleanEngineVk PRIVATE GLM_FORCE_RADIANS)
   target_compile_definitions(CleanEngineVk PRIVATE RENDERER_VULKAN)
 
   target_include_directories(CleanEngineVk PUBLIC
@@ -47,7 +63,7 @@ if(COMPILE_VK)
     target_link_directories(CleanEngineVk PUBLIC win64)
     target_link_libraries(CleanEngineVk glfw3.lib vulkan-1.lib)
   elseif(UNIX)
-    target_link_libraries(CleanEngineVk -lglfw -lvulkan -lX11-xcb -ldl -lpthread)
+    target_link_libraries(CleanEngineVk -lglfw -lvulkan -lX11-xcb -ldl -lpthread -lassimp -lIL -lILU -llua5.3)
   endif()
 endif()
 # OpenGL version
@@ -63,6 +79,8 @@ if(COMPILE_GL)
       ${CMAKE_SOURCE_DIR}/src/enginecore.cpp
       ${CMAKE_SOURCE_DIR}/include/enginecore.hpp
       ${CMAKE_SOURCE_DIR}/include/renderer.hpp
+      ${CMAKE_SOURCE_DIR}/src/dummyrenderer.cpp
+      ${CMAKE_SOURCE_DIR}/include/dummyrenderer.hpp
       ${CMAKE_SOURCE_DIR}/src/openglrenderer.cpp
       ${CMAKE_SOURCE_DIR}/include/openglrenderer.hpp
       ${CMAKE_SOURCE_DIR}/include/shader.hpp
@@ -75,8 +93,23 @@ if(COMPILE_GL)
       ${CMAKE_SOURCE_DIR}/include/debuglogger.hpp
       ${CMAKE_SOURCE_DIR}/src/servicelocator.cpp
       ${CMAKE_SOURCE_DIR}/include/servicelocator.hpp
+      ${CMAKE_SOURCE_DIR}/src/eventmanager.cpp
+      ${CMAKE_SOURCE_DIR}/include/eventmanager.hpp
+      ${CMAKE_SOURCE_DIR}/src/camera3d.cpp
+      ${CMAKE_SOURCE_DIR}/include/camera3d.hpp
+      ${CMAKE_SOURCE_DIR}/include/material.hpp
+      ${CMAKE_SOURCE_DIR}/src/glmaterial.cpp
+      ${CMAKE_SOURCE_DIR}/include/glmaterial.hpp
+      ${CMAKE_SOURCE_DIR}/src/materialmanager.cpp
+      ${CMAKE_SOURCE_DIR}/include/materialmanager.hpp
+      ${CMAKE_SOURCE_DIR}/src/dummymaterialmanager.cpp
+      ${CMAKE_SOURCE_DIR}/include/dummymaterialmanager.hpp
+      ${CMAKE_SOURCE_DIR}/include/scriptengine.hpp
+      ${CMAKE_SOURCE_DIR}/src/luascriptengine.cpp
+      ${CMAKE_SOURCE_DIR}/include/luascriptengine.hpp
   )
 
+  target_compile_definitions(CleanEngineGL PRIVATE GLM_FORCE_RADIANS)
   target_compile_definitions(CleanEngineGL PRIVATE RENDERER_OPENGL)
 
   target_include_directories(CleanEngineGL PUBLIC
@@ -89,6 +122,6 @@ if(COMPILE_GL)
     target_link_directories(CleanEngineGL PUBLIC win64)
     target_link_libraries(CleanEngineGL glfw3.lib glew32.lib opengl32.lib)
   elseif(UNIX)
-    target_link_libraries(CleanEngineGL -lglfw -lGLEW -lGL -ldl -lpthread)
+    target_link_libraries(CleanEngineGL -lglfw -lGLEW -lGL -ldl -lpthread -lassimp -lIL -lILU -llua5.3)
   endif()
 endif()

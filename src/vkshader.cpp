@@ -1,4 +1,5 @@
 #include "vkshader.hpp"
+#include <cstring>
 #include <fstream>
 
 VkShader::VkShader()
@@ -13,6 +14,15 @@ VkShader::~VkShader()
 {
     vkDestroyShaderModule(m_vkDevice.value(), m_vertModule, nullptr);
     vkDestroyShaderModule(m_vkDevice.value(), m_fragModule, nullptr);
+}
+
+void VkShader::load(const char *vdata, int vsize, const char *fdata, int fsize)
+{
+    if(!m_vkDevice.has_value())
+        throw std::runtime_error("Cannot create shader without vulkan device");
+
+    m_vertModule = createShader(vdata, vsize);
+    m_fragModule = createShader(fdata, fsize);
 }
 
 void VkShader::setDevice(const VkDevice &dev)
@@ -45,12 +55,12 @@ std::vector<char> VkShader::readShaderFile(const std::string &fname)
     return fData;
 }
 
-VkShaderModule VkShader::createShader(const std::vector<char> &code)
+VkShaderModule VkShader::createShader(const char *code, int codeSize)
 {
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    createInfo.codeSize = code.size();
-    createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+    createInfo.codeSize = codeSize;
+    createInfo.pCode = reinterpret_cast<const uint32_t*>(code);
 
     VkShaderModule module;
     if(vkCreateShaderModule(m_vkDevice.value(), &createInfo, nullptr, &module) != VK_SUCCESS)
@@ -66,8 +76,8 @@ void VkShader::load(const std::string &vs, const std::string &fs)
     std::vector<char> vsData = readShaderFile(vs),
                       fsData = readShaderFile(fs);
 
-    m_vertModule = createShader(vsData);
-    m_fragModule = createShader(fsData);
+    m_vertModule = createShader(vsData.data(), vsData.size());
+    m_fragModule = createShader(fsData.data(), fsData.size());
 }
 
 void VkShader::use()
@@ -77,5 +87,10 @@ void VkShader::use()
 
 void VkShader::setMat4(const std::string_view &id, const glm::mat4 &mat)
 {
+    // push constants or uniform buffer objects
+}
 
+void VkShader::setInt(const std::string_view &id, int a)
+{
+    // push constants?
 }

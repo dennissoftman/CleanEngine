@@ -21,18 +21,18 @@ public:
 
     void queueRenderObject(RenderObject *obj) override;
     void queueRenderObject(GLRenderObject obj);
-
     void draw() override;
 
-    void setShader(Shader &shader);
+    void setProjectionMatrix(const glm::mat4 &projmx) override;
+    void setViewMatrix(const glm::mat4 &viewmx) override;
 private:
     GLRenderObject createRenderObject(RenderObject *obj);
 
     GLuint m_VAO, m_VBO;
     std::vector<GLRenderObject> m_createdObjects;
     std::queue<GLRenderObject> m_renderQueue;
+    glm::mat4 m_projMatrix, m_viewMatrix;
 
-    Shader *m_currentShader;
     bool m_was_init;
 };
 

@@ -61,7 +61,8 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL customVkDebugCallback(VkDebugUtilsMessageS
 const std::string MODULE_NAME = "VulkanRenderer";
 
 VulkanRenderer::VulkanRenderer()
-    : m_requiredFeatures({}),
+    : m_projMatrix(glm::mat4(1)),
+      m_requiredFeatures({}),
       m_vkInstance(VK_NULL_HANDLE),
       m_vkDevice(VK_NULL_HANDLE)
 {
@@ -71,6 +72,15 @@ VulkanRenderer::VulkanRenderer()
 VulkanRenderer::~VulkanRenderer()
 {
     vkDeviceWaitIdle(m_vkDevice);
+
+    for (size_t i = 0; i < m_uniformBuffers.size(); i++)
+    {
+        vkDestroyBuffer(m_vkDevice, m_uniformBuffers[i], nullptr);
+        vkFreeMemory(m_vkDevice, m_uniformBuffersMemory[i], nullptr);
+    }
+    vkDestroyDescriptorPool(m_vkDevice, m_descriptorPool, nullptr);
+    vkDestroyDescriptorSetLayout(m_vkDevice, m_descriptorSetLayout, nullptr);
+
 
     //
     for(const VkRenderObject &obj : m_createdObjects)
@@ -225,17 +235,10 @@ void VulkanRenderer::init(const VideoMode &mode)
     std::vector<VkPhysicalDevice> pDevs(pDevCount);
     vkEnumeratePhysicalDevices(m_vkInstance, &pDevCount, pDevs.data());
 
-    logger.info(MODULE_NAME, "Detected devices:");
     for(const VkPhysicalDevice &pDev : pDevs)
     {
         VkPhysicalDeviceProperties props;
         vkGetPhysicalDeviceProperties(pDev, &props);
-        char buff[256];
-        sprintf(buff,
-                "\t%04X:%04X %s",
-                props.vendorID, props.deviceID,
-                props.deviceName);
-        logger.info(MODULE_NAME, buff);
 
         VkPhysicalDeviceFeatures feats;
         vkGetPhysicalDeviceFeatures(pDev, &feats);
@@ -253,6 +256,22 @@ void VulkanRenderer::init(const VideoMode &mode)
         throw std::runtime_error("Failed to find suitable vulkan device");
     }
     m_vkPhysicalDevice = targetPDev;
+
+    //
+    {
+        VkPhysicalDeviceProperties props;
+        vkGetPhysicalDeviceProperties(m_vkPhysicalDevice, &props);
+        if(props.apiVersion)
+        {
+            char buff[64];
+            snprintf(buff, 64, "Using Vulkan %d.%d.%d",
+                     VK_API_VERSION_MAJOR(props.apiVersion),
+                     VK_API_VERSION_MINOR(props.apiVersion),
+                     VK_API_VERSION_PATCH(props.apiVersion));
+            logger.info(MODULE_NAME, buff);
+        }
+    }
+    //
 
     // Create logical device
     uint32_t queueFamilyCount = 0;
@@ -303,6 +322,9 @@ void VulkanRenderer::init(const VideoMode &mode)
     graphicsQueueCreateInfo.queueFamilyIndex = queueIdx.graphicsQueueID.value();
 
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos = { graphicsQueueCreateInfo };
+
+    // experimental
+    m_requiredFeatures.sampleRateShading = VK_TRUE;
 
     VkDeviceCreateInfo deviceCreateInfo{};
     deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -455,6 +477,28 @@ void VulkanRenderer::init(const VideoMode &mode)
     }
     // =========================================================================================
 
+    // Create DescriptorSetLayout
+    {
+        VkDescriptorSetLayoutBinding uboLayoutBinding{};
+        uboLayoutBinding.binding = 0;
+        uboLayoutBinding.descriptorCount = 1;
+        uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        uboLayoutBinding.pImmutableSamplers = nullptr;
+        uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+        VkDescriptorSetLayoutCreateInfo layoutInfo{};
+        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        layoutInfo.bindingCount = 1;
+        layoutInfo.pBindings = &uboLayoutBinding;
+
+        if (vkCreateDescriptorSetLayout(m_vkDevice, &layoutInfo, nullptr, &m_descriptorSetLayout) != VK_SUCCESS)
+        {
+            logger.error(MODULE_NAME, "Failed to create DescriptorSetLayout");
+            throw std::runtime_error("failed to create descriptor set layout!");
+        }
+    }
+    // =========================================================================================
+
     // Create shaders and pipeline
 #pragma message("TODO:Independent shaders")
     {
@@ -480,19 +524,19 @@ void VulkanRenderer::init(const VideoMode &mode)
         //
         VkVertexInputBindingDescription bindingDescription{};
         bindingDescription.binding = 0;
-        bindingDescription.stride = sizeof(glm::vec2) + sizeof(glm::vec3);
+        bindingDescription.stride = sizeof(glm::vec3) + sizeof(glm::vec2);
         bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
         std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
         attributeDescriptions[0].binding = 0;
         attributeDescriptions[0].location = 0;
-        attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT; // vertCoord
         attributeDescriptions[0].offset = 0;
 
         attributeDescriptions[1].binding = 0;
         attributeDescriptions[1].location = 1;
-        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions[1].offset = sizeof(glm::vec2);
+        attributeDescriptions[1].format = VK_FORMAT_R32G32_SFLOAT; // texCoord
+        attributeDescriptions[1].offset = sizeof(glm::vec3);
         //
 
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
@@ -533,7 +577,7 @@ void VulkanRenderer::init(const VideoMode &mode)
         rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
         rasterizer.lineWidth = 1.0f;
         rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-        rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+        rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
         rasterizer.depthBiasEnable = VK_FALSE;
         rasterizer.depthBiasConstantFactor = 0.0f; // Optional
         rasterizer.depthBiasClamp = 0.0f; // Optional
@@ -541,9 +585,9 @@ void VulkanRenderer::init(const VideoMode &mode)
 
         VkPipelineMultisampleStateCreateInfo multisampling{};
         multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-        multisampling.sampleShadingEnable = VK_FALSE;
+        multisampling.sampleShadingEnable = VK_TRUE;
         multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-        multisampling.minSampleShading = 1.0f; // Optional
+        multisampling.minSampleShading = .2f;
         multisampling.pSampleMask = nullptr; // Optional
         multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
         multisampling.alphaToOneEnable = VK_FALSE; // Optional
@@ -583,17 +627,14 @@ void VulkanRenderer::init(const VideoMode &mode)
         dynamicState.pDynamicStates = dynamicStates.data();
         */
 
-        VkPushConstantRange pushConstant;
-        pushConstant.offset = 0;
-        pushConstant.size = sizeof(glm::mat4);
-        pushConstant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+        // =====================================================================================
 
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        pipelineLayoutInfo.setLayoutCount = 0; // Optional
-        pipelineLayoutInfo.pSetLayouts = nullptr; // Optional
-        pipelineLayoutInfo.pushConstantRangeCount = 1;
-        pipelineLayoutInfo.pPushConstantRanges = &pushConstant;
+        pipelineLayoutInfo.setLayoutCount = 1; // Optional
+        pipelineLayoutInfo.pSetLayouts = &m_descriptorSetLayout; // Optional
+        pipelineLayoutInfo.pushConstantRangeCount = 0;
+        pipelineLayoutInfo.pPushConstantRanges = nullptr;
 
         if(vkCreatePipelineLayout(m_vkDevice, &pipelineLayoutInfo, nullptr, &m_vkPipelineLayout) != VK_SUCCESS)
         {
@@ -682,6 +723,81 @@ void VulkanRenderer::init(const VideoMode &mode)
     }
     // =========================================================================================
 
+    // UBO
+    {
+        VkDeviceSize bufferSize = sizeof(VkShaderTransformData);
+
+        m_uniformBuffers.resize(m_vkSwapChainImages.size());
+        m_uniformBuffersMemory.resize(m_vkSwapChainImages.size());
+
+        for (size_t i = 0; i < m_vkSwapChainImages.size(); i++) {
+            createBuffer(m_vkDevice, m_vkPhysicalDevice,
+                         bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                         m_uniformBuffers[i], m_uniformBuffersMemory[i]);
+        }
+    }
+    // =========================================================================================
+
+    // DescriptorPool
+    {
+        VkDescriptorPoolSize poolSize{};
+        poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        poolSize.descriptorCount = static_cast<uint32_t>(m_vkSwapChainImages.size());
+
+        VkDescriptorPoolCreateInfo poolInfo{};
+        poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        poolInfo.poolSizeCount = 1;
+        poolInfo.pPoolSizes = &poolSize;
+        poolInfo.maxSets = static_cast<uint32_t>(m_vkSwapChainImages.size());
+
+        if (vkCreateDescriptorPool(m_vkDevice, &poolInfo, nullptr, &m_descriptorPool) != VK_SUCCESS)
+        {
+            logger.error(MODULE_NAME, "Failed to create descriptor pool");
+            throw std::runtime_error("failed to create descriptor pool!");
+        }
+    }
+    // =========================================================================================
+
+    // DescriptorSets
+    {
+        size_t frameCount = m_vkSwapChainImages.size();
+
+        std::vector<VkDescriptorSetLayout> layouts(frameCount, m_descriptorSetLayout);
+        VkDescriptorSetAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = m_descriptorPool;
+        allocInfo.descriptorSetCount = static_cast<uint32_t>(frameCount);
+        allocInfo.pSetLayouts = layouts.data();
+
+        m_descriptorSets.resize(frameCount);
+        if (vkAllocateDescriptorSets(m_vkDevice, &allocInfo, m_descriptorSets.data()) != VK_SUCCESS)
+        {
+            logger.error(MODULE_NAME, "Failed to allocate descriptor sets");
+            throw std::runtime_error("failed to allocate descriptor sets!");
+        }
+
+        for (size_t i = 0; i < frameCount; i++)
+        {
+            VkDescriptorBufferInfo bufferInfo{};
+            bufferInfo.buffer = m_uniformBuffers[i];
+            bufferInfo.offset = 0;
+            bufferInfo.range = sizeof(VkShaderTransformData);
+
+            VkWriteDescriptorSet descriptorWrite{};
+            descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrite.dstSet = m_descriptorSets[i];
+            descriptorWrite.dstBinding = 0;
+            descriptorWrite.dstArrayElement = 0;
+            descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            descriptorWrite.descriptorCount = 1;
+            descriptorWrite.pBufferInfo = &bufferInfo;
+
+            vkUpdateDescriptorSets(m_vkDevice, 1, &descriptorWrite, 0, nullptr);
+        }
+    }
+    // =========================================================================================
+
     // Sync objects
     {
         VkSemaphoreCreateInfo semaphoreInfo{};
@@ -727,44 +843,17 @@ VkRenderObject VulkanRenderer::createRenderObject(RenderObject *obj)
     VkRenderObject vObj;
     vObj.parent = obj;
     //
-    VkBufferCreateInfo bufferInfo{};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = obj->model->tris.size() * sizeof(Triangle2D);
-    bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    if(vkCreateBuffer(m_vkDevice, &bufferInfo, nullptr, &vObj.vertexBuffer) != VK_SUCCESS)
-    {
-        ServiceLocator::getLogger().error(MODULE_NAME, "Failed to create VkBuffer");
-        throw std::runtime_error("Failed to create VkBuffer");
-    }
-
-    // Check for memory, meh
-    VkMemoryRequirements memReqs;
-    vkGetBufferMemoryRequirements(m_vkDevice, vObj.vertexBuffer, &memReqs);
-
-    // Allocate memory
-    VkDeviceMemory vertexBufferMemory;
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memReqs.size;
-    allocInfo.memoryTypeIndex = findMemoryType(m_vkPhysicalDevice,
-                                               memReqs.memoryTypeBits,
-                                               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                               VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-    if(vkAllocateMemory(m_vkDevice, &allocInfo, nullptr, &vertexBufferMemory) != VK_SUCCESS)
-    {
-        ServiceLocator::getLogger().error(MODULE_NAME, "Failed to allocate memory for vertex buffer");
-        throw std::runtime_error("Failed to allocate memory for vertex buffer");
-    }
-    vkBindBufferMemory(m_vkDevice, vObj.vertexBuffer, vertexBufferMemory, 0);
+    size_t buffSize = obj->model->tris.size() * sizeof(Triangle3D);
+    createBuffer(m_vkDevice, m_vkPhysicalDevice, buffSize,
+                 VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                 vObj.vertexBuffer, vObj.vertexBufferMemory);
 
     // Map memory
     void *data;
-    vkMapMemory(m_vkDevice, vertexBufferMemory, 0, bufferInfo.size, 0, &data);
-    memcpy(data, obj->model->tris.data(), obj->model->tris.size() * sizeof(Triangle2D));
-    vkUnmapMemory(m_vkDevice, vertexBufferMemory);
+    vkMapMemory(m_vkDevice, vObj.vertexBufferMemory, 0, buffSize, 0, &data);
+    memcpy(data, obj->model->tris.data(), obj->model->tris.size() * sizeof(Triangle3D));
+    vkUnmapMemory(m_vkDevice, vObj.vertexBufferMemory);
 
     return vObj;
 }
@@ -844,6 +933,40 @@ VkExtent2D VulkanRenderer::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capa
     }
 }
 
+void VulkanRenderer::createBuffer(VkDevice lDev, VkPhysicalDevice pDev, VkDeviceSize size,
+                                  VkBufferUsageFlags usage, VkMemoryPropertyFlags props,
+                                  VkBuffer &buffer, VkDeviceMemory &bufferMemory)
+{
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = size;
+    bufferInfo.usage = usage;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if(vkCreateBuffer(lDev, &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
+    {
+        ServiceLocator::getLogger().error(MODULE_NAME, "Failed to create VkBuffer");
+        throw std::runtime_error("Failed to create VkBuffer");
+    }
+
+    // Check for memory, meh
+    VkMemoryRequirements memReqs;
+    vkGetBufferMemoryRequirements(lDev, buffer, &memReqs);
+
+    // Allocate memory
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memReqs.size;
+    allocInfo.memoryTypeIndex = findMemoryType(pDev, memReqs.memoryTypeBits, props);
+
+    if(vkAllocateMemory(lDev, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS)
+    {
+        ServiceLocator::getLogger().error(MODULE_NAME, "Failed to allocate memory for buffer");
+        throw std::runtime_error("Failed to allocate memory for buffer");
+    }
+    vkBindBufferMemory(lDev, buffer, bufferMemory, 0);
+}
+
 uint32_t VulkanRenderer::findMemoryType(VkPhysicalDevice pDev, uint32_t typeFilter, VkMemoryPropertyFlags properties)
 {
     VkPhysicalDeviceMemoryProperties memProperties;
@@ -893,15 +1016,27 @@ void VulkanRenderer::recordCommandBuffer(VkCommandBuffer buffer, int imageIdx)
                 continue;
             }
 
-            VkBuffer vertexBuffers[] = {obj.vertexBuffer};
-            VkDeviceSize offsets[] = {0};
+            // update UBO
+            bool m_transformDataChanged = true; // for now
+            if(m_transformDataChanged)
+            {
+                VkShaderTransformData ubo{};
+                ubo.modelMatrix = obj.parent->modelMatrix;
+                ubo.projMatrix = m_projMatrix;
+                ubo.viewMatrix = m_viewMatrix;
 
-            vkCmdPushConstants(buffer,
-                               m_vkPipelineLayout,
-                               VK_SHADER_STAGE_VERTEX_BIT,
-                               0, sizeof(glm::mat4), &obj.parent->modelMatrix[0][0]);
+                void* data;
+                vkMapMemory(m_vkDevice, m_uniformBuffersMemory[imageIdx], 0, sizeof(ubo), 0, &data);
+                memcpy(data, &ubo, sizeof(ubo));
+                vkUnmapMemory(m_vkDevice, m_uniformBuffersMemory[imageIdx]);
+            }
+            //
 
-            vkCmdBindVertexBuffers(buffer, 0, 1, vertexBuffers, offsets);
+            VkBuffer vertexBuffers[] = { obj.vertexBuffer };
+            VkDeviceSize buffOffsets[] = { 0 };
+            vkCmdBindVertexBuffers(buffer, 0, 1, vertexBuffers, buffOffsets);
+            vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                    m_vkPipelineLayout, 0, 1, &m_descriptorSets[imageIdx], 0, nullptr);
             vkCmdDraw(buffer, obj.parent->model->tris.size()*3, 1, 0, 0);
 
             m_renderQueue.pop();
@@ -1005,6 +1140,16 @@ void VulkanRenderer::draw()
     presentInfo.pImageIndices = &imageIndex;
 
     vkQueuePresentKHR(m_vkPresentQueue, &presentInfo);
+}
+
+void VulkanRenderer::setProjectionMatrix(const glm::mat4 &projmx)
+{
+    m_projMatrix = projmx;
+}
+
+void VulkanRenderer::setViewMatrix(const glm::mat4 &viewmx)
+{
+    m_viewMatrix = viewmx;
 }
 
 void VulkanRenderer::setRequiredFeatures(VkPhysicalDeviceFeatures feats)

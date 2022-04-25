@@ -7,7 +7,7 @@
 const std::string MODULE_NAME = "OpenGLRenderer";
 
 OpenGLRenderer::OpenGLRenderer()
-    : m_currentShader(NULL), m_was_init(false)
+    : m_projMatrix(glm::mat4(1)), m_was_init(false)
 {
 
 }
@@ -24,6 +24,7 @@ OpenGLRenderer::~OpenGLRenderer()
 void OpenGLRenderer::init(const VideoMode &mode)
 {
     assert (!m_was_init && "Can't init renderer twice");
+
     glewExperimental = GL_TRUE;
 
     GLenum err = glewInit();
@@ -34,14 +35,28 @@ void OpenGLRenderer::init(const VideoMode &mode)
         throw std::runtime_error("Failed to init GLEW");
     }
 
+    //
+    const char *glVerStr = (const char*)glGetString(GL_VERSION);
+    if(glVerStr)
+        ServiceLocator::getLogger().info(MODULE_NAME, "Using OpenGL "+std::string(glVerStr));
+    else
+        ServiceLocator::getLogger().info(MODULE_NAME, "Using unknown OpenGL version");
+    //
+
     glViewport(0, 0, mode.width, mode.height);
 
-    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+    glDepthRange(0.f, 1.f);
+
     glEnable(GL_MULTISAMPLE);
 
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
-    glFrontFace(GL_CW);
+    glFrontFace(GL_CCW);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     m_was_init = true;
 }
@@ -68,8 +83,9 @@ void OpenGLRenderer::queueRenderObject(GLRenderObject obj)
 
 void OpenGLRenderer::draw()
 {
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    glActiveTexture(GL_TEXTURE0);
     while(m_renderQueue.size() > 0)
     {
         GLRenderObject obj = m_renderQueue.front();
@@ -78,18 +94,29 @@ void OpenGLRenderer::draw()
             m_renderQueue.pop();
             continue;
         }
-        obj.parent->shader->use();
-        obj.parent->shader->setMat4("modelMatrix", obj.parent->modelMatrix);
+
+        obj.parent->mat->use(TransformData{
+                                 .Projection = m_projMatrix,
+                                 .View = m_viewMatrix,
+                                 .Model = obj.parent->modelMatrix
+                             });
+
         glBindVertexArray(obj.vao);
             glDrawArrays(GL_TRIANGLES, 0, obj.parent->model->tris.size()*3);
         glBindVertexArray(0);
         m_renderQueue.pop();
     }
+    glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-void OpenGLRenderer::setShader(Shader &shader)
+void OpenGLRenderer::setProjectionMatrix(const glm::mat4 &projmx)
 {
-    m_currentShader = &shader;
+    m_projMatrix = projmx;
+}
+
+void OpenGLRenderer::setViewMatrix(const glm::mat4 &viewmx)
+{
+    m_viewMatrix = viewmx;
 }
 
 GLRenderObject OpenGLRenderer::createRenderObject(RenderObject *obj)
@@ -104,24 +131,24 @@ GLRenderObject OpenGLRenderer::createRenderObject(RenderObject *obj)
     glBindBuffer(GL_ARRAY_BUFFER, gObj.vbo);
 
     glBufferData(GL_ARRAY_BUFFER,
-                 obj->model->tris.size() * sizeof(Triangle2D),
+                 obj->model->tris.size() * sizeof(Triangle3D),
                  obj->model->tris.data(),
                  GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0,
-                          2,
+                          3,
                           GL_FLOAT,
                           GL_FALSE,
                           5*sizeof(GLfloat),
                           (GLvoid*)0);
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1,
-                          3,
+                          2,
                           GL_FLOAT,
                           GL_FALSE,
                           5*sizeof(GLfloat),
-                          (GLvoid*)(2*sizeof(GLfloat)));
+                          (GLvoid*)(3*sizeof(GLfloat)));
 
     glBindVertexArray(0);
 

@@ -1,18 +1,19 @@
 #version 450
 
-layout(location = 0) in vec2 vertexPos;
-layout(location = 1) in vec3 vertexColor;
+layout(location = 0) in vec3 vertCoord;
+layout(location = 1) in vec2 texCoord;
 
 layout(location = 0) out vec3 color;
 
-layout(push_constant) uniform constants
-{
+layout(binding = 0) uniform VkShaderTransformData {
     mat4 modelMatrix;
-} obj;
+    mat4 viewMatrix;
+    mat4 projMatrix;
+} ubo;
 
 void main()
 {
-    color = vertexColor;
+    gl_Position = ubo.projMatrix * ubo.viewMatrix * ubo.modelMatrix * vec4(vertCoord, 1.0);
     
-    gl_Position = obj.modelMatrix * vec4(vertexPos + vec2(gl_InstanceIndex%10, gl_InstanceIndex/10)*0.01, 0.0, 1.0);
+    color = vec3(texCoord, 0);
 } 

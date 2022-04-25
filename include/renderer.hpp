@@ -2,6 +2,8 @@
 #define RENDERER_HPP
 
 #include "shader.hpp"
+#include "material.hpp"
+
 #include <queue>
 #include <glm/glm.hpp>
 
@@ -16,26 +18,27 @@ struct VideoMode
     bool fullscreen;
 };
 
-struct Triangle2D
+// vertCoord, texCoord [, normCoord]
+struct Triangle3D
 {
-    glm::vec2 v0; glm::vec3 c0;
-    glm::vec2 v1; glm::vec3 c1;
-    glm::vec2 v2; glm::vec3 c2;
+    glm::vec3 v0; glm::vec2 t0;
+    glm::vec3 v1; glm::vec2 t1;
+    glm::vec3 v2; glm::vec2 t2;
 };
 
-struct Model2D
+struct Model3D
 {
-    Model2D() {}
-    Model2D(const std::vector<Triangle2D> &t)
+    Model3D() {}
+    Model3D(const std::vector<Triangle3D> &t)
         : tris(t)
     { }
-    std::vector<Triangle2D> tris;
+    std::vector<Triangle3D> tris;
 };
 
 struct RenderObject
 {
-    Model2D *model;
-    Shader *shader;
+    const Model3D *model;
+    Material *mat;
 
     glm::mat4 modelMatrix;
     const void *pUserData;
@@ -48,6 +51,9 @@ public:
 
     virtual void queueRenderObject(RenderObject *obj) = 0;
     virtual void draw() = 0;
+
+    virtual void setProjectionMatrix(const glm::mat4 &projmx) = 0;
+    virtual void setViewMatrix(const glm::mat4 &viewmx) = 0;
 };
 
 #endif // RENDERER_HPP
