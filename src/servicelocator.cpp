@@ -5,7 +5,10 @@ Renderer *ServiceLocator::m_renderer = nullptr;
 DummyRenderer ServiceLocator::m_defaultRenderer = DummyRenderer();
 
 MaterialManager *ServiceLocator::m_matmgr = nullptr;
-DummyMaterialManager ServiceLocator::m_defaultMatManager = DummyMaterialManager();
+
+ModelManager *ServiceLocator::m_mdlmgr = nullptr;
+
+SceneManager *ServiceLocator::m_scnmgr = nullptr;
 
 DummyLogger ServiceLocator::m_defaultLogger = DummyLogger();
 Logger *ServiceLocator::m_logger = nullptr;
@@ -13,7 +16,9 @@ Logger *ServiceLocator::m_logger = nullptr;
 void ServiceLocator::init()
 {
     m_renderer = &m_defaultRenderer;
-    m_matmgr = &m_defaultMatManager;
+    m_matmgr = new MaterialManager();
+    m_mdlmgr = new ModelManager();
+    m_scnmgr = new SceneManager();
     m_logger = &m_defaultLogger;
 }
 
@@ -39,6 +44,28 @@ void ServiceLocator::setMatManager(MaterialManager *mgr)
         m_matmgr = mgr;
 }
 
+ModelManager &ServiceLocator::getModelManager()
+{
+    return *m_mdlmgr;
+}
+
+void ServiceLocator::setModelManager(ModelManager *mgr)
+{
+    if(mgr)
+        m_mdlmgr = mgr;
+}
+
+SceneManager &ServiceLocator::getSceneManager()
+{
+    return *m_scnmgr;
+}
+
+void ServiceLocator::setSceneManager(SceneManager *mgr)
+{
+    if(mgr)
+        m_scnmgr = mgr;
+}
+
 Logger &ServiceLocator::getLogger()
 {
     return *m_logger;
@@ -55,8 +82,9 @@ void ServiceLocator::clear()
     if(m_renderer != &m_defaultRenderer)
         delete m_renderer;
 
-    if(m_matmgr != &m_defaultMatManager)
-        delete m_matmgr;
+    delete m_matmgr;
+    delete m_mdlmgr;
+    delete m_scnmgr;
 
     if(m_logger != &m_defaultLogger)
         delete m_logger;

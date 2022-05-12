@@ -8,6 +8,7 @@
 static const char *MODULE_NAME = "GLMaterial";
 
 GLMaterial::GLMaterial()
+    : m_doubleSided(false)
 {
 
 }
@@ -67,16 +68,21 @@ void GLMaterial::init()
 #version 450 core
 layout(location = 0) in vec3 vertCoord;
 layout(location = 1) in vec2 texCoord;
+layout(location = 2) in vec3 normCoord;
 
 uniform mat4 modelMatrix;
 uniform mat4 viewMatrix;
 uniform mat4 projMatrix;
 
+out vec3 vertPos;
 out vec2 texPos;
+out vec3 normPos;
 
 void main()
 {
+    vertPos = vertCoord;
     texPos = texCoord;
+    normPos = normCoord;
     gl_Position = projMatrix * viewMatrix * modelMatrix * vec4(vertCoord, 1.0);
 }
 )";
@@ -84,13 +90,13 @@ void main()
 #version 450 core
 out vec4 fragColor;
 
-uniform sampler2D img;
-
+in vec3 vertPos;
 in vec2 texPos;
+in vec3 normPos;
 
 void main()
 {
-    fragColor = texture(img, texPos);
+    fragColor = vec4(normalize(vertPos + normPos), 1.0);
 }
 )";
 
@@ -112,16 +118,6 @@ void GLMaterial::use(const TransformData &data)
     m_shader.setMat4(GL_MAT_PROJ_MX, data.Projection);
     m_shader.setMat4(GL_MAT_VIEW_MX, data.View);
     m_shader.setMat4(GL_MAT_MODEL_MX, data.Model);
-
-    int i=0;
-    for(auto &kv : m_textures)
-    {
-        m_shader.setInt(kv.first, i);
-        glActiveTexture(GL_TEXTURE0+i);
-        glBindTexture(GL_TEXTURE_2D, kv.second);
-
-        i++;
-    }
 
     if(m_doubleSided)
         glDisable(GL_CULL_FACE);

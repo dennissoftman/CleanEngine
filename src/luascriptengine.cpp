@@ -1,5 +1,6 @@
 #include "luascriptengine.hpp"
 #include "servicelocator.hpp"
+#include <stdio_ext.h>
 
 const char *MODULE_NAME = "LuaScriptEngine";
 
@@ -8,8 +9,14 @@ LuaScriptEngine::LuaScriptEngine()
 
 }
 
+LuaScriptEngine::~LuaScriptEngine()
+{
+
+}
+
 void LuaScriptEngine::init()
 {
+
     m_globalState = luaL_newstate();
     luaL_openlibs(m_globalState);
 
@@ -30,10 +37,12 @@ void LuaScriptEngine::init()
             .endNamespace();
     //
 
+    /*
     if(luaL_dofile(m_globalState, "data/scripts/init.lua") == 0)
     {
         lua_pcall(m_globalState, 0, 0, 0);
     }
+    */
 }
 
 void LuaScriptEngine::setViewportSize(int width, int height)
@@ -41,9 +50,9 @@ void LuaScriptEngine::setViewportSize(int width, int height)
     print("Resize: " + std::to_string(width) + "x" + std::to_string(height));
 }
 
-void LuaScriptEngine::GcreateMaterial(const char *name, const char *imgFile)
+void LuaScriptEngine::GcreateMaterial(const std::string &name, const std::string &imgFile)
 {
-
+    ServiceLocator::getLogger().info(MODULE_NAME, "Importing " + name + " from '" + imgFile + "'");
 }
 
 void LuaScriptEngine::print(const std::string &s)

@@ -1,6 +1,7 @@
 #include "debuglogger.hpp"
 #include <cstdio>
 #include <ctime>
+#include <string>
 
 inline std::string get_timestamp()
 {
@@ -22,20 +23,22 @@ inline std::string get_timestamp()
     return std::string(buff);
 }
 
+DebugLogger::~DebugLogger()
+{
+
+}
+
 void DebugLogger::info(const std::string_view &module, const std::string_view &msg)
 {
-    if(m_infoFP != NULL)
-        fprintf(m_infoFP, "%s INFO [%s] %s\n", get_timestamp().c_str(), module.data(), msg.data());
+    fprintf(m_infoFP, "%s INFO [%s] %s\n", get_timestamp().c_str(), module.data(), msg.data());
 }
 
 void DebugLogger::warning(const std::string_view &module, const std::string_view &msg)
 {
-    if(m_warnFP != NULL)
-        fprintf(m_warnFP, "%s WARNING [%s] %s\n", get_timestamp().c_str(), module.data(), msg.data());
+    fprintf(m_warnFP, "%s WARNING [%s] %s\n", get_timestamp().c_str(), module.data(), msg.data());
 }
 
 void DebugLogger::error(const std::string_view &module, const std::string_view &msg)
 {
-    if(m_errorFP != NULL)
-        fprintf(m_errorFP, "%s ERROR [%s] %s\n", get_timestamp().c_str(), module.data(), msg.data());
+    fprintf(m_errorFP, "%s ERROR [%s] %s\n", get_timestamp().c_str(), module.data(), msg.data());
 }

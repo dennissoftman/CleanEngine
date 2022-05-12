@@ -1,10 +1,13 @@
 #include "openglrenderer.hpp"
-#include "shader.hpp"
-#include <cstdio>
-#include <cassert>
+#include "glmaterial.hpp"
 #include "servicelocator.hpp"
 
+#include <cstdio>
+#include <cassert>
+
 const std::string MODULE_NAME = "OpenGLRenderer";
+
+static GLMaterial *globalUVmaterial = nullptr;
 
 OpenGLRenderer::OpenGLRenderer()
     : m_projMatrix(glm::mat4(1)), m_was_init(false)
@@ -14,11 +17,11 @@ OpenGLRenderer::OpenGLRenderer()
 
 OpenGLRenderer::~OpenGLRenderer()
 {
-    for(const GLRenderObject &obj : m_createdObjects)
-    {
-        glDeleteVertexArrays(1, &obj.vao);
-        glDeleteBuffers(1, &obj.vbo);
-    }
+    while(!m_renderQueue.empty())
+        m_renderQueue.pop();
+
+    for(GLRenderObject *obj : m_createdObjects)
+        delete obj;
 }
 
 void OpenGLRenderer::init(const VideoMode &mode)
@@ -58,27 +61,33 @@ void OpenGLRenderer::init(const VideoMode &mode)
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+    // fallback material
+    globalUVmaterial = new GLMaterial();
+    globalUVmaterial->init();
+    //
+
     m_was_init = true;
+    ServiceLocator::getLogger().info(MODULE_NAME, "Init complete");
 }
 
-void OpenGLRenderer::queueRenderObject(RenderObject *obj)
+void OpenGLRenderer::queueRenderObject(const Model3D *obj, const glm::mat4 &modelMatrix)
 {
-    for(const GLRenderObject &gObj : m_createdObjects)
+    for(GLRenderObject *gObj : m_createdObjects)
     {
-        if(gObj.parent == obj)
+        if(gObj->parent == obj)
         {
-            queueRenderObject(gObj);
+            queueRenderObject(gObj, modelMatrix);
             return;
         }
     }
-    GLRenderObject gObj = createRenderObject(obj);
+    GLRenderObject *gObj = createRenderObject(obj);
     m_createdObjects.push_back(gObj);
-    queueRenderObject(gObj);
+    queueRenderObject(gObj, modelMatrix);
 }
 
-void OpenGLRenderer::queueRenderObject(GLRenderObject obj)
+void OpenGLRenderer::queueRenderObject(GLRenderObject *obj, const glm::mat4 &modelMatrix)
 {
-    m_renderQueue.push(obj);
+    m_renderQueue.push(GLRenderRequest{.renderObject = obj, .modelMatrix = modelMatrix});
 }
 
 void OpenGLRenderer::draw()
@@ -88,22 +97,34 @@ void OpenGLRenderer::draw()
     glActiveTexture(GL_TEXTURE0);
     while(m_renderQueue.size() > 0)
     {
-        GLRenderObject obj = m_renderQueue.front();
-        if(obj.parent == NULL)
+        GLRenderRequest req = m_renderQueue.front();
+        if(req.renderObject == NULL)
         {
             m_renderQueue.pop();
             continue;
         }
 
-        obj.parent->mat->use(TransformData{
-                                 .Projection = m_projMatrix,
-                                 .View = m_viewMatrix,
-                                 .Model = obj.parent->modelMatrix
-                             });
+        GLRenderObject *obj = req.renderObject;
+        if(obj->parent == NULL)
+        {
+            m_renderQueue.pop();
+            continue;
+        }
 
-        glBindVertexArray(obj.vao);
-            glDrawArrays(GL_TRIANGLES, 0, obj.parent->model->tris.size()*3);
-        glBindVertexArray(0);
+        for(size_t i=0; i < obj->meshCount; i++)
+        {
+            globalUVmaterial->use(TransformData{
+                                      .Projection = m_projMatrix,
+                                      .View = m_viewMatrix,
+                                      .Model = req.modelMatrix
+                                  });
+
+            glBindVertexArray(obj->VAOs[i]);
+            glDrawArrays(GL_TRIANGLES, 0, obj->parent->pMeshes[i].tris.size()*3);
+            glBindVertexArray(0);
+        }
+        //
+
         m_renderQueue.pop();
     }
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -119,38 +140,7 @@ void OpenGLRenderer::setViewMatrix(const glm::mat4 &viewmx)
     m_viewMatrix = viewmx;
 }
 
-GLRenderObject OpenGLRenderer::createRenderObject(RenderObject *obj)
+GLRenderObject *OpenGLRenderer::createRenderObject(const Model3D *obj)
 {
-    GLRenderObject gObj;
-    gObj.parent = obj;
-
-    glGenVertexArrays(1, &gObj.vao);
-    glGenBuffers(1, &gObj.vbo);
-
-    glBindVertexArray(gObj.vao);
-    glBindBuffer(GL_ARRAY_BUFFER, gObj.vbo);
-
-    glBufferData(GL_ARRAY_BUFFER,
-                 obj->model->tris.size() * sizeof(Triangle3D),
-                 obj->model->tris.data(),
-                 GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0,
-                          3,
-                          GL_FLOAT,
-                          GL_FALSE,
-                          5*sizeof(GLfloat),
-                          (GLvoid*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1,
-                          2,
-                          GL_FLOAT,
-                          GL_FALSE,
-                          5*sizeof(GLfloat),
-                          (GLvoid*)(3*sizeof(GLfloat)));
-
-    glBindVertexArray(0);
-
-    return gObj;
+    return new GLRenderObject(obj);
 }

@@ -71,82 +71,8 @@ public:
 
     void setProjectionMatrix(const glm::mat4 &projmx) override;
     void setViewMatrix(const glm::mat4 &viewmx) override;
-
-    // vulkan-only
-    VkRenderObject createRenderObject(RenderObject *obj);
-
-    void createSurface();
-    void setSurfaceProps(const NativeSurfaceProps &props);
-
-    void addValidationLayer(const char *lay);
-    void addInstanceExtension(const char *ext);
-    void setRequiredFeatures(VkPhysicalDeviceFeatures feats);
-    void addDeviceExtension(const char *ext);
-
 private:
-    bool checkValidationLayerSupport();
-    static void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT &createInfo);
-    static SwapChainSupportDetails querySwapChainSupport(const VkPhysicalDevice &device, const VkSurfaceKHR &surface);
-    static VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR> &availablePresentModes);
-    static VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &availableFormats);
-    static VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities, int viewWidth, int viewHeight);
 
-    static void createBuffer(VkDevice lDev, VkPhysicalDevice pDev, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags props, VkBuffer &buffer, VkDeviceMemory &bufferMemory);
-
-    static uint32_t findMemoryType(VkPhysicalDevice pDev, uint32_t typeFilter, VkMemoryPropertyFlags properties);
-
-    void recordCommandBuffer(VkCommandBuffer buffer, int imageIdx);
-
-    std::vector<VkRenderObject> m_createdObjects;
-    std::queue<VkRenderObject> m_renderQueue;
-    glm::mat4 m_projMatrix, m_viewMatrix;
-
-    int m_viewWidth, m_viewHeight;
-    std::vector<const char*> m_instanceExtensions, m_deviceExtensions;
-    VkPhysicalDeviceFeatures m_requiredFeatures;
-#ifndef NDEBUG
-    std::vector<const char*> m_validationLayers;
-    VkDebugUtilsMessengerEXT m_vkDebugMessenger;
-#endif
-
-    VkInstance m_vkInstance;
-    VkPhysicalDevice m_vkPhysicalDevice;
-    VkDevice m_vkDevice;
-
-    VkSurfaceKHR m_vkSurface;
-    NativeSurfaceProps m_nativeProps;
-
-    VkQueue m_vkGraphicsQueue, m_vkPresentQueue;
-
-    VkSwapchainKHR m_vkSwapChain;
-    std::vector<VkImage> m_vkSwapChainImages;
-    VkFormat m_vkSwapChainImageFormat;
-    VkExtent2D m_vkSwapChainExtent;
-
-    std::vector<VkImageView> m_vkSwapChainImageViews;
-
-    // DSL, UBO
-    VkDescriptorSetLayout m_descriptorSetLayout;
-    std::vector<VkBuffer> m_uniformBuffers;
-    std::vector<VkDeviceMemory> m_uniformBuffersMemory;
-    VkDescriptorPool m_descriptorPool;
-    std::vector<VkDescriptorSet> m_descriptorSets;
-    //
-
-    VkRenderPass m_vkRenderPass;
-    VkPipelineLayout m_vkPipelineLayout;
-    VkPipeline m_vkGraphicsPipeline;
-
-    std::vector<VkFramebuffer> m_vkSwapChainFramebuffers;
-
-    // TEMP
-    VkCommandPool m_vkCommandPool;
-    VkCommandBuffer m_vkCommandBuffer;
-
-    VkSemaphore m_vkImageAvailableSemaphore;
-    VkSemaphore m_vkRenderFinishedSemaphore;
-    VkFence m_vkInFlightFence;
-    // =======================================
 };
 
 #endif // VULKANRENDERER_HPP

@@ -5,10 +5,13 @@
 #include "dummyrenderer.hpp"
 
 #include "materialmanager.hpp"
-#include "dummymaterialmanager.hpp"
+
+#include "modelmanager.hpp"
 
 #include "logger.hpp"
 #include "dummylogger.hpp"
+
+#include "scenemanager.hpp"
 
 class ServiceLocator
 {
@@ -23,6 +26,14 @@ public:
     static MaterialManager &getMatManager();
     static void setMatManager(MaterialManager *mgr);
 
+    // models
+    static ModelManager &getModelManager();
+    static void setModelManager(ModelManager *mgr);
+
+    // scene management
+    static SceneManager &getSceneManager();
+    static void setSceneManager(SceneManager *mgr); // pretty useless
+
     // logging
     static Logger &getLogger();
     static void setLogger(Logger *logger);
@@ -36,7 +47,12 @@ private:
 
     // materials
     static MaterialManager *m_matmgr;
-    static DummyMaterialManager m_defaultMatManager;
+
+    // models
+    static ModelManager *m_mdlmgr;
+
+    // scene management
+    static SceneManager *m_scnmgr;
 
     // logging
     static Logger *m_logger;

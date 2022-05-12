@@ -11,7 +11,7 @@ public:
 
     void init(const VideoMode &mode) override;
 
-    void queueRenderObject(RenderObject *obj) override;
+    void queueRenderObject(const Model3D *obj, const glm::mat4 &modelMatrix) override;
     void draw() override;
 
     void setViewMatrix(const glm::mat4 &viewmx) override;

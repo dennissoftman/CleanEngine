@@ -13,6 +13,8 @@ struct TransformData
 class Material
 {
 public:
+    static Material *createMaterial();
+
     // create shader and init fields
     virtual void init() = 0;
 

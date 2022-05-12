@@ -18,9 +18,10 @@ void DummyRenderer::init(const VideoMode &mode)
                        std::to_string(mode.height) +")");
 }
 
-void DummyRenderer::queueRenderObject(RenderObject *obj)
+void DummyRenderer::queueRenderObject(const Model3D *obj, const glm::mat4 &modelMatrix)
 {
     (void)obj;
+    (void)modelMatrix;
 }
 
 void DummyRenderer::draw()
