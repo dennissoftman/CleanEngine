@@ -86,7 +86,11 @@ void main()
     gl_Position = projMatrix * viewMatrix * modelMatrix * vec4(vertCoord, 1.0);
 }
 )";
-    std::string fragmentShader = R"(
+
+    std::string fragmentShader;
+    if (m_textures.empty())
+    {
+        fragmentShader = R"(
 #version 450 core
 out vec4 fragColor;
 
@@ -96,9 +100,28 @@ in vec3 normPos;
 
 void main()
 {
-    fragColor = vec4(normalize(vertPos + normPos), 1.0);
+    fragColor = vec4(texPos, 1.0, 1.0);
 }
-)";
+        )";
+    }
+    else
+    {
+        fragmentShader = R"(
+#version 450 core
+out vec4 fragColor;
+
+uniform sampler2D img;
+
+in vec3 vertPos;
+in vec2 texPos;
+in vec3 normPos;
+
+void main()
+{
+    fragColor = texture(img, texPos);
+}
+        )";
+    }
 
     m_shader.load(vertexShader.data(), vertexShader.size(),
                   fragmentShader.data(), fragmentShader.size());
@@ -106,12 +129,14 @@ void main()
     //
 }
 
-void GLMaterial::setImage(const std::string &name, const std::string &path)
+void GLMaterial::setImage(const std::string &path, const std::string &name)
 {
-    m_textures[name] = loadTexture(path);
+    // TODO
+    m_textures["img"] = loadTexture(path);
+    // m_textures[name] = loadTexture(path);
 }
 
-void GLMaterial::use(const TransformData &data)
+void GLMaterial::use(TransformData& data)
 {
     m_shader.use();
     // bind textures, set colors, set matrices
@@ -119,10 +144,17 @@ void GLMaterial::use(const TransformData &data)
     m_shader.setMat4(GL_MAT_VIEW_MX, data.View);
     m_shader.setMat4(GL_MAT_MODEL_MX, data.Model);
 
-    if(m_doubleSided)
+    if (m_doubleSided)
         glDisable(GL_CULL_FACE);
     else
         glEnable(GL_CULL_FACE);
+
+    if (m_textures.size() > 0)
+    {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_textures["img"]);
+        m_shader.setInt("img", 0);
+    }
 }
 
 void GLMaterial::setDoubleSided(bool yes)

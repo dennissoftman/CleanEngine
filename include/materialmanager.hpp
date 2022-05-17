@@ -10,6 +10,7 @@ class MaterialManager
 {
 public:
     MaterialManager();
+    ~MaterialManager();
 
     void addMaterial(const std::string &name, Material *mat);
 

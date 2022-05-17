@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <algorithm>
 #include <string_view>
+#include <vector>
 
 class Logger
 {
@@ -14,25 +15,25 @@ public:
     virtual void warning(const std::string_view &module, const std::string_view &msg) = 0;
     virtual void error(const std::string_view &module, const std::string_view &msg) = 0;
 
-    virtual void setInfoFP(FILE *fp)
+    virtual void addInfoFP(FILE *fp)
     {
         if(fp != NULL)
-            m_infoFP = fp;
+            m_infoFP.push_back(fp);
     }
-    virtual void setWarningFP(FILE *fp)
+    virtual void addWarningFP(FILE *fp)
     {
         if(fp != NULL)
-            m_warnFP = fp;
+            m_warnFP.push_back(fp);
     }
-    virtual void setErrorFP(FILE *fp)
+    virtual void addErrorFP(FILE *fp)
     {
-        if(m_errorFP != NULL)
-            m_errorFP = fp;
+        if(fp != NULL)
+            m_errorFP.push_back(fp);
     }
 protected:
-    FILE *m_infoFP = stdout;
-    FILE *m_warnFP = stdout;
-    FILE *m_errorFP = stderr;
+    std::vector<FILE*> m_infoFP;
+    std::vector<FILE*> m_warnFP;
+    std::vector<FILE*> m_errorFP;
 };
 
 #endif // LOGGER_HPP

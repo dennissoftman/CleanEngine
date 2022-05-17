@@ -152,6 +152,8 @@ public:
     void draw(Renderer *rend);
     void update(double dt);
 
+    void terminate();
+
     void addObject(Entity *other); // add with uuid
     void addObject(Entity *other, const std::string &name); // add with custom name
 

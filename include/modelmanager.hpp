@@ -9,16 +9,20 @@
 #include "material.hpp"
 
 // vertCoord, texCoord [, normCoord]
+struct Vertex3D
+{
+    glm::vec3 vertCoord;
+    glm::vec2 texCoord;
+    glm::vec3 normCoord;
+};
 struct Triangle3D
 {
-    glm::vec3 v0; glm::vec2 t0; glm::vec3 n0;
-    glm::vec3 v1; glm::vec2 t1; glm::vec3 n1;
-    glm::vec3 v2; glm::vec2 t2; glm::vec3 n2;
+    Vertex3D verts[3];
 };
 
 struct Mesh3D
 {
-    Mesh3D() {}
+    Mesh3D() = default;
     Mesh3D(const std::vector<Triangle3D> &t)
         : tris(t)
     { }
@@ -30,6 +34,7 @@ struct Model3D
     Model3D()
         : pMeshes(nullptr), meshesCount(0),
           pMaterials(nullptr), materialsCount(0),
+          pMat(nullptr),
           pUserData(nullptr)
     {
     }
@@ -49,6 +54,8 @@ struct Model3D
     Material *pMaterials;
     size_t materialsCount;
 
+    Material* pMat;
+
     const void *pUserData;
 };
 
@@ -60,10 +67,13 @@ public:
 
     const Model3D *getModel(const std::string &name) const;
 
-    void addModel(const Model3D *mdl, const std::string &name);
+    // temp
+    void setModelMaterial(const std::string& name, Material* mat);
+
+    void addModel(Model3D *mdl, const std::string &name);
     void loadModel(const std::string &path, const std::string &name);
 private:
-    std::unordered_map<std::string, const Model3D*> m_models;
+    std::unordered_map<std::string, Model3D*> m_models;
 };
 
 #endif // MODELMANAGER_HPP

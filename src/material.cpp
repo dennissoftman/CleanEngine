@@ -10,9 +10,11 @@ Material *Material::createMaterial()
 
 #elif RENDERER_VULKAN
 #include "vkmaterial.hpp"
+#include "servicelocator.hpp"
 
 Material *Material::createMaterial()
 {
-    return new VkMaterial();
+    VulkanRenderer *vkRenderer = dynamic_cast<VulkanRenderer*>(&ServiceLocator::getRenderer());
+    return new VkMaterial(vkRenderer);
 }
 #endif

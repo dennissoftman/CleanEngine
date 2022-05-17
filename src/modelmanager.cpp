@@ -32,7 +32,15 @@ const Model3D *ModelManager::getModel(const std::string &name) const
     return m_models.at(name);
 }
 
-void ModelManager::addModel(const Model3D *mdl, const std::string &name)
+void ModelManager::setModelMaterial(const std::string& name, Material* mat)
+{
+    if (m_models.find(name) == m_models.end())
+        throw std::runtime_error("Model not found");
+    if(mat != NULL)
+        m_models[name]->pMat = mat;
+}
+
+void ModelManager::addModel(Model3D *mdl, const std::string &name)
 {
     if(mdl)
         m_models[name] = mdl;
@@ -92,9 +100,9 @@ void ModelManager::loadModel(const std::string &path, const std::string &name)
 
                 outModel->pMeshes[i].tris.push_back(
                             Triangle3D{
-                                glm::vec3(v0.x, v0.y, v0.z), glm::vec2(t0.x, t0.y), glm::vec3(n0.x, n0.y, n0.z),
-                                glm::vec3(v1.x, v1.y, v1.z), glm::vec2(t1.x, t1.y), glm::vec3(n1.x, n1.y, n1.z),
-                                glm::vec3(v2.x, v2.y, v2.z), glm::vec2(t2.x, t2.y), glm::vec3(n2.x, n2.y, n2.z)
+                                Vertex3D{glm::vec3(v0.x, v0.y, v0.z), glm::vec2(t0.x, t0.y), glm::vec3(n0.x, n0.y, n0.z)},
+                                Vertex3D{glm::vec3(v1.x, v1.y, v1.z), glm::vec2(t1.x, t1.y), glm::vec3(n1.x, n1.y, n1.z)},
+                                Vertex3D{glm::vec3(v2.x, v2.y, v2.z), glm::vec2(t2.x, t2.y), glm::vec3(n2.x, n2.y, n2.z)}
                             });
             }
         }

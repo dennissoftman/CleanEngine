@@ -1,6 +1,5 @@
 #include "luascriptengine.hpp"
 #include "servicelocator.hpp"
-#include <stdio_ext.h>
 
 const char *MODULE_NAME = "LuaScriptEngine";
 

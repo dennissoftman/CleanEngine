@@ -6,22 +6,30 @@
 
 struct TransformData
 {
-    glm::mat4 Projection, View, Model;
+    alignas(16) glm::mat4 Projection;
+    alignas(16) glm::mat4 View;
+    alignas(16) glm::mat4 Model;
+};
 
+class RenderData
+{
+public:
+    virtual std::string getType() const = 0;
 };
 
 class Material
 {
 public:
     static Material *createMaterial();
+    virtual ~Material() {}
 
     // create shader and init fields
     virtual void init() = 0;
 
     // execute before draw calls
-    virtual void use(const TransformData &data) = 0;
+    virtual void use(TransformData &transformData) = 0;
 
-    virtual void setImage(const std::string &name, const std::string &path) = 0;
+    virtual void setImage(const std::string &path, const std::string &name) = 0;
 
     // material properties
     virtual void setDoubleSided(bool yes) = 0;

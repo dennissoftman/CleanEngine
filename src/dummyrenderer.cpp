@@ -1,21 +1,21 @@
 #include "dummyrenderer.hpp"
 #include "servicelocator.hpp"
 
-const std::string MODULE_NAME = "DummyRenderer";
+static const char *MODULE_NAME = "DummyRenderer";
 
 DummyRenderer::DummyRenderer()
-{
+= default;
 
-}
+DummyRenderer::~DummyRenderer()
+= default;
 
 void DummyRenderer::init(const VideoMode &mode)
 {
-    m_gameLogger = &ServiceLocator::getLogger();
+    Logger &logger = ServiceLocator::getLogger();
 
-    m_gameLogger->info(MODULE_NAME,
-                       "VideoMode: (" +
-                       std::to_string(mode.width) + "x" +
-                       std::to_string(mode.height) +")");
+    std::stringstream infostr;
+    infostr << "VideoMode: (" << mode.width << "x" << mode.height << ")";
+    logger.info(MODULE_NAME, infostr.str());
 }
 
 void DummyRenderer::queueRenderObject(const Model3D *obj, const glm::mat4 &modelMatrix)
@@ -29,6 +29,11 @@ void DummyRenderer::draw()
 
 }
 
+void DummyRenderer::resize(const glm::ivec2 &size)
+{
+    (void)size;
+}
+
 void DummyRenderer::setViewMatrix(const glm::mat4 &viewmx)
 {
     (void)viewmx;
@@ -38,3 +43,14 @@ void DummyRenderer::setProjectionMatrix(const glm::mat4 &projmx)
 {
     (void)projmx;
 }
+
+std::string DummyRenderer::getType() const
+{
+    return "dummy";
+}
+
+glm::ivec2 DummyRenderer::getSize() const
+{
+    return {};
+}
+

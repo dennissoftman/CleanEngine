@@ -3,6 +3,8 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/quaternion.hpp>
 
+static const char *MODULE_NAME = "Camera3D";
+
 Camera3D::Camera3D(float fov, float aspect, float znear, float zfar)
     : m_fov(fov), m_aspect(aspect), m_znear(znear), m_zfar(zfar)
 {

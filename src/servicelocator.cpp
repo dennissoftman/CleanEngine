@@ -79,12 +79,12 @@ void ServiceLocator::setLogger(Logger *logger)
 
 void ServiceLocator::clear()
 {
+    delete m_scnmgr;
+    delete m_mdlmgr;
+    delete m_matmgr;
+
     if(m_renderer != &m_defaultRenderer)
         delete m_renderer;
-
-    delete m_matmgr;
-    delete m_mdlmgr;
-    delete m_scnmgr;
 
     if(m_logger != &m_defaultLogger)
         delete m_logger;

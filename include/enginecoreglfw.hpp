@@ -28,6 +28,7 @@ public:
 
     void mainLoop();
 
+    static void onWindowResized(GLFWwindow *win, int width, int height);
     static EngineCoreGLFW *corePtr;
 private:
     GLFWwindow *m_mainWindow;

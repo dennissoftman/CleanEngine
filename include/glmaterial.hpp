@@ -18,9 +18,9 @@ public:
 
     void init() override;
 
-    void setImage(const std::string &name, const std::string &path) override;
+    void setImage(const std::string &path, const std::string &name) override;
 
-    void use(const TransformData &data) override;
+    void use(TransformData &data) override;
 
     void setDoubleSided(bool yes) override;
     bool isDoubleSided() const override;

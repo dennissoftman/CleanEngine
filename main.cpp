@@ -4,9 +4,7 @@
 
 #include "servicelocator.hpp"
 
-#ifndef NDEBUG
 #include "debuglogger.hpp"
-#endif
 
 #ifdef CORE_GLFW
 #include "enginecoreglfw.hpp"
@@ -14,20 +12,29 @@
 #error No core library selected
 #endif
 
-const std::string MODULE_NAME = "Main";
+static const char *MODULE_NAME = "Main";
 
 int main()
 {
-    FILE *debugFP = NULL;
     ServiceLocator::init();
 #ifndef NDEBUG
+    FILE *debugFP = nullptr;
     {
        debugFP = fopen("debug.log", "a");
        DebugLogger *logger = new DebugLogger();
-       logger->setInfoFP(debugFP);
-       logger->setWarningFP(debugFP);
-       logger->setErrorFP(debugFP);
+       logger->addInfoFP(stdout);
+       logger->addInfoFP(debugFP);
+       logger->addWarningFP(stdout);
+       logger->addWarningFP(debugFP);
+       logger->addErrorFP(stderr);
+       logger->addErrorFP(debugFP);
        ServiceLocator::setLogger(logger);
+    }
+#else // release
+    {
+        DebugLogger *logger = new DebugLogger();
+        logger->addErrorFP(stderr);
+        ServiceLocator::setLogger(logger);
     }
 #endif
     ServiceLocator::getLogger().info(MODULE_NAME, "Started logging");
@@ -41,9 +48,11 @@ int main()
 #else
 #error No core library selected
 #endif
+    core.terminate();
 
-    if(debugFP)
-        fclose(debugFP);
+#ifndef NDEBUG
+    fclose(debugFP);
+#endif
 
     return 0;
 }

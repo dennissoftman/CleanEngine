@@ -5,12 +5,12 @@
 #include <cstdio>
 #include <cassert>
 
-const std::string MODULE_NAME = "OpenGLRenderer";
-
-static GLMaterial *globalUVmaterial = nullptr;
+static const std::string MODULE_NAME = "OpenGLRenderer";
 
 OpenGLRenderer::OpenGLRenderer()
-    : m_projMatrix(glm::mat4(1)), m_was_init(false)
+    : m_projMatrix(glm::mat4(1)),
+      m_was_init(false),
+      m_defaultMaterial(nullptr)
 {
 
 }
@@ -22,6 +22,9 @@ OpenGLRenderer::~OpenGLRenderer()
 
     for(GLRenderObject *obj : m_createdObjects)
         delete obj;
+
+    delete m_defaultMaterial;
+    ServiceLocator::getLogger().info(MODULE_NAME, "Successful cleanup");
 }
 
 void OpenGLRenderer::init(const VideoMode &mode)
@@ -62,8 +65,8 @@ void OpenGLRenderer::init(const VideoMode &mode)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     // fallback material
-    globalUVmaterial = new GLMaterial();
-    globalUVmaterial->init();
+    m_defaultMaterial = new GLMaterial();
+    m_defaultMaterial->init();
     //
 
     m_was_init = true;
@@ -94,18 +97,17 @@ void OpenGLRenderer::draw()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glActiveTexture(GL_TEXTURE0);
-    while(m_renderQueue.size() > 0)
+    while(!m_renderQueue.empty())
     {
         GLRenderRequest req = m_renderQueue.front();
-        if(req.renderObject == NULL)
+        if(req.renderObject == nullptr)
         {
             m_renderQueue.pop();
             continue;
         }
 
         GLRenderObject *obj = req.renderObject;
-        if(obj->parent == NULL)
+        if(obj->parent == nullptr)
         {
             m_renderQueue.pop();
             continue;
@@ -113,11 +115,17 @@ void OpenGLRenderer::draw()
 
         for(size_t i=0; i < obj->meshCount; i++)
         {
-            globalUVmaterial->use(TransformData{
-                                      .Projection = m_projMatrix,
-                                      .View = m_viewMatrix,
-                                      .Model = req.modelMatrix
-                                  });
+            TransformData td =
+            {
+                .Projection = m_projMatrix,
+                .View = m_viewMatrix,
+                .Model = req.modelMatrix
+            };
+
+            if (obj->parent->pMat != nullptr)
+                obj->parent->pMat->use(td);
+            else
+                m_defaultMaterial->use(td);
 
             glBindVertexArray(obj->VAOs[i]);
             glDrawArrays(GL_TRIANGLES, 0, obj->parent->pMeshes[i].tris.size()*3);
@@ -127,7 +135,16 @@ void OpenGLRenderer::draw()
 
         m_renderQueue.pop();
     }
-    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+glm::ivec2 OpenGLRenderer::getSize() const
+{
+    return m_currentSize;
+}
+
+void OpenGLRenderer::resize(const glm::ivec2 &size)
+{
+    m_currentSize = size;
 }
 
 void OpenGLRenderer::setProjectionMatrix(const glm::mat4 &projmx)
@@ -138,6 +155,11 @@ void OpenGLRenderer::setProjectionMatrix(const glm::mat4 &projmx)
 void OpenGLRenderer::setViewMatrix(const glm::mat4 &viewmx)
 {
     m_viewMatrix = viewmx;
+}
+
+std::string OpenGLRenderer::getType() const
+{
+    return OPENGL_RENDERER_TYPE;
 }
 
 GLRenderObject *OpenGLRenderer::createRenderObject(const Model3D *obj)

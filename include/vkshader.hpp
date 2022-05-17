@@ -2,14 +2,14 @@
 #define VKSHADER_HPP
 
 #include "shader.hpp"
-#include <vulkan/vulkan.h>
+#include <vulkan/vulkan.hpp>
 #include <vector>
 #include <optional>
 
 class VkShader : public Shader
 {
 public:
-    VkShader();
+    explicit VkShader(vk::Device dev);
     ~VkShader();
 
     void load(const char *vdata, int vsize, const char *fdata, int fsize) override;
@@ -23,14 +23,13 @@ public:
     // vulkan
     void setDevice(const VkDevice &dev);
 
-    VkShaderModule getVertexModule() const;
-    VkShaderModule getFragmentModule() const;
+    std::vector<vk::PipelineShaderStageCreateInfo> getStagesCreateInfo();
 private:
     static std::vector<char> readShaderFile(const std::string &fname);
-    VkShaderModule createShader(const char *code, int codeSize);
+    vk::ShaderModule createShader(const char *code, size_t codeSize);
 
-    std::optional<VkDevice> m_vkDevice;
-    VkShaderModule m_vertModule, m_fragModule;
+    vk::Device m_vkDevice;
+    vk::ShaderModule m_vertModule, m_fragModule;
 };
 
 #endif // VKSHADER_HPP

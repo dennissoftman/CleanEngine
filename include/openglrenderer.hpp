@@ -4,9 +4,11 @@
 #include "renderer.hpp"
 #include <GL/glew.h>
 
+#define OPENGL_RENDERER_TYPE "gl"
+
 struct GLRenderObject
 {
-    GLRenderObject(const Model3D *obj)
+    explicit GLRenderObject(const Model3D *obj)
     {
         parent = obj;
         meshCount = obj->meshesCount;
@@ -76,6 +78,8 @@ struct GLRenderRequest
     glm::mat4 modelMatrix;
 };
 
+class GLMaterial;
+
 class OpenGLRenderer : public Renderer
 {
 public:
@@ -88,15 +92,22 @@ public:
     void queueRenderObject(GLRenderObject *obj, const glm::mat4 &modelMatrix);
     void draw() override;
 
+    [[nodiscard]] glm::ivec2 getSize() const override;
+    void resize(const glm::ivec2 &size) override;
+
     void setProjectionMatrix(const glm::mat4 &projmx) override;
     void setViewMatrix(const glm::mat4 &viewmx) override;
+
+    [[nodiscard]] std::string getType() const override;
 private:
     GLRenderObject *createRenderObject(const Model3D *obj);
 
+    glm::ivec2 m_currentSize;
     GLuint m_VAO, m_VBO;
     std::vector<GLRenderObject*> m_createdObjects;
     std::queue<GLRenderRequest> m_renderQueue;
     glm::mat4 m_projMatrix, m_viewMatrix;
+    GLMaterial *m_defaultMaterial;
 
     bool m_was_init;
 };

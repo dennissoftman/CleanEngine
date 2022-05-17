@@ -11,8 +11,7 @@ Scene3D::Scene3D()
 
 Scene3D::~Scene3D()
 {
-    for(auto &kv : m_objects)
-        delete kv.second;
+    terminate();
 }
 
 void Scene3D::draw(Renderer *rend)
@@ -29,6 +28,13 @@ void Scene3D::update(double dt)
     {
         kv.second->update(dt);
     }
+}
+
+void Scene3D::terminate()
+{
+    for (auto& kv : m_objects)
+        delete kv.second;
+    m_objects.clear();
 }
 
 void Scene3D::addObject(Entity *other)

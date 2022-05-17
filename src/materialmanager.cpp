@@ -5,6 +5,14 @@ MaterialManager::MaterialManager()
 
 }
 
+MaterialManager::~MaterialManager()
+{
+    for(auto &kv : m_materials)
+    {
+        delete kv.second;
+    }
+}
+
 void MaterialManager::addMaterial(const std::string &name, Material *mat)
 {
     if(!m_materials.contains(name))
