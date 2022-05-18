@@ -63,6 +63,11 @@ if(COMPILE_GL)
     ${CMAKE_SOURCE_DIR}/include/scenemanager.hpp
     ${CMAKE_SOURCE_DIR}/src/scene3d.cpp
     ${CMAKE_SOURCE_DIR}/include/scene3d.hpp
+    ${CMAKE_SOURCE_DIR}/include/physicsmanager.hpp
+    ${CMAKE_SOURCE_DIR}/src/dummyphysicsmanager.cpp
+    ${CMAKE_SOURCE_DIR}/include/dummyphysicsmanager.hpp
+    ${CMAKE_SOURCE_DIR}/src/resourcemanager.cpp
+    ${CMAKE_SOURCE_DIR}/include/resourcemanager.hpp
   )
 
   target_compile_definitions(CleanEngineGL PRIVATE GLM_FORCE_RADIANS)
@@ -145,6 +150,11 @@ if(COMPILE_GL)
   endif()
 
   if(USE_BULLET)
+    target_sources(CleanEngineGL PRIVATE
+      ${CMAKE_SOURCE_DIR}/src/physicsmanager.cpp
+      ${CMAKE_SOURCE_DIR}/include/physicsmanager.hpp
+    )
+
     find_package(Bullet REQUIRED)
     target_include_directories(CleanEngineGL PRIVATE
       ${BULLET_INCLUDE_DIRS}
@@ -161,6 +171,12 @@ if(COMPILE_GL)
       target_link_libraries(CleanEngineGL ${OpenMP_CXX_LIBRARIES})
       target_compile_definitions(CleanEngineGL PRIVATE BULLET_MULTITHREADED)
     endif()
+
+    target_sources(CleanEngineGL PRIVATE
+      ${CMAKE_SOURCE_DIR}/src/bulletphysicsmanager.cpp
+      ${CMAKE_SOURCE_DIR}/include/bulletphysicsmanager.hpp
+    )
+    target_compile_definitions(CleanEngineGL PRIVATE PHYSICS_BULLET)
   endif()
 
   if(USE_LUA)
@@ -236,6 +252,11 @@ if(COMPILE_VK)
     ${CMAKE_SOURCE_DIR}/include/scenemanager.hpp
     ${CMAKE_SOURCE_DIR}/src/scene3d.cpp
     ${CMAKE_SOURCE_DIR}/include/scene3d.hpp
+    ${CMAKE_SOURCE_DIR}/include/physicsmanager.hpp
+    ${CMAKE_SOURCE_DIR}/src/dummyphysicsmanager.cpp
+    ${CMAKE_SOURCE_DIR}/include/dummyphysicsmanager.hpp
+    ${CMAKE_SOURCE_DIR}/src/resourcemanager.cpp
+    ${CMAKE_SOURCE_DIR}/include/resourcemanager.hpp
   )
 
   target_compile_definitions(CleanEngineVk PRIVATE GLM_FORCE_RADIANS)
@@ -329,6 +350,12 @@ if(COMPILE_VK)
       target_link_libraries(CleanEngineVk ${OpenMP_CXX_LIBRARIES})
       target_compile_definitions(CleanEngineVk PRIVATE BULLET_MULTITHREADED)
     endif()
+
+    target_sources(CleanEngineVk PRIVATE
+      ${CMAKE_SOURCE_DIR}/src/bulletphysicsmanager.cpp
+      ${CMAKE_SOURCE_DIR}/include/bulletphysicsmanager.hpp
+    )
+    target_compile_definitions(CleanEngineVk PRIVATE PHYSICS_BULLET)
   endif()
 
   if(USE_LUA)

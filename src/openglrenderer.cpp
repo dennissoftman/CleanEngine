@@ -20,10 +20,14 @@ OpenGLRenderer::~OpenGLRenderer()
     while(!m_renderQueue.empty())
         m_renderQueue.pop();
 
-    for(GLRenderObject *obj : m_createdObjects)
+    for(auto &obj : m_createdObjects)
         delete obj;
+    m_createdObjects.clear();
 
-    delete m_defaultMaterial;
+    for(auto &mat : m_registeredMaterials)
+        delete mat;
+    m_registeredMaterials.clear();
+
     ServiceLocator::getLogger().info(MODULE_NAME, "Successful cleanup");
 }
 
@@ -65,7 +69,7 @@ void OpenGLRenderer::init(const VideoMode &mode)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     // fallback material
-    m_defaultMaterial = new GLMaterial();
+    m_defaultMaterial = new GLMaterial(this);
     m_defaultMaterial->init();
     //
 
@@ -160,6 +164,12 @@ void OpenGLRenderer::setViewMatrix(const glm::mat4 &viewmx)
 std::string OpenGLRenderer::getType() const
 {
     return OPENGL_RENDERER_TYPE;
+}
+
+void OpenGLRenderer::registerMaterial(GLMaterial *mat)
+{
+    if(mat)
+        m_registeredMaterials.insert(mat);
 }
 
 GLRenderObject *OpenGLRenderer::createRenderObject(const Model3D *obj)

@@ -2,10 +2,12 @@
 
 #ifdef RENDERER_OPENGL
 #include "glmaterial.hpp"
+#include "servicelocator.hpp"
 
 Material *Material::createMaterial()
 {
-    return new GLMaterial();
+    OpenGLRenderer *glRenderer = dynamic_cast<OpenGLRenderer*>(&ServiceLocator::getRenderer());
+    return new GLMaterial(glRenderer);
 }
 
 #elif RENDERER_VULKAN

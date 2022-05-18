@@ -13,6 +13,12 @@ GLShader::GLShader()
 
 }
 
+GLShader::~GLShader()
+{
+    if(m_pid)
+        glDeleteProgram(m_pid);
+}
+
 void GLShader::load(const char *vdata, int vsize, const char *fdata, int fsize)
 {
     GLuint vs_id = glCreateShader(GL_VERTEX_SHADER);

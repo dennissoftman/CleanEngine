@@ -4,6 +4,8 @@
 #include "renderer.hpp"
 #include "dummyrenderer.hpp"
 
+#include "resourcemanager.hpp"
+
 #include "materialmanager.hpp"
 
 #include "modelmanager.hpp"
@@ -13,6 +15,9 @@
 
 #include "scenemanager.hpp"
 
+#include "physicsmanager.hpp"
+#include "dummyphysicsmanager.hpp"
+
 class ServiceLocator
 {
 public:
@@ -21,6 +26,10 @@ public:
     // rendering
     static Renderer &getRenderer();
     static void setRenderer(Renderer *rend);
+
+    // resource manager
+    static ResourceManager &getResourceManager();
+    static void setResourceManager(ResourceManager *mgr);
 
     // materials
     static MaterialManager &getMatManager();
@@ -34,6 +43,10 @@ public:
     static SceneManager &getSceneManager();
     static void setSceneManager(SceneManager *mgr); // pretty useless
 
+    // physics management
+    static PhysicsManager &getPhysicsManager();
+    static void setPhysicsManager(PhysicsManager *mgr);
+
     // logging
     static Logger &getLogger();
     static void setLogger(Logger *logger);
@@ -45,6 +58,9 @@ private:
     static Renderer *m_renderer;
     static DummyRenderer m_defaultRenderer;
 
+    // resources
+    static ResourceManager *m_resmgr;
+
     // materials
     static MaterialManager *m_matmgr;
 
@@ -53,6 +69,10 @@ private:
 
     // scene management
     static SceneManager *m_scnmgr;
+
+    // physics management
+    static PhysicsManager *m_physmgr;
+    static DummyPhysicsManager m_defaultPhysMgr;
 
     // logging
     static Logger *m_logger;

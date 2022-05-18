@@ -2,6 +2,7 @@
 #define GLMATERIAL_HPP
 
 #include "material.hpp"
+#include "openglrenderer.hpp"
 #include "glshader.hpp"
 
 #define GL_MAT_PROJ_MX "projMatrix"
@@ -13,7 +14,7 @@
 class GLMaterial : public Material
 {
 public:
-    GLMaterial();
+    explicit GLMaterial(OpenGLRenderer *rend);
     ~GLMaterial();
 
     void init() override;
@@ -27,7 +28,8 @@ public:
 private:
     static GLuint loadTexture(const std::string &path);
 
-    GLShader m_shader;
+    OpenGLRenderer *m_renderer;
+    GLShader *m_shader;
 
     //
     bool m_doubleSided;

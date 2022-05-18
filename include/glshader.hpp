@@ -9,6 +9,7 @@ class GLShader : public Shader
 {
 public:
     GLShader();
+    ~GLShader();
 
     void load(const char *vdata, int vsize, const char *fdata, int fsize) override;
     void load(const std::string &vs, const std::string &fs) override;

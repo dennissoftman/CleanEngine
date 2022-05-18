@@ -4,10 +4,14 @@
 static const char *MODULE_NAME = "DummyRenderer";
 
 DummyRenderer::DummyRenderer()
-= default;
+{
+
+}
 
 DummyRenderer::~DummyRenderer()
-= default;
+{
+
+}
 
 void DummyRenderer::init(const VideoMode &mode)
 {

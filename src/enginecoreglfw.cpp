@@ -87,7 +87,7 @@ void EngineCoreGLFW::init()
         std::vector<GLFWimage> icons;
         ILuint img = ilGenImage();
         ilBindImage(img);
-        if(ilLoadImage("data/icons/64.png") == IL_TRUE)
+        if(ilLoadImage(ServiceLocator::getResourceManager().getEnginePath("data/icons/64.png").c_str()) == IL_TRUE)
         {
             GLFWimage icon;
             icon.width = ilGetInteger(IL_IMAGE_WIDTH);
@@ -157,42 +157,52 @@ void EngineCoreGLFW::terminate()
 
 void EngineCoreGLFW::mainLoop()
 {
-    ModelManager &mdlMgr = ServiceLocator::getModelManager();
-    mdlMgr.loadModel("data/models/cube.obj", "cube");
-    mdlMgr.loadModel("data/models/sphere.obj", "sphere");
-    mdlMgr.loadModel("data/models/suzanne.obj", "monkey");
-
-    // TODO: single material for many objects (UBO workaround)
-    Material *cubeMat = Material::createMaterial();
-    cubeMat->setImage("data/textures/uv.png", "img");
-    cubeMat->init();
-    mdlMgr.setModelMaterial("cube", cubeMat);
-
-    Material *sphereMat = Material::createMaterial();
-    sphereMat->setImage("data/textures/uv.png", "img");
-    sphereMat->init();
-    mdlMgr.setModelMaterial("sphere", sphereMat);
-
-    Material *monkeyMat = Material::createMaterial();
-    monkeyMat->setImage("data/textures/uv.png", "img");
-    monkeyMat->init();
-    mdlMgr.setModelMaterial("monkey", monkeyMat);
-    // =============================================================================================
-
-    StaticMesh *cubeObj = new StaticMesh();
-    cubeObj->setModel(mdlMgr.getModel("cube"));
-    StaticMesh *sphereObj = new StaticMesh();
-    sphereObj->setModel(mdlMgr.getModel("sphere"));
-    StaticMesh *monkeyObj = new StaticMesh();
-    monkeyObj->setModel(mdlMgr.getModel("monkey"));
+    ResourceManager &resMgr = ServiceLocator::getResourceManager();
 
     Scene3D *currentScene = new Scene3D();
-    cubeObj->setPos(glm::vec3(-2, 0, 0));
-    currentScene->addObject(cubeObj);
-    sphereObj->setPos(glm::vec3(0, 0, 0));
-    currentScene->addObject(sphereObj);
-    monkeyObj->setPos(glm::vec3(2, 0, 0));
-    currentScene->addObject(monkeyObj);
+
+    // TODO: scripts and VkMaterial fix (UBO)
+    ModelManager &mdlMgr = ServiceLocator::getModelManager();
+    mdlMgr.loadModel(resMgr.getEnginePath("data/models/cube.obj"), "cube");
+    {
+        Material *cubeMat = Material::createMaterial();
+        cubeMat->setImage(resMgr.getEnginePath("data/textures/uv.png"), "img");
+        cubeMat->init();
+        mdlMgr.setModelMaterial("cube", cubeMat);
+    }
+    mdlMgr.loadModel(resMgr.getEnginePath("data/models/sphere.obj"), "sphere");
+    {
+        Material *sphereMat = Material::createMaterial();
+        sphereMat->setImage(resMgr.getEnginePath("data/textures/uv.png"), "img");
+        sphereMat->init();
+        mdlMgr.setModelMaterial("sphere", sphereMat);
+    }
+    mdlMgr.loadModel(resMgr.getEnginePath("data/models/suzanne.obj"), "monkey");
+    {
+        Material *monkeyMat = Material::createMaterial();
+        monkeyMat->setImage(resMgr.getEnginePath("data/textures/uv.png"), "img");
+        monkeyMat->init();
+        mdlMgr.setModelMaterial("monkey", monkeyMat);
+    }
+
+    {
+        StaticMesh *cubeObj = new StaticMesh();
+        cubeObj->setModel(mdlMgr.getModel("cube"));
+        cubeObj->setPos(glm::vec3(-2, 0, 0));
+        currentScene->addObject(cubeObj);
+
+        StaticMesh *sphereObj = new StaticMesh();
+        sphereObj->setModel(mdlMgr.getModel("sphere"));
+        sphereObj->setPos(glm::vec3(0, 0, 0));
+        currentScene->addObject(sphereObj);
+
+        StaticMesh *monkeyObj = new StaticMesh();
+        monkeyObj->setModel(mdlMgr.getModel("monkey"));
+        monkeyObj->setPos(glm::vec3(2, 0, 0));
+        currentScene->addObject(monkeyObj);
+    }
+
+    // =============================================================================================
 
     // "Camera" init
     glm::mat4 _projMatrix, _viewMatrix;
@@ -211,10 +221,6 @@ void EngineCoreGLFW::mainLoop()
         m_deltaTime = glfwGetTime() - m_elapsedTime;
         m_elapsedTime = glfwGetTime();
         glfwPollEvents();
-
-        cubeObj->setRotation(glm::vec3(0, m_elapsedTime/2, 0));
-        sphereObj->setRotation(glm::vec3(0, m_elapsedTime/2, 0));
-        monkeyObj->setRotation(glm::vec3(0, m_elapsedTime/2, 0));
 
         // Draw objects on screen
         currentScene->draw(m_mainRenderer);

@@ -331,35 +331,44 @@ void VulkanRenderer::init(const VideoMode &mode)
     }
 
     { // render pass
-        vk::AttachmentDescription mainAttachmentDesc(vk::AttachmentDescriptionFlags(),
-                                                     m_vkImageFormat,
-                                                     vk::SampleCountFlagBits::e1, // no MSAA
-                                                     vk::AttachmentLoadOp::eClear,
-                                                     vk::AttachmentStoreOp::eStore,
-                                                     vk::AttachmentLoadOp::eDontCare,
-                                                     vk::AttachmentStoreOp::eDontCare,
-                                                     vk::ImageLayout::eUndefined,
-                                                     vk::ImageLayout::ePresentSrcKHR);
+        std::vector<vk::AttachmentDescription> attachments = {
+            vk::AttachmentDescription{vk::AttachmentDescriptionFlags(),
+                                      m_vkImageFormat,
+                                      vk::SampleCountFlagBits::e1, // no MSAA
+                                      vk::AttachmentLoadOp::eClear,
+                                      vk::AttachmentStoreOp::eStore,
+                                      vk::AttachmentLoadOp::eDontCare,
+                                      vk::AttachmentStoreOp::eDontCare,
+                                      vk::ImageLayout::eUndefined,
+                                      vk::ImageLayout::ePresentSrcKHR}
+        };
+
         vk::AttachmentReference mainAttachmentRef(0, vk::ImageLayout::eColorAttachmentOptimal);
 
-        vk::SubpassDescription subpassDesc(vk::SubpassDescriptionFlags(),
-                                           vk::PipelineBindPoint::eGraphics,
-                                           0, nullptr,
-                                           1, &mainAttachmentRef,
-                                           nullptr, nullptr,
-                                           0, nullptr);
+        std::vector<vk::SubpassDescription> subpassDescs = {
+            vk::SubpassDescription{
+                vk::SubpassDescriptionFlags(),
+                vk::PipelineBindPoint::eGraphics,
+                0, VK_NULL_HANDLE,
+                1, &mainAttachmentRef,
+                VK_NULL_HANDLE,
+                VK_NULL_HANDLE,
+                0, VK_NULL_HANDLE}
+        };
 
-        vk::SubpassDependency subpassDep(VK_SUBPASS_EXTERNAL, 0,
-                                         vk::PipelineStageFlags(vk::PipelineStageFlagBits::eColorAttachmentOutput),
-                                         vk::PipelineStageFlags(vk::PipelineStageFlagBits::eColorAttachmentOutput),
-                                         vk::AccessFlags(),
-                                         vk::AccessFlags(vk::AccessFlagBits::eColorAttachmentWrite),
-                                         vk::DependencyFlags());
+        std::vector<vk::SubpassDependency> subpassDeps = {
+            vk::SubpassDependency{VK_SUBPASS_EXTERNAL, 0,
+                                  vk::PipelineStageFlags(vk::PipelineStageFlagBits::eColorAttachmentOutput),
+                                  vk::PipelineStageFlags(vk::PipelineStageFlagBits::eColorAttachmentOutput),
+                                  vk::AccessFlags(),
+                                  vk::AccessFlags(vk::AccessFlagBits::eColorAttachmentWrite),
+                                  vk::DependencyFlags()}
+        };
 
         vk::RenderPassCreateInfo cInfo(vk::RenderPassCreateFlags(),
-                                       1, &mainAttachmentDesc,
-                                       1, &subpassDesc,
-                                       1, &subpassDep);
+                                       attachments,
+                                       subpassDescs,
+                                       subpassDeps);
 
         try
         {

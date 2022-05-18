@@ -4,6 +4,8 @@
 #include "renderer.hpp"
 #include <GL/glew.h>
 
+#include <set>
+
 #define OPENGL_RENDERER_TYPE "gl"
 
 struct GLRenderObject
@@ -99,6 +101,9 @@ public:
     void setViewMatrix(const glm::mat4 &viewmx) override;
 
     [[nodiscard]] std::string getType() const override;
+
+    // OpenGL
+    void registerMaterial(GLMaterial *mat);
 private:
     GLRenderObject *createRenderObject(const Model3D *obj);
 
@@ -106,6 +111,7 @@ private:
     GLuint m_VAO, m_VBO;
     std::vector<GLRenderObject*> m_createdObjects;
     std::queue<GLRenderRequest> m_renderQueue;
+    std::set<GLMaterial*> m_registeredMaterials;
     glm::mat4 m_projMatrix, m_viewMatrix;
     GLMaterial *m_defaultMaterial;
 

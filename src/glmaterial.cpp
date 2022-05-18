@@ -7,15 +7,18 @@
 
 static const char *MODULE_NAME = "GLMaterial";
 
-GLMaterial::GLMaterial()
-    : m_doubleSided(false)
+GLMaterial::GLMaterial(OpenGLRenderer *rend)
+    : m_renderer(rend), m_shader(nullptr)
 {
 
 }
 
 GLMaterial::~GLMaterial()
 {
-
+    if(m_renderer)
+    {
+        delete m_shader;
+    }
 }
 
 GLuint GLMaterial::loadTexture(const std::string &path)
@@ -64,6 +67,14 @@ GLuint GLMaterial::loadTexture(const std::string &path)
 
 void GLMaterial::init()
 {
+    Logger &logger = ServiceLocator::getLogger();
+
+    if (!m_renderer)
+    {
+       logger.error(MODULE_NAME, "No renderer assigned to material");
+       return;
+    }
+
     std::string vertexShader = R"(
 #version 450 core
 layout(location = 0) in vec3 vertCoord;
@@ -123,10 +134,12 @@ void main()
         )";
     }
 
-    m_shader.load(vertexShader.data(), vertexShader.size(),
-                  fragmentShader.data(), fragmentShader.size());
+    m_shader = new GLShader();
+    m_shader->load(vertexShader.data(), vertexShader.size(),
+                   fragmentShader.data(), fragmentShader.size());
 
     //
+    m_renderer->registerMaterial(this);
 }
 
 void GLMaterial::setImage(const std::string &path, const std::string &name)
@@ -138,11 +151,11 @@ void GLMaterial::setImage(const std::string &path, const std::string &name)
 
 void GLMaterial::use(TransformData& data)
 {
-    m_shader.use();
+    m_shader->use();
     // bind textures, set colors, set matrices
-    m_shader.setMat4(GL_MAT_PROJ_MX, data.Projection);
-    m_shader.setMat4(GL_MAT_VIEW_MX, data.View);
-    m_shader.setMat4(GL_MAT_MODEL_MX, data.Model);
+    m_shader->setMat4(GL_MAT_PROJ_MX, data.Projection);
+    m_shader->setMat4(GL_MAT_VIEW_MX, data.View);
+    m_shader->setMat4(GL_MAT_MODEL_MX, data.Model);
 
     if (m_doubleSided)
         glDisable(GL_CULL_FACE);
@@ -153,7 +166,7 @@ void GLMaterial::use(TransformData& data)
     {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, m_textures["img"]);
-        m_shader.setInt("img", 0);
+        m_shader->setInt("img", 0);
     }
 }
 

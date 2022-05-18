@@ -57,6 +57,7 @@ void VkMaterial::setRenderer(VulkanRenderer *rend)
 
 void VkMaterial::init()
 {
+    ResourceManager &resMgr = ServiceLocator::getResourceManager();
     Logger &logger = ServiceLocator::getLogger();
     if (!m_renderer)
     {
@@ -68,9 +69,11 @@ void VkMaterial::init()
     m_shader = new VkShader(vkDevice);
     // TEMP
     if(m_image.has_value())
-        m_shader->load("data/shaders/vk/main.vert.spv", "data/shaders/vk/image.frag.spv");
+        m_shader->load(resMgr.getEnginePath("data/shaders/vk/main.vert.spv"),
+                       resMgr.getEnginePath("data/shaders/vk/image.frag.spv"));
     else
-        m_shader->load("data/shaders/vk/main.vert.spv", "data/shaders/vk/color.frag.spv");
+        m_shader->load(resMgr.getEnginePath("data/shaders/vk/main.vert.spv"),
+                       resMgr.getEnginePath("data/shaders/vk/color.frag.spv"));
     //
 
     { // create pipeline
@@ -125,7 +128,7 @@ void VkMaterial::init()
 
         vk::PipelineDepthStencilStateCreateInfo
             depthStencilStateCInfo(vk::PipelineDepthStencilStateCreateFlags(),
-                                   VK_FALSE, VK_FALSE, vk::CompareOp::eNever, VK_FALSE,
+                                   VK_TRUE, VK_TRUE, vk::CompareOp::eLessOrEqual, VK_FALSE,
                                    VK_FALSE);
 
         vk::PipelineColorBlendAttachmentState colorBlendAttachment(VK_FALSE);

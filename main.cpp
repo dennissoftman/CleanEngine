@@ -12,15 +12,19 @@
 #error No core library selected
 #endif
 
+#ifdef PHYSICS_BULLET
+#include "bulletphysicsmanager.hpp"
+#endif
+
 static const char *MODULE_NAME = "Main";
 
 int main()
 {
-    ServiceLocator::init();
+    ServiceLocator::init(); // AT FIRST!
 #ifndef NDEBUG
     FILE *debugFP = nullptr;
     {
-       debugFP = fopen("debug.log", "a");
+       debugFP = fopen(ServiceLocator::getResourceManager().getEnginePath("debug.log").c_str(), "a");
        DebugLogger *logger = new DebugLogger();
        logger->addInfoFP(stdout);
        logger->addInfoFP(debugFP);
@@ -38,6 +42,14 @@ int main()
     }
 #endif
     ServiceLocator::getLogger().info(MODULE_NAME, "Started logging");
+
+#ifdef PHYSICS_BULLET
+    {
+        BulletPhysicsManager *bulletPhysicsManager = new BulletPhysicsManager();
+        bulletPhysicsManager->init();
+        ServiceLocator::setPhysicsManager(bulletPhysicsManager);
+    }
+#endif
 
 // TODO: create EngineCore parent class to remove macros from main.cpp
 #ifdef CORE_GLFW
