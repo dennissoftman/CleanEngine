@@ -7,6 +7,8 @@
 
 #include "uuid/uuid_v4.h"
 #include "renderer.hpp"
+#include "camera3d.hpp"
+
 #include <unordered_map>
 
 /*
@@ -18,10 +20,7 @@ class Scene3D;
 class Entity
 {
 public:
-    virtual ~Entity()
-    {
-
-    };
+    virtual ~Entity() { }
 
     virtual void draw(Renderer *rend) = 0;
     virtual void update(double dt) = 0;
@@ -29,7 +28,7 @@ public:
     // tells scene that it should be destroyed
     virtual void destroy() = 0;
 
-    virtual void setPos(const glm::vec3 &pos) = 0;
+    virtual void setPosition(const glm::vec3 &pos) = 0;
     virtual void setRotation(const glm::quat &rot) = 0;
     virtual void setRotation(const glm::vec3 &rot) = 0;
     virtual void setScale(const glm::vec3 &scl) = 0;
@@ -87,7 +86,7 @@ public:
         m_changedMatrix = 0;
     }
 
-    void setPos(const glm::vec3 &pos) override
+    void setPosition(const glm::vec3 &pos) override
     {
         m_pos = pos;
         m_changedMatrix |= 1;
@@ -157,10 +156,16 @@ public:
     void addObject(Entity *other); // add with uuid
     void addObject(Entity *other, const std::string &name); // add with custom name
 
+    const Entity *getObject(const std::string &name) const;
+
+    void setCamera(const Camera3D &cam);
+    Camera3D &getCamera();
+
     size_t getObjectCount() const;
 
 private:
     static UUIDv4::UUIDGenerator<std::mt19937_64> m_uuidGenerator;
+    Camera3D m_camera;
     // for now
     std::unordered_map<std::string, Entity*> m_objects;
 };

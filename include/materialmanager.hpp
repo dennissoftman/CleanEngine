@@ -14,7 +14,7 @@ public:
 
     void addMaterial(const std::string &name, Material *mat);
 
-    Material *get(const std::string &name) const;
+    Material *getMaterial(const std::string &name) const;
 
 protected:
     std::unordered_map<std::string, Material*> m_materials;

@@ -4,6 +4,8 @@
 #include <IL/il.h>
 #include <IL/ilu.h>
 
+#include "luascriptengine.hpp"
+
 EngineCoreGLFW *EngineCoreGLFW::corePtr = nullptr;
 static const char *MODULE_NAME = "EngineCoreGLFW";
 
@@ -42,18 +44,19 @@ void EngineCoreGLFW::init()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_DEPTH_BITS, 32); // or fallback to 24
+    glfwWindowHint(GLFW_DEPTH_BITS, 32);
     glfwWindowHint(GLFW_SAMPLES, 2);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     appName = "CleanEngineGL";
 
 #elif RENDERER_VULKAN
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
     appName = "CleanEngineVk";
 
 #else
 #error No graphics API specified
 #endif
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
     m_mainWindow = glfwCreateWindow(m_windowSize.x, m_windowSize.y,
                                     appName.c_str(), nullptr, nullptr);
@@ -103,7 +106,7 @@ void EngineCoreGLFW::init()
         }
         ilBindImage(0);
 
-        glfwSetWindowIcon(m_mainWindow, icons.size(), icons.data());
+        glfwSetWindowIcon(m_mainWindow, static_cast<int>(icons.size()), icons.data());
 
         ilDeleteImage(img);
     }
@@ -124,6 +127,9 @@ void EngineCoreGLFW::init()
 #ifdef __linux__
     surfProps.connection = XGetXCBConnection(glfwGetX11Display());
     surfProps.window = glfwGetX11Window(m_mainWindow);
+#elif _WIN32
+    surfProps.hInstance = GetModuleHandle(NULL);
+    surfProps.hwnd = glfwGetWin32Window(m_mainWindow);
 #endif
 
     uint32_t extCount = 0;
@@ -147,80 +153,154 @@ void EngineCoreGLFW::init()
     m_mainRenderer->init(VideoMode(m_windowSize.x, m_windowSize.y));
 #endif
     ServiceLocator::setRenderer(m_mainRenderer);
+
+    {
+        Scene3D mainScene;
+        mainScene.getCamera().setPosition(glm::vec3(0, 2.f, 0));
+        mainScene.getCamera().setPitchConstraint(glm::radians(-89.f), glm::radians(89.f));
+        ServiceLocator::getSceneManager().addScene(std::move(mainScene), "main");
+    }
+
+    m_scriptEngine = new LuaScriptEngine();
+    m_scriptEngine->init();
 }
 
 void EngineCoreGLFW::terminate()
 {
     ServiceLocator::clear();
+    glfwSetInputMode(m_mainWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     glfwTerminate();
+}
+
+void testKeyBind(GLFWwindow *win, int key, int scancode, int action, int mods)
+{
+    (void)win;
+    (void)scancode;
+    (void)action;
+    (void)mods;
+
+    if(key == GLFW_KEY_ESCAPE)
+        glfwSetWindowShouldClose(win, GLFW_TRUE);
+}
+
+static glm::ivec2 OldCursorPos = glm::ivec2(0,0);
+
+void testMouseButtonBind(GLFWwindow *win, int button, int action, int mods)
+{
+    if(button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
+    {
+        {
+            Scene3D *currentScene = ServiceLocator::getSceneManager().getScene("main");
+            Camera3D &cam = currentScene->getCamera();
+
+            StaticMesh *sphereObj = new StaticMesh();
+            sphereObj->setModel(ServiceLocator::getModelManager().getModel("sphere"));
+            sphereObj->setPosition(cam.getPosition() + 2.f*cam.frontVector());
+            sphereObj->setScale(glm::vec3(2.f, 2.f, 2.f));
+            currentScene->addObject(sphereObj);
+            ServiceLocator::getPhysicsManager().createBody(PhysicsBodyCreateInfo{PhysicsBodyShapeInfo{1.f}, 5.f, PhysicsBodyProperties{0.f}, 200.f*cam.frontVector()}, sphereObj);
+        }
+    }
+}
+
+void testMouseBind(GLFWwindow *win, double xpos, double ypos)
+{
+    (void)win;
+
+    {
+        Camera3D &cam = ServiceLocator::getSceneManager().getScene("main")->getCamera();
+        float sens = 3.f;
+        float deltaTime = EngineCoreGLFW::corePtr->getDeltaTime();
+
+        cam.rotate(sens * deltaTime * (ypos - OldCursorPos.y), glm::vec3(-1, 0, 0));
+        cam.rotate(sens * deltaTime * (xpos - OldCursorPos.x), glm::vec3(0, 1, 0));
+    }
+
+    OldCursorPos = glm::ivec2(xpos, ypos);
 }
 
 void EngineCoreGLFW::mainLoop()
 {
-    ResourceManager &resMgr = ServiceLocator::getResourceManager();
-
-    Scene3D *currentScene = new Scene3D();
+    Scene3D *currentScene = ServiceLocator::getSceneManager().getScene("main");
 
     // TODO: scripts and VkMaterial fix (UBO)
     ModelManager &mdlMgr = ServiceLocator::getModelManager();
-    mdlMgr.loadModel(resMgr.getEnginePath("data/models/cube.obj"), "cube");
-    {
-        Material *cubeMat = Material::createMaterial();
-        cubeMat->setImage(resMgr.getEnginePath("data/textures/uv.png"), "img");
-        cubeMat->init();
-        mdlMgr.setModelMaterial("cube", cubeMat);
-    }
-    mdlMgr.loadModel(resMgr.getEnginePath("data/models/sphere.obj"), "sphere");
-    {
-        Material *sphereMat = Material::createMaterial();
-        sphereMat->setImage(resMgr.getEnginePath("data/textures/uv.png"), "img");
-        sphereMat->init();
-        mdlMgr.setModelMaterial("sphere", sphereMat);
-    }
-    mdlMgr.loadModel(resMgr.getEnginePath("data/models/suzanne.obj"), "monkey");
-    {
-        Material *monkeyMat = Material::createMaterial();
-        monkeyMat->setImage(resMgr.getEnginePath("data/textures/uv.png"), "img");
-        monkeyMat->init();
-        mdlMgr.setModelMaterial("monkey", monkeyMat);
-    }
 
     {
-        StaticMesh *cubeObj = new StaticMesh();
-        cubeObj->setModel(mdlMgr.getModel("cube"));
-        cubeObj->setPos(glm::vec3(-2, 0, 0));
-        currentScene->addObject(cubeObj);
+        PhysicsManager &physMgr = ServiceLocator::getPhysicsManager();
+        // static floor
+        {
+            StaticMesh *floorObj = new StaticMesh();
+            floorObj->setModel(mdlMgr.getModel("cube"));
+            floorObj->setPosition(glm::vec3(0, 0.f, 0));
+            floorObj->setScale(glm::vec3(100, 1, 100));
+            currentScene->addObject(floorObj);
+            physMgr.createBody(PhysicsBodyCreateInfo{PhysicsBodyShapeInfo{glm::vec3(50.f, .5f, 50.f)}, 0}, floorObj);
+        }
 
-        StaticMesh *sphereObj = new StaticMesh();
-        sphereObj->setModel(mdlMgr.getModel("sphere"));
-        sphereObj->setPos(glm::vec3(0, 0, 0));
-        currentScene->addObject(sphereObj);
+        //
 
-        StaticMesh *monkeyObj = new StaticMesh();
-        monkeyObj->setModel(mdlMgr.getModel("monkey"));
-        monkeyObj->setPos(glm::vec3(2, 0, 0));
-        currentScene->addObject(monkeyObj);
+        const int spawnRadius = 32, spawnHeight = 16;
+        const float circleLen = 2.f*M_PI*spawnRadius;
+        const int cubesInRing = ceil(circleLen*0.45f);
+        for(int i=0; i < spawnHeight; i++)
+        {
+            for(int j=0; j < cubesInRing; j++)
+            {
+                StaticMesh *obj = new StaticMesh();
+                obj->setModel(mdlMgr.getModel("cube"));
+                obj->setScale(glm::vec3(2.f, 1.f, 1.f));
+
+                float circlePos =  ((float)j-(i%2)*0.5f)/(float)cubesInRing;
+
+                obj->setPosition(glm::vec3(sinf(circlePos * 2.f * M_PIf) * spawnRadius,
+                                           i+0.5f,
+                                           cosf(circlePos * 2.f * M_PIf) * spawnRadius)
+                                 );
+                obj->setRotation(glm::vec3(0, circlePos * 2.f * M_PIf, 0));
+                currentScene->addObject(obj);
+                physMgr.createBody(PhysicsBodyCreateInfo{PhysicsBodyShapeInfo{glm::vec3(1.f, .5f, .5f)}, 2.f}, obj);
+            }
+        }
     }
 
-    // =============================================================================================
+    glfwSetKeyCallback(m_mainWindow, testKeyBind);
+    glfwSetMouseButtonCallback(m_mainWindow, testMouseButtonBind);
+    glfwSetCursorPosCallback(m_mainWindow, testMouseBind);
+    glfwSetInputMode(m_mainWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    {
+        double xpos, ypos;
+        glfwGetCursorPos(m_mainWindow, &xpos, &ypos);
+        OldCursorPos = glm::ivec2(xpos, ypos);
+    }
 
-    // "Camera" init
-    glm::mat4 _projMatrix, _viewMatrix;
-    _projMatrix = glm::perspective(90.f, (float)m_windowSize.x/(float)m_windowSize.y, 0.1f, 1000.f);
-    _viewMatrix = glm::lookAt(
-        glm::vec3(0, 1.5f, -1),
-        glm::vec3(0, 0, 0),
-        glm::vec3(0, 1, 0));
+    // =========================================================================================
 
-    m_mainRenderer->setViewMatrix(_viewMatrix);
-    m_mainRenderer->setProjectionMatrix(_projMatrix);
-    //
-
+    PhysicsManager &physicsManager = ServiceLocator::getPhysicsManager();
     while (!glfwWindowShouldClose(m_mainWindow))
     {
         m_deltaTime = glfwGetTime() - m_elapsedTime;
         m_elapsedTime = glfwGetTime();
         glfwPollEvents();
+
+        // update physics
+        physicsManager.update(m_deltaTime);
+        // update camera
+        {
+            Camera3D &cam = currentScene->getCamera();
+            float cam_speed = 10.f;
+            if(glfwGetKey(m_mainWindow, GLFW_KEY_W) == GLFW_PRESS)
+                cam.move(cam.frontVector() * cam_speed * (float)m_deltaTime);
+            else if(glfwGetKey(m_mainWindow, GLFW_KEY_S) == GLFW_PRESS)
+                cam.move(-cam.frontVector() * cam_speed * (float)m_deltaTime);
+
+            if(glfwGetKey(m_mainWindow, GLFW_KEY_D) == GLFW_PRESS)
+                cam.move(cam.rightVector() * cam_speed * (float)m_deltaTime);
+            else if(glfwGetKey(m_mainWindow, GLFW_KEY_A) == GLFW_PRESS)
+                cam.move(-cam.rightVector() * cam_speed * (float)m_deltaTime);
+        }
+        // update scene
+        currentScene->update(m_deltaTime);
 
         // Draw objects on screen
         currentScene->draw(m_mainRenderer);
@@ -232,5 +312,14 @@ void EngineCoreGLFW::mainLoop()
         glfwSwapBuffers(m_mainWindow);
 #endif
     }
-    delete currentScene;
+}
+
+double EngineCoreGLFW::getDeltaTime() const
+{
+    return m_deltaTime;
+}
+
+double EngineCoreGLFW::getElapsedTime() const
+{
+    return m_elapsedTime;
 }

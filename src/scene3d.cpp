@@ -16,6 +16,8 @@ Scene3D::~Scene3D()
 
 void Scene3D::draw(Renderer *rend)
 {
+    rend->setProjectionMatrix(m_camera.getProjectionMatrix());
+    rend->setViewMatrix(m_camera.getViewMatrix());
     for(auto &kv : m_objects)
     {
         kv.second->draw(rend);
@@ -55,6 +57,23 @@ void Scene3D::addObject(Entity *other, const std::string &name)
     {
         ServiceLocator::getLogger().error(MODULE_NAME, "Object already exists in scene");
     }
+}
+
+const Entity *Scene3D::getObject(const std::string &name) const
+{
+    if(m_objects.find(name) != m_objects.end())
+        return m_objects.at(name);
+    return nullptr;
+}
+
+void Scene3D::setCamera(const Camera3D &cam)
+{
+    m_camera = cam;
+}
+
+Camera3D &Scene3D::getCamera()
+{
+    return m_camera;
 }
 
 size_t Scene3D::getObjectCount() const

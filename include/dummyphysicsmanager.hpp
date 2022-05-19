@@ -11,6 +11,8 @@ public:
 
     void init() override;
     void update(double dt) override;
+
+    void createBody(const PhysicsBodyCreateInfo &cInfo, Entity *parent = nullptr) override;
 };
 
 #endif // DUMMYPHYSICSMANAGER_HPP

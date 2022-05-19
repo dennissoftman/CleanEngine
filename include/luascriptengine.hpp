@@ -6,6 +6,8 @@
 #include <lua.hpp>
 #include <LuaBridge/LuaBridge.h>
 
+#include "physicsmanager.hpp"
+
 class LuaScriptEngine : public ScriptEngine
 {
 public:
@@ -14,11 +16,12 @@ public:
 
     void init() override;
 
-    // Game
-    static void setViewportSize(int width, int height);
+    // ModelLoader
+    static void MdLloadModel(const std::string &path, const std::string &name);
+    static void MdLsetMaterial(const std::string &model, const std::string &material);
 
-    // Graphics
-    static void GcreateMaterial(const std::string &name, const std::string &imgFile);
+    // MaterialLoader
+    static void MtLloadImage(const std::string &path, const std::string &name);
 
     // Debug
     static void print(const std::string &s);

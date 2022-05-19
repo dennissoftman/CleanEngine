@@ -88,8 +88,11 @@ void OpenGLRenderer::queueRenderObject(const Model3D *obj, const glm::mat4 &mode
         }
     }
     GLRenderObject *gObj = createRenderObject(obj);
-    m_createdObjects.push_back(gObj);
-    queueRenderObject(gObj, modelMatrix);
+    if(gObj)
+    {
+        m_createdObjects.push_back(gObj);
+        queueRenderObject(gObj, modelMatrix);
+    }
 }
 
 void OpenGLRenderer::queueRenderObject(GLRenderObject *obj, const glm::mat4 &modelMatrix)
@@ -104,18 +107,7 @@ void OpenGLRenderer::draw()
     while(!m_renderQueue.empty())
     {
         GLRenderRequest req = m_renderQueue.front();
-        if(req.renderObject == nullptr)
-        {
-            m_renderQueue.pop();
-            continue;
-        }
-
         GLRenderObject *obj = req.renderObject;
-        if(obj->parent == nullptr)
-        {
-            m_renderQueue.pop();
-            continue;
-        }
 
         for(size_t i=0; i < obj->meshCount; i++)
         {
@@ -149,6 +141,7 @@ glm::ivec2 OpenGLRenderer::getSize() const
 void OpenGLRenderer::resize(const glm::ivec2 &size)
 {
     m_currentSize = size;
+    glViewport(0, 0, m_currentSize.x, m_currentSize.y);
 }
 
 void OpenGLRenderer::setProjectionMatrix(const glm::mat4 &projmx)

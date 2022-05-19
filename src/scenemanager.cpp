@@ -7,7 +7,7 @@ SceneManager::SceneManager()
 
 void SceneManager::addScene(Scene3D &&other, const std::string &name)
 {
-    m_scenes[name] = std::move(other);
+    m_scenes[name]= std::move(other);
 }
 
 Scene3D *SceneManager::getScene(const std::string &name)

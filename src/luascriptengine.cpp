@@ -22,36 +22,47 @@ void LuaScriptEngine::init()
     // register
     luabridge::getGlobalNamespace(m_globalState)
             .beginNamespace("Debug")
-            .addFunction("print", LuaScriptEngine::print)
+            .addFunction("log", LuaScriptEngine::print)
             .endNamespace();
 
     luabridge::getGlobalNamespace(m_globalState)
-            .beginNamespace("Game")
-            .addFunction("setWindowSize", LuaScriptEngine::setViewportSize)
+            .beginNamespace("MaterialManager")
+            .addFunction("loadImage", LuaScriptEngine::MtLloadImage)
             .endNamespace();
 
     luabridge::getGlobalNamespace(m_globalState)
-            .beginNamespace("Graphics")
-            .addFunction("createMaterial", LuaScriptEngine::GcreateMaterial)
+            .beginNamespace("ModelManager")
+            .addFunction("loadModel", LuaScriptEngine::MdLloadModel)
+            .addFunction("setMaterial", LuaScriptEngine::MdLsetMaterial)
             .endNamespace();
-    //
 
-    /*
-    if(luaL_dofile(m_globalState, "data/scripts/init.lua") == 0)
+
     {
+        luaL_loadfile(m_globalState, ServiceLocator::getResourceManager().getEnginePath("data/scripts/init.lua").c_str());
         lua_pcall(m_globalState, 0, 0, 0);
     }
-    */
 }
 
-void LuaScriptEngine::setViewportSize(int width, int height)
+void LuaScriptEngine::MdLloadModel(const std::string &path, const std::string &name)
 {
-    print("Resize: " + std::to_string(width) + "x" + std::to_string(height));
+    ServiceLocator::getModelManager().loadModel(ServiceLocator::getResourceManager().getEnginePath(path),
+                                                name);
 }
 
-void LuaScriptEngine::GcreateMaterial(const std::string &name, const std::string &imgFile)
+void LuaScriptEngine::MdLsetMaterial(const std::string &model, const std::string &material)
 {
-    ServiceLocator::getLogger().info(MODULE_NAME, "Importing " + name + " from '" + imgFile + "'");
+    Material *mat = ServiceLocator::getMatManager().getMaterial(material);
+    if(mat)
+        ServiceLocator::getModelManager().setModelMaterial(model, mat);
+}
+
+void LuaScriptEngine::MtLloadImage(const std::string &path, const std::string &name)
+{
+    Material *newMat = Material::createMaterial();
+    newMat->setImage(ServiceLocator::getResourceManager().getEnginePath(path),
+                     "img");
+    newMat->init();
+    ServiceLocator::getMatManager().addMaterial(name, newMat);
 }
 
 void LuaScriptEngine::print(const std::string &s)

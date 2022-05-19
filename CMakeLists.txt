@@ -10,7 +10,7 @@ option(COMPILE_GL "Compile using OpenGL renderer" OFF)
 option(COMPILE_VK "Compile using Vulkan renderer" ON)
 
 option(USE_BULLET "Compile using Bullet physics engien" ON)
-option(BULLET_MULTITHREADED "Compile using multithreaded Bullet3" OFF)
+option(BULLET_MULTITHREADED "Compile using multithreaded Bullet3 (experimental)" OFF)
 
 option(USE_GLFW "Use GLFW library" ON)
 
@@ -163,12 +163,13 @@ if(COMPILE_GL)
       ${BULLET_LIBRARIES}
     )
 
+    find_package(OpenMP REQUIRED)
+    target_include_directories(CleanEngineGL PRIVATE
+      ${OpenMP_CXX_INCLUDE_DIRS}
+    )
+    target_link_libraries(CleanEngineGL ${OpenMP_CXX_LIBRARIES})
+
     if(BULLET_MULTITHREADED)
-      find_package(OpenMP REQUIRED)
-      target_include_directories(CleanEngineGL PRIVATE
-        ${OpenMP_CXX_INCLUDE_DIRS}
-      )
-      target_link_libraries(CleanEngineGL ${OpenMP_CXX_LIBRARIES})
       target_compile_definitions(CleanEngineGL PRIVATE BULLET_MULTITHREADED)
     endif()
 
@@ -268,6 +269,7 @@ if(COMPILE_VK)
 
   # GLM
   find_package(glm REQUIRED)
+  target_compile_definitions(CleanEngineVk PRIVATE GLM_FORCE_DEPTH_ZERO_TO_ONE) # depth fix
   target_include_directories(CleanEngineVk PRIVATE ${GLM_INCLUDE_DIR})
   target_link_libraries(CleanEngineVk glm::glm)
 
@@ -342,12 +344,13 @@ if(COMPILE_VK)
       ${BULLET_LIBRARIES}
     )
 
+    find_package(OpenMP REQUIRED)
+    target_include_directories(CleanEngineVk PRIVATE
+      ${OpenMP_CXX_INCLUDE_DIRS}
+    )
+    target_link_libraries(CleanEngineVk ${OpenMP_CXX_LIBRARIES})
+
     if(BULLET_MULTITHREADED)
-      find_package(OpenMP REQUIRED)
-      target_include_directories(CleanEngineVk PRIVATE
-        ${OpenMP_CXX_INCLUDE_DIRS}
-      )
-      target_link_libraries(CleanEngineVk ${OpenMP_CXX_LIBRARIES})
       target_compile_definitions(CleanEngineVk PRIVATE BULLET_MULTITHREADED)
     endif()
 

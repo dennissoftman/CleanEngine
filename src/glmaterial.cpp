@@ -36,13 +36,14 @@ GLuint GLMaterial::loadTexture(const std::string &path)
     }
 
     iluFlipImage(); // flip for OpenGL
+    ilConvertImage(IL_RGBA, IL_UNSIGNED_BYTE);
 
     glGenTextures(1, &id);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, id);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_COMPRESSED_RGBA_S3TC_DXT5_EXT,
                  ilGetInteger(IL_IMAGE_WIDTH), ilGetInteger(IL_IMAGE_HEIGHT),
-                 0, ilGetInteger(IL_IMAGE_FORMAT), GL_UNSIGNED_BYTE, ilGetData());
+                 0, GL_RGBA, GL_UNSIGNED_BYTE, ilGetData());
 
     glTextureParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTextureParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);

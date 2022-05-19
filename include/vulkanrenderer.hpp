@@ -34,7 +34,7 @@ struct NativeSurfaceProps
     std::optional<HWND> hwnd;
     std::optional<HINSTANCE> hInstance;
 
-    bool isComplete() const
+    [[nodiscard]] bool isComplete() const
     {
         return hwnd.has_value() && hInstance.has_value();
     }
@@ -61,6 +61,7 @@ struct VkImageObject
     vk::DeviceMemory memory;
     uint32_t width, height;
     vk::Format format;
+    uint32_t mipLevels = 1;
 };
 
 struct VkMeshData
@@ -200,17 +201,24 @@ public:
     [[nodiscard]] vk::PhysicalDevice &getPhysicalDevice();
     [[nodiscard]] vk::RenderPass &getRenderPass();
     [[nodiscard]] vk::Format getImageFormat() const;
+    [[nodiscard]] vk::SampleCountFlagBits getSamplingValue() const;
     [[nodiscard]] uint32_t getImageCount() const;
     [[nodiscard]] uint32_t getQueueFamilyIndex() const;
 
     [[nodiscard]] VkBufferObject createBuffer(vk::DeviceSize size,
                                               vk::BufferUsageFlags usage,
                                               vk::MemoryPropertyFlags memProps);
-    [[nodiscard]] VkImageObject createImage(uint32_t width, uint32_t height, vk::Format format,
+    [[nodiscard]] VkImageObject createImage(uint32_t width, uint32_t height,
+                                            vk::Format format,
+                                            uint32_t mipLevels,
                                             vk::ImageTiling tiling,
                                             vk::ImageUsageFlags usage,
-                                            vk::MemoryPropertyFlags memProps);
-    [[nodiscard]] vk::ImageView createImageView(VkImageObject imageObject);
+                                            vk::MemoryPropertyFlags memProps,
+                                            vk::SampleCountFlagBits samples=vk::SampleCountFlagBits::e1);
+    void generateMipmaps(const VkImageObject &imageObject);
+
+    [[nodiscard]] vk::ImageView createImageView(const VkImageObject &imageObject,
+                                                vk::ImageAspectFlags aspect=vk::ImageAspectFlagBits::eColor);
     void registerMaterial(VkMaterial *mat);
 
     void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
@@ -241,6 +249,12 @@ private:
     vk::Format m_vkImageFormat;
     std::vector<vk::Image> m_vkSwapchainImages;
     std::vector<vk::ImageView> m_vkSwapchainImageViews;
+    vk::Format m_vkDepthFormat;
+    VkImageObject m_vkDepthImageObject;
+    vk::ImageView m_vkDepthImageView;
+    VkImageObject m_vkMultisampleObject;
+    vk::ImageView m_vkMultisampleView;
+    vk::SampleCountFlagBits m_samplingValue;
     std::vector<vk::Framebuffer> m_vkSwapchainFramebuffers;
     uint32_t m_currentFrame;
     vk::CommandPool m_vkCmdPool;

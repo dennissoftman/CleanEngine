@@ -9,11 +9,15 @@ layout(set = 0, binding = 0) uniform TransformData
 {
 	mat4 projection;
 	mat4 view;
+} sceneData;
+
+layout(push_constant) uniform ObjectData
+{
 	mat4 model;
 } objectData;
 
 void main()
 {
 	texPos = texCoord;
-	gl_Position = objectData.projection * objectData.view * objectData.model * vec4(vertCoord, 1.0);
+	gl_Position = sceneData.projection * sceneData.view * objectData.model * vec4(vertCoord, 1.0);
 }

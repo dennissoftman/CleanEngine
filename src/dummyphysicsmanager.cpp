@@ -19,3 +19,9 @@ void DummyPhysicsManager::update(double dt)
 {
     (void)dt;
 }
+
+void DummyPhysicsManager::createBody(const PhysicsBodyCreateInfo &cInfo, Entity *parent)
+{
+    (void)cInfo;
+    (void)parent;
+}

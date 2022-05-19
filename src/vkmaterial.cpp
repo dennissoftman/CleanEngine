@@ -7,7 +7,7 @@
 static const char *MODULE_NAME = "VkMaterial";
 
 VkMaterial::VkMaterial(VulkanRenderer *rend)
-    : m_renderer(rend), m_shader(nullptr)
+    : m_renderer(rend), m_shader(nullptr), m_lastImageIndex(~0u)
 {
 
 }
@@ -16,10 +16,10 @@ VkMaterial::~VkMaterial()
 {
     if(m_renderer)
     {
-        delete m_shader;
         if (m_pipeline)
         {
             vk::Device vkDevice = m_renderer->getDevice();
+            vkDevice.waitIdle();
             vkDevice.destroyPipeline(m_pipeline);
             vkDevice.destroyPipelineLayout(m_pipelineLayout);
 
@@ -120,22 +120,25 @@ void VkMaterial::init()
                                     vk::FrontFace::eCounterClockwise,
                                     VK_FALSE, 0.f, 0.f, 0.f, 0.f);
 
+        vk::SampleCountFlagBits samplingValue = m_renderer->getSamplingValue();
         vk::PipelineMultisampleStateCreateInfo
             multisampleStateCInfo(vk::PipelineMultisampleStateCreateFlags(),
-                                  vk::SampleCountFlagBits::e1,
-                                  VK_FALSE, 0.f,
+                                  samplingValue,
+                                  (samplingValue > vk::SampleCountFlagBits::e1) ? VK_TRUE : VK_FALSE, .2f,
                                   nullptr, VK_FALSE);
 
         vk::PipelineDepthStencilStateCreateInfo
             depthStencilStateCInfo(vk::PipelineDepthStencilStateCreateFlags(),
-                                   VK_TRUE, VK_TRUE, vk::CompareOp::eLessOrEqual, VK_FALSE,
-                                   VK_FALSE);
+                                   VK_TRUE, VK_TRUE, vk::CompareOp::eLessOrEqual,
+                                   VK_FALSE, VK_FALSE,
+                                   {}, {},
+                                   0.f, 1.f);
 
         vk::PipelineColorBlendAttachmentState colorBlendAttachment(VK_FALSE);
         colorBlendAttachment.setColorWriteMask(vk::ColorComponentFlagBits::eR |
-            vk::ColorComponentFlagBits::eG |
-            vk::ColorComponentFlagBits::eB |
-            vk::ColorComponentFlagBits::eA);
+                                               vk::ColorComponentFlagBits::eG |
+                                               vk::ColorComponentFlagBits::eB |
+                                               vk::ColorComponentFlagBits::eA);
 
         vk::PipelineColorBlendStateCreateInfo
             colorBlendStateCInfo(vk::PipelineColorBlendStateCreateFlags(),
@@ -177,7 +180,9 @@ void VkMaterial::init()
         std::vector<vk::DescriptorSetLayout> descSetLayouts = {
             m_descSetLayout
         };
-        std::vector<vk::PushConstantRange> pushConstantRanges;
+        std::vector<vk::PushConstantRange> pushConstantRanges = {
+            vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex, 0, sizeof(glm::mat4))
+        };
         vk::PipelineLayoutCreateInfo pipelineLayoutCInfo(vk::PipelineLayoutCreateFlags(),
                                                          descSetLayouts,
                                                          pushConstantRanges);
@@ -222,7 +227,6 @@ void VkMaterial::init()
         if(m_image.has_value()) // TODO: textures
         {
             vk::PhysicalDeviceProperties props = m_renderer->getPhysicalDevice().getProperties();
-
             vk::SamplerCreateInfo samplerCInfo(vk::SamplerCreateFlags(),
                                                vk::Filter::eLinear,
                                                vk::Filter::eLinear,
@@ -232,7 +236,7 @@ void VkMaterial::init()
                                                vk::SamplerAddressMode::eRepeat,
                                                0.f, VK_TRUE, props.limits.maxSamplerAnisotropy,
                                                VK_FALSE, vk::CompareOp::eAlways,
-                                               0.f, 0.f,
+                                               0.f, m_image.value().mipLevels,
                                                vk::BorderColor::eIntOpaqueBlack,
                                                VK_FALSE);
             try
@@ -251,7 +255,7 @@ void VkMaterial::init()
         {
             try
             {
-                VkBufferObject memObj = m_renderer->createBuffer(sizeof(TransformData),
+                VkBufferObject memObj = m_renderer->createBuffer(sizeof(SceneTransformData),
                                                                  vk::BufferUsageFlagBits::eUniformBuffer,
                                                                  vk::MemoryPropertyFlagBits::eHostVisible
                                                                      |
@@ -300,7 +304,7 @@ void VkMaterial::init()
                 {
                     vk::DescriptorBufferInfo(m_UBOs[i].buffer,
                                              0,
-                                             sizeof(TransformData))
+                                             sizeof(SceneTransformData))
                 };
 
                 std::vector<vk::WriteDescriptorSet> writeSets =
@@ -333,6 +337,8 @@ void VkMaterial::init()
             return;
         }
     }
+    delete m_shader;
+    m_shader = nullptr;
     m_renderer->registerMaterial(this);
 }
 
@@ -352,12 +358,11 @@ void VkMaterial::setImage(const std::string &path, const std::string &name)
     }
 
     iluFlipImage();
+    ilConvertImage(IL_RGBA, IL_UNSIGNED_BYTE); // convert any format to this (simplify vulkan operations)
 
     ILint width  = ilGetInteger(IL_IMAGE_WIDTH),
           height = ilGetInteger(IL_IMAGE_HEIGHT);
-    ILint bpp = ilGetInteger(IL_IMAGE_BYTES_PER_PIXEL);
-
-    uint32_t imageDataSize = width * height * bpp;
+    uint32_t imageDataSize = width * height * 4;
 
     VkBufferObject texStagingBufferObj = m_renderer->createBuffer(imageDataSize,
                                                                   vk::BufferUsageFlagBits::eTransferSrc,
@@ -366,23 +371,35 @@ void VkMaterial::setImage(const std::string &path, const std::string &name)
 
     ILubyte *imageData = ilGetData();
 
-    void *texData;
-    m_renderer->getDevice().mapMemory(texStagingBufferObj.memory,
-                                      0, texStagingBufferObj.size,
-                                      vk::MemoryMapFlags(), &texData);
-    memcpy(texData, imageData, imageDataSize);
-    m_renderer->getDevice().unmapMemory(texStagingBufferObj.memory);
-
+    try
+    {
+        void *texData;
+        m_renderer->getDevice().mapMemory(texStagingBufferObj.memory,
+                                          0, texStagingBufferObj.size,
+                                          vk::MemoryMapFlags(), &texData);
+        memcpy(texData, imageData, imageDataSize);
+        m_renderer->getDevice().unmapMemory(texStagingBufferObj.memory);
+    }
+    catch(const std::exception &e)
+    {
+        logger.error(MODULE_NAME, "Failed to copy texture data: " + std::string(e.what()));
+        ilBindImage(0);
+        ilDeleteImage(imgId);
+        return;
+    }
     ilBindImage(0);
     ilDeleteImage(imgId);
 
     //
     try
     {
-        m_image = m_renderer->createImage(width, height, vk::Format::eR8G8B8A8Srgb,
+        uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
+        m_image = m_renderer->createImage(width, height,
+                                          vk::Format::eR8G8B8A8Srgb, mipLevels,
                                           vk::ImageTiling::eOptimal,
+                                          vk::ImageUsageFlagBits::eTransferSrc |
                                           vk::ImageUsageFlagBits::eTransferDst |
-                                              vk::ImageUsageFlagBits::eSampled,
+                                          vk::ImageUsageFlagBits::eSampled,
                                           vk::MemoryPropertyFlagBits::eDeviceLocal);
     }
     catch(const std::exception &e)
@@ -391,18 +408,25 @@ void VkMaterial::setImage(const std::string &path, const std::string &name)
         return;
     }
 
-    { // load texture into VRAM
+    { // load texture into VRAM and generate mipmaps
         m_renderer->transitionImageLayout(m_image.value(),
                                           vk::ImageLayout::eUndefined,
                                           vk::ImageLayout::eTransferDstOptimal);
         m_renderer
             ->copyBufferToImage(texStagingBufferObj.buffer, m_image.value().image, width, height);
-        m_renderer->transitionImageLayout(m_image.value(),
-                                          vk::ImageLayout::eTransferDstOptimal,
-                                          vk::ImageLayout::eShaderReadOnlyOptimal);
 
         m_renderer->getDevice().destroyBuffer(texStagingBufferObj.buffer);
         m_renderer->getDevice().freeMemory(texStagingBufferObj.memory);
+
+        try
+        {
+            m_renderer->generateMipmaps(m_image.value());
+        }
+        catch(const std::exception &e)
+        {
+            logger.error(MODULE_NAME, "Failed to generate mipmaps: " + std::string(e.what()));
+            return;
+        }
     }
 
     try
@@ -418,13 +442,14 @@ void VkMaterial::setImage(const std::string &path, const std::string &name)
 
 void VkMaterial::use(TransformData &transformData)
 {
+    (void)transformData;
     ServiceLocator::getLogger().error(MODULE_NAME,
                                       "Use 'use(TransformData&, VkRenderData&)' instead of 'use(TransformData&)'");
 }
 
 void VkMaterial::use(TransformData &transformData, VkRenderData &renderData)
 {
-    // TODO: ADD DIRTY FLAG
+    if(m_lastImageIndex != renderData.getImageIndex())
     {
         void *buffData;
         m_renderer->getDevice().mapMemory(m_UBOs[renderData.getImageIndex()].memory,
@@ -432,10 +457,10 @@ void VkMaterial::use(TransformData &transformData, VkRenderData &renderData)
                                           m_UBOs[renderData.getImageIndex()].size,
                                           vk::MemoryMapFlags(),
                                           &buffData);
-        memcpy(buffData, reinterpret_cast<void *>(&transformData), sizeof(TransformData));
+        memcpy(buffData, reinterpret_cast<void *>(&transformData), sizeof(SceneTransformData));
         m_renderer->getDevice().unmapMemory(m_UBOs[renderData.getImageIndex()].memory);
+        m_lastImageIndex = renderData.getImageIndex();
     }
-    //
 
     vk::CommandBuffer &cmdBuff = renderData.getCmdBuffer();
     cmdBuff.bindPipeline(vk::PipelineBindPoint::eGraphics,
@@ -444,6 +469,8 @@ void VkMaterial::use(TransformData &transformData, VkRenderData &renderData)
                                m_pipelineLayout,
                                0, 1, &m_descSets[renderData.getImageIndex()],
                                0, VK_NULL_HANDLE);
+    cmdBuff.pushConstants(m_pipelineLayout, vk::ShaderStageFlagBits::eVertex,
+                          0, sizeof(glm::mat4), &transformData.Model);
 }
 
 void VkMaterial::setDoubleSided(bool yes)
@@ -455,4 +482,5 @@ bool VkMaterial::isDoubleSided() const
 {
     return m_doubleSided;
 }
+
 

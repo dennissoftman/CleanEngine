@@ -13,7 +13,9 @@ VulkanRenderer::VulkanRenderer()
     : m_pDev(VK_NULL_HANDLE),
       m_queueInfo({}),
       m_currentSize(0, 0),
+      m_vkDepthFormat(vk::Format::eUndefined),
       m_vkImageFormat(vk::Format::eUndefined),
+      m_samplingValue(vk::SampleCountFlagBits::e2), // MSAA x2
       m_currentFrame(0), m_defaultMaterial(nullptr),
       m_projMatrix(glm::mat4()), m_viewMatrix(glm::mat4())
 {
@@ -57,6 +59,14 @@ void VulkanRenderer::terminate()
         {
             for(auto &fbuff : m_vkSwapchainFramebuffers)
                 m_vkDevice.destroyFramebuffer(fbuff);
+
+            m_vkDevice.destroyImageView(m_vkMultisampleView);
+            m_vkDevice.destroyImage(m_vkMultisampleObject.image);
+            m_vkDevice.freeMemory(m_vkMultisampleObject.memory);
+
+            m_vkDevice.destroyImageView(m_vkDepthImageView);
+            m_vkDevice.destroyImage(m_vkDepthImageObject.image);
+            m_vkDevice.freeMemory(m_vkDepthImageObject.memory);
 
             for(auto &imgView : m_vkSwapchainImageViews)
                 m_vkDevice.destroyImageView(imgView);
@@ -217,20 +227,30 @@ void VulkanRenderer::init(const VideoMode &mode)
     { // surface
         if(!m_nsp.isComplete())
         {
-            logger.error(MODULE_NAME, "Failed to create SurfaceKHR");
+            logger.error(MODULE_NAME, "NativeSurfaceProps weren't initialized");
             return terminate();
         }
+
+        try
+        {
 #ifdef __linux__
-        vk::XcbSurfaceCreateInfoKHR cInfo(vk::XcbSurfaceCreateFlagsKHR(),
-                                          m_nsp.connection.value(),
-                                          m_nsp.window.value());
-        m_vkSurface = m_vkInstance.createXcbSurfaceKHR(cInfo);
+            vk::XcbSurfaceCreateInfoKHR cInfo(vk::XcbSurfaceCreateFlagsKHR(),
+                                              m_nsp.connection.value(),
+                                              m_nsp.window.value());
+            m_vkSurface = m_vkInstance.createXcbSurfaceKHR(cInfo);
 #elif _WIN32
-        vk::Win32SurfaceCreateInfoKHR cInfo(vk::Win32SurfaceCreateInfoKHR(),
-                                            m_nsp.hwnd.value(),
-                                            m_nsp.hInstance.value());
-        m_vkSurface = m_vkInstance.createWin32SurfaceKHR(cInfo);
+            vk::Win32SurfaceCreateInfoKHR cInfo(vk::Win32SurfaceCreateInfoKHR(),
+                                                m_nsp.hInstance.value(),
+                                                m_nsp.hwnd.value());
+            m_vkSurface = m_vkInstance.createWin32SurfaceKHR(cInfo);
 #endif
+        }
+        catch(const std::exception &e)
+        {
+            logger.error(MODULE_NAME, "Failed to create vk::SurfaceKHR: " + std::string(e.what()));
+            return terminate();
+        }
+
         logger.info(MODULE_NAME, "Surface init completed");
     }
 
@@ -258,7 +278,7 @@ void VulkanRenderer::init(const VideoMode &mode)
                                          imgColorSpace,
                                          imageExtent,
                                          caps.maxImageArrayLayers,
-                                         vk::ImageUsageFlags(vk::ImageUsageFlagBits::eColorAttachment),
+                                         vk::ImageUsageFlagBits::eColorAttachment,
                                          vk::SharingMode::eExclusive,
                                          1, &m_queueInfo.familyIndex,
                                          vk::SurfaceTransformFlagBitsKHR::eIdentity,
@@ -285,6 +305,60 @@ void VulkanRenderer::init(const VideoMode &mode)
             return terminate();
         }
 
+        // depth format
+        {
+            auto features = vk::FormatFeatureFlagBits::eDepthStencilAttachment;
+            for(auto candidate : {vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint, vk::Format::eD32Sfloat})
+            {
+                auto props = m_pDev.getFormatProperties(candidate);
+                if((props.optimalTilingFeatures & features) == features)
+                {
+                    m_vkDepthFormat = candidate;
+                    break;
+                }
+            }
+            if(m_vkDepthFormat == vk::Format::eUndefined)
+            {
+                logger.error(MODULE_NAME, "Failed to find suitable depth buffer format");
+                return terminate();
+            }
+        }
+
+        // depth image
+        try
+        {
+            m_vkDepthImageObject = createImage(imageExtent.width, imageExtent.height,
+                                               m_vkDepthFormat,
+                                               1,
+                                               vk::ImageTiling::eOptimal,
+                                               vk::ImageUsageFlagBits::eDepthStencilAttachment,
+                                               vk::MemoryPropertyFlagBits::eDeviceLocal,
+                                               m_samplingValue);
+        }
+        catch(const std::exception &e)
+        {
+            logger.error(MODULE_NAME, "Failed to create vk::Image for depth: " + std::string(e.what()));
+            return terminate();
+        }
+
+        // multisampling image
+        try
+        {
+            m_vkMultisampleObject = createImage(imageExtent.width, imageExtent.height,
+                                                m_vkImageFormat,
+                                                1,
+                                                vk::ImageTiling::eOptimal,
+                                                vk::ImageUsageFlagBits::eTransientAttachment |
+                                                vk::ImageUsageFlagBits::eColorAttachment,
+                                                vk::MemoryPropertyFlagBits::eDeviceLocal,
+                                                m_samplingValue);
+        }
+        catch(const std::exception &e)
+        {
+            logger.error(MODULE_NAME, "Failed to create vk::Image for depth: " + std::string(e.what()));
+            return terminate();
+        }
+
         m_currentSize = imageExtent;
 
         // create image views
@@ -297,7 +371,7 @@ void VulkanRenderer::init(const VideoMode &mode)
                                                          vk::ComponentSwizzle::eIdentity,
                                                          vk::ComponentSwizzle::eIdentity,
                                                          vk::ComponentSwizzle::eIdentity},
-                                    vk::ImageSubresourceRange(vk::ImageAspectFlags(vk::ImageAspectFlagBits::eColor),
+                                    vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor,
                                                               0, 1,
                                                               0, 1));
             try
@@ -310,6 +384,27 @@ void VulkanRenderer::init(const VideoMode &mode)
                 return terminate();
             }
         }
+
+        try
+        {
+            m_vkDepthImageView = createImageView(m_vkDepthImageObject, vk::ImageAspectFlagBits::eDepth);
+        }
+        catch(const std::exception &e)
+        {
+            logger.error(MODULE_NAME, "Failed to create vk::ImageView for depth: " + std::string(e.what()));
+            return terminate();
+        }
+
+        try
+        {
+            m_vkMultisampleView = createImageView(m_vkMultisampleObject, vk::ImageAspectFlagBits::eColor);
+        }
+        catch(const std::exception &e)
+        {
+            logger.error(MODULE_NAME, "Failed to create vk::ImageView for multisampling: " + std::string(e.what()));
+            return terminate();
+        }
+
         logger.info(MODULE_NAME, "Swapchain init completed");
     }
 
@@ -334,8 +429,26 @@ void VulkanRenderer::init(const VideoMode &mode)
         std::vector<vk::AttachmentDescription> attachments = {
             vk::AttachmentDescription{vk::AttachmentDescriptionFlags(),
                                       m_vkImageFormat,
-                                      vk::SampleCountFlagBits::e1, // no MSAA
+                                      m_samplingValue,
                                       vk::AttachmentLoadOp::eClear,
+                                      vk::AttachmentStoreOp::eStore,
+                                      vk::AttachmentLoadOp::eDontCare,
+                                      vk::AttachmentStoreOp::eDontCare,
+                                      vk::ImageLayout::eUndefined,
+                                      vk::ImageLayout::eColorAttachmentOptimal},
+            vk::AttachmentDescription{vk::AttachmentDescriptionFlags(),
+                                      m_vkDepthFormat,
+                                      m_samplingValue,
+                                      vk::AttachmentLoadOp::eClear,
+                                      vk::AttachmentStoreOp::eDontCare,
+                                      vk::AttachmentLoadOp::eDontCare,
+                                      vk::AttachmentStoreOp::eDontCare,
+                                      vk::ImageLayout::eUndefined,
+                                      vk::ImageLayout::eDepthStencilAttachmentOptimal},
+            vk::AttachmentDescription{vk::AttachmentDescriptionFlags(),
+                                      m_vkImageFormat,
+                                      vk::SampleCountFlagBits::e1,
+                                      vk::AttachmentLoadOp::eDontCare,
                                       vk::AttachmentStoreOp::eStore,
                                       vk::AttachmentLoadOp::eDontCare,
                                       vk::AttachmentStoreOp::eDontCare,
@@ -344,6 +457,8 @@ void VulkanRenderer::init(const VideoMode &mode)
         };
 
         vk::AttachmentReference mainAttachmentRef(0, vk::ImageLayout::eColorAttachmentOptimal);
+        vk::AttachmentReference depthAttachmentRef(1, vk::ImageLayout::eDepthStencilAttachmentOptimal);
+        vk::AttachmentReference sampleAttachmentRef(2, vk::ImageLayout::eColorAttachmentOptimal);
 
         std::vector<vk::SubpassDescription> subpassDescs = {
             vk::SubpassDescription{
@@ -351,17 +466,17 @@ void VulkanRenderer::init(const VideoMode &mode)
                 vk::PipelineBindPoint::eGraphics,
                 0, VK_NULL_HANDLE,
                 1, &mainAttachmentRef,
-                VK_NULL_HANDLE,
-                VK_NULL_HANDLE,
+                &sampleAttachmentRef,
+                &depthAttachmentRef,
                 0, VK_NULL_HANDLE}
         };
 
         std::vector<vk::SubpassDependency> subpassDeps = {
             vk::SubpassDependency{VK_SUBPASS_EXTERNAL, 0,
-                                  vk::PipelineStageFlags(vk::PipelineStageFlagBits::eColorAttachmentOutput),
-                                  vk::PipelineStageFlags(vk::PipelineStageFlagBits::eColorAttachmentOutput),
+                                  vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests,
+                                  vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests,
                                   vk::AccessFlags(),
-                                  vk::AccessFlags(vk::AccessFlagBits::eColorAttachmentWrite),
+                                  vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentWrite,
                                   vk::DependencyFlags()}
         };
 
@@ -385,12 +500,14 @@ void VulkanRenderer::init(const VideoMode &mode)
     { // create framebuffers
         for(auto &imgView : m_vkSwapchainImageViews)
         {
-            vk::ImageView attachments[] = {
+            std::vector<vk::ImageView> attachments = {
+                m_vkMultisampleView,
+                m_vkDepthImageView,
                 imgView
             };
             vk::FramebufferCreateInfo fbuffCInfo(vk::FramebufferCreateFlags(),
                                                  m_vkDefaultRenderPass,
-                                                 1, attachments,
+                                                 attachments,
                                                  m_currentSize.width, m_currentSize.height,
                                                  1);
             try
@@ -520,11 +637,15 @@ void VulkanRenderer::recordCommandBuffer(vk::CommandBuffer cmdBuff, uint32_t img
 
     cmdBuff.begin(beginInfo);
 
-    vk::ClearValue clearColor(std::array<float, 4>{0.f, 0.f, 0.f, 1.f});
+    std::array<vk::ClearValue, 2> clearValues = {
+        vk::ClearValue{vk::ClearColorValue{std::array<float, 4>{0.f, 0.f, 0.f, 1.f}}},
+        vk::ClearValue{vk::ClearDepthStencilValue{1.f, 0}}
+    };
+    ;
     vk::RenderPassBeginInfo renderPassInfo(m_vkDefaultRenderPass,
                                            m_vkSwapchainFramebuffers[imgIndex],
                                            vk::Rect2D(vk::Offset2D(0, 0), m_currentSize),
-                                           1, &clearColor);
+                                           clearValues);
 
     cmdBuff.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
     // ------------------------------------- DRAWING -----------------------------------------------
@@ -689,6 +810,11 @@ vk::Format VulkanRenderer::getImageFormat() const
     return m_vkImageFormat;
 }
 
+vk::SampleCountFlagBits VulkanRenderer::getSamplingValue() const
+{
+    return m_samplingValue;
+}
+
 uint32_t VulkanRenderer::getImageCount() const
 {
     return m_vkSwapchainImages.size();
@@ -710,17 +836,18 @@ void VulkanRenderer::registerMaterial(VkMaterial *mat)
         m_registeredMaterials.insert(mat);
 }
 
-VkImageObject VulkanRenderer::createImage(uint32_t width, uint32_t height, vk::Format format,
+VkImageObject VulkanRenderer::createImage(uint32_t width, uint32_t height, vk::Format format, uint32_t mipLevels,
                                           vk::ImageTiling tiling,
                                           vk::ImageUsageFlags usage,
-                                          vk::MemoryPropertyFlags memProps)
+                                          vk::MemoryPropertyFlags memProps,
+                                          vk::SampleCountFlagBits samples)
 {
     vk::ImageCreateInfo imgCInfo(vk::ImageCreateFlags(),
                                  vk::ImageType::e2D,
                                  format,
                                  vk::Extent3D(width, height, 1),
-                                 1, 1,
-                                 vk::SampleCountFlagBits::e1,
+                                 mipLevels, 1,
+                                 samples,
                                  tiling,
                                  usage,
                                  vk::SharingMode::eExclusive,
@@ -733,18 +860,106 @@ VkImageObject VulkanRenderer::createImage(uint32_t width, uint32_t height, vk::F
     vk::DeviceMemory memory = m_vkDevice.allocateMemory(allocInfo);
 
     m_vkDevice.bindImageMemory(image, memory, 0);
-    return VkImageObject{image, memory, width, height, format};
+    return VkImageObject{image, memory, width, height, format, mipLevels};
 }
 
-vk::ImageView VulkanRenderer::createImageView(VkImageObject imageObject)
+void VulkanRenderer::generateMipmaps(const VkImageObject &imageObject)
 {
+    vk::FormatProperties props = m_pDev.getFormatProperties(imageObject.format);
+    if(!(props.optimalTilingFeatures & vk::FormatFeatureFlagBits::eSampledImageFilterLinear))
+        throw std::runtime_error("linear filtering unsupported for this format");
+
+    vk::CommandBuffer cmdBuff = beginOneShotCmd();
+
+    vk::ImageMemoryBarrier barrier{};
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = imageObject.image;
+    barrier.subresourceRange = vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor,
+                                                         0, 1,
+                                                         0, 1};
+
+    int32_t mipWidth = imageObject.width, mipHeight = imageObject.height;
+
+    for(uint32_t i=1; i < imageObject.mipLevels; i++)
+    {
+        barrier.subresourceRange.baseMipLevel = i-1;
+        barrier.oldLayout = vk::ImageLayout::eTransferDstOptimal;
+        barrier.newLayout = vk::ImageLayout::eTransferSrcOptimal;
+        barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+        barrier.dstAccessMask = vk::AccessFlagBits::eTransferRead;
+
+        cmdBuff.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
+                                vk::PipelineStageFlagBits::eTransfer,
+                                vk::DependencyFlags(),
+                                0, VK_NULL_HANDLE,
+                                0, VK_NULL_HANDLE,
+                                1, &barrier);
+
+        vk::ImageBlit blit{};
+        blit.srcOffsets = std::array<vk::Offset3D, 2>{
+            vk::Offset3D{0, 0, 0},
+            vk::Offset3D{mipWidth, mipHeight, 1}
+        };
+        blit.srcSubresource = vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor,
+                                                         i - 1, 0, 1};
+        blit.dstOffsets = std::array<vk::Offset3D, 2> {
+            vk::Offset3D{0, 0, 0},
+            vk::Offset3D{(mipWidth > 1) ? (mipWidth>>1) : 1,
+                         (mipHeight > 1) ? (mipHeight>>1) : 1,
+                         1}
+        };
+        blit.dstSubresource = vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor,
+                                                         i, 0, 1};
+
+        cmdBuff.blitImage(imageObject.image,
+                          vk::ImageLayout::eTransferSrcOptimal,
+                          imageObject.image,
+                          vk::ImageLayout::eTransferDstOptimal,
+                          1, &blit,
+                          vk::Filter::eLinear);
+
+        barrier.oldLayout = vk::ImageLayout::eTransferSrcOptimal;
+        barrier.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+        barrier.srcAccessMask = vk::AccessFlagBits::eTransferRead;
+        barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+
+        cmdBuff.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
+                                vk::PipelineStageFlagBits::eFragmentShader,
+                                vk::DependencyFlags(),
+                                0, VK_NULL_HANDLE,
+                                0, VK_NULL_HANDLE,
+                                1, &barrier);
+
+        if(mipWidth > 1) mipWidth >>= 1;
+        if(mipHeight > 1) mipHeight >>= 1;
+    }
+
+    barrier.subresourceRange.baseMipLevel = imageObject.mipLevels - 1;
+    barrier.oldLayout = vk::ImageLayout::eTransferDstOptimal;
+    barrier.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+    barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+    barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+
+    cmdBuff.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
+                            vk::PipelineStageFlagBits::eFragmentShader,
+                            vk::DependencyFlags(),
+                            0, VK_NULL_HANDLE,
+                            0, VK_NULL_HANDLE,
+                            1, &barrier);
+
+    endOneShotCmd(cmdBuff);
+}
+
+vk::ImageView VulkanRenderer::createImageView(const VkImageObject &imageObject, vk::ImageAspectFlags aspect)
+{    
     vk::ImageViewCreateInfo imgViewCInfo(vk::ImageViewCreateFlags(),
                                          imageObject.image,
                                          vk::ImageViewType::e2D,
                                          imageObject.format,
                                          vk::ComponentMapping(),
-                                         vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor,
-                                                                   0, 1,
+                                         vk::ImageSubresourceRange(aspect,
+                                                                   0, imageObject.mipLevels,
                                                                    0, 1));
     return m_vkDevice.createImageView(imgViewCInfo);
 }
@@ -803,7 +1018,7 @@ void VulkanRenderer::transitionImageLayout(VkImageObject imageObject,
                                    VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
                                    imageObject.image,
                                    vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor,
-                                                             0, 1,
+                                                             0, imageObject.mipLevels,
                                                              0, 1));
     vk::PipelineStageFlags srcStage{}, dstStage{};
 

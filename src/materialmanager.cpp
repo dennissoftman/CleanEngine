@@ -7,10 +7,7 @@ MaterialManager::MaterialManager()
 
 MaterialManager::~MaterialManager()
 {
-    for(auto &kv : m_materials)
-    {
-        delete kv.second;
-    }
+
 }
 
 void MaterialManager::addMaterial(const std::string &name, Material *mat)
@@ -22,7 +19,7 @@ void MaterialManager::addMaterial(const std::string &name, Material *mat)
     }
 }
 
-Material *MaterialManager::get(const std::string &name) const
+Material *MaterialManager::getMaterial(const std::string &name) const
 {
     if(m_materials.contains(name))
         return m_materials.at(name);

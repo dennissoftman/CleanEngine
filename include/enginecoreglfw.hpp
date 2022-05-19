@@ -17,6 +17,8 @@
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
 
+class ScriptEngine;
+
 class EngineCoreGLFW
 {
 public:
@@ -28,12 +30,17 @@ public:
 
     void mainLoop();
 
+    double getDeltaTime() const;
+    double getElapsedTime() const;
+
     static void onWindowResized(GLFWwindow *win, int width, int height);
     static EngineCoreGLFW *corePtr;
 private:
     GLFWwindow *m_mainWindow;
     Renderer *m_mainRenderer;
     double m_elapsedTime, m_deltaTime;
+    // TEMP
+    ScriptEngine *m_scriptEngine;
 
     glm::ivec2 m_windowSize;
 };

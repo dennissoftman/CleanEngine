@@ -5,6 +5,12 @@
 #include "vulkanrenderer.hpp"
 #include "vkshader.hpp"
 
+struct SceneTransformData
+{
+    glm::mat4 projection;
+    glm::mat4 view;
+};
+
 class VkMaterial : public Material
 {
 public:
@@ -28,6 +34,7 @@ private:
     vk::DescriptorSetLayout m_descSetLayout;
     vk::PipelineLayout m_pipelineLayout;
     vk::Pipeline m_pipeline;
+    uint32_t m_lastImageIndex;
 
     //
     std::vector<VkBufferObject> m_UBOs;
