@@ -14,7 +14,7 @@ Material *Material::createMaterial()
 #include "vkmaterial.hpp"
 #include "servicelocator.hpp"
 
-Material *Material::createMaterial()
+Material *Material::create()
 {
     VulkanRenderer *vkRenderer = dynamic_cast<VulkanRenderer*>(&ServiceLocator::getRenderer());
     return new VkMaterial(vkRenderer);

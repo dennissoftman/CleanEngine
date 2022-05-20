@@ -34,9 +34,7 @@ void Scene3D::update(double dt)
 
 void Scene3D::terminate()
 {
-    for (auto& kv : m_objects)
-        delete kv.second;
-    m_objects.clear();
+    clear();
 }
 
 void Scene3D::addObject(Entity *other)
@@ -57,6 +55,29 @@ void Scene3D::addObject(Entity *other, const std::string &name)
     {
         ServiceLocator::getLogger().error(MODULE_NAME, "Object already exists in scene");
     }
+}
+
+void Scene3D::removeObject(Entity *other)
+{
+    // DO NOT REMOVE OBJECT IF IT HAS RIGIDBODY CONNECTED!
+    // SEGFAULT GUARANTEED
+    // to be fixed
+    for(auto &kv : m_objects)
+    {
+        if(kv.second == other)
+        {
+            m_objects.erase(kv.first);
+            delete other;
+            break;
+        }
+    }
+}
+
+void Scene3D::clear()
+{
+    for (auto& kv : m_objects)
+        delete kv.second;
+    m_objects.clear();
 }
 
 const Entity *Scene3D::getObject(const std::string &name) const

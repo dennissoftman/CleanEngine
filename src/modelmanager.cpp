@@ -26,7 +26,7 @@ ModelManager::~ModelManager()
 const Model3D *ModelManager::getModel(const std::string &name) const
 {
     if(m_models.find(name) == m_models.end())
-        throw std::runtime_error("Model not found");
+        return nullptr;
     if(m_models.at(name) == nullptr)
         throw std::runtime_error("Unexpected error while getting model");
     return m_models.at(name);
@@ -52,7 +52,7 @@ void ModelManager::loadModel(const std::string &path, const std::string &name)
 
     {
         Assimp::Importer loader;
-        const aiScene *scn = loader.ReadFile(path.c_str(), aiProcess_Triangulate);
+        const aiScene *scn = loader.ReadFile(path.c_str(), aiProcess_Triangulate | aiProcess_EmbedTextures);
 
         if(scn == nullptr)
         {
@@ -69,6 +69,27 @@ void ModelManager::loadModel(const std::string &path, const std::string &name)
         outModel = new Model3D();
         outModel->meshesCount = scn->mNumMeshes;
         outModel->pMeshes = new Mesh3D[outModel->meshesCount];
+        outModel->materialsCount = scn->mNumMaterials;
+        outModel->pMaterials = new Material*[outModel->materialsCount];
+
+        for(size_t i=0; i < scn->mNumMaterials; i++)
+        {
+            Material *mat = nullptr;
+            // set color/image/properties
+            aiMaterial *aiMat = scn->mMaterials[i];
+            aiString matName;
+            aiMat->Get(AI_MATKEY_NAME, matName);
+            if((mat = ServiceLocator::getMatManager().getMaterial(matName.C_Str())) == nullptr)
+            {
+                mat = Material::create();
+                aiColor4D color;
+                aiMat->Get(AI_MATKEY_COLOR_DIFFUSE, color);
+                mat->setColor(glm::vec4(color.r, color.g, color.b, color.a), "color");
+                mat->init();
+            }
+            //
+            outModel->pMaterials[i] = mat;
+        }
 
         for(size_t i=0; i < scn->mNumMeshes; i++) // meshes
         {
@@ -96,6 +117,10 @@ void ModelManager::loadModel(const std::string &path, const std::string &name)
                     n0 = mesh->mNormals[face.mIndices[0]];
                     n1 = mesh->mNormals[face.mIndices[1]];
                     n2 = mesh->mNormals[face.mIndices[2]];
+                }
+
+                {
+                    aiMaterial *mat = scn->mMaterials[mesh->mMaterialIndex];
                 }
 
                 outModel->pMeshes[i].tris.push_back(

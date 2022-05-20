@@ -22,15 +22,23 @@ public:
     void init() override;
     void terminate();
 
+    void clear() override;
     void resetWorld();
 
     void update(double dt) override;
 
     void createBody(const PhysicsBodyCreateInfo &cInfo, Entity *parent) override;
 
+    void setRaycastCallback(OnRaycastHitCallback callb) override;
+    bool raycast(const glm::vec3 &pos, const glm::vec3 &dir, float len) override;
+
+    static void OnContactBegin(btPersistentManifold* const& manifold);
+    static void OnRaycastHit(btCollisionWorld::ClosestRayResultCallback &rayCallback);
+
+    static BulletPhysicsManager *p_shared;
 private:
     btCollisionConfiguration *m_collisionConfig;
-    btDispatcher *m_dispatcher;
+    btCollisionDispatcher *m_dispatcher;
     btBroadphaseInterface *m_pairCache;
 #ifdef BULLET_MULTITHREADED
     std::vector<btConstraintSolver*> m_solvers;
@@ -39,6 +47,8 @@ private:
     btConstraintSolver *m_solver;
     //
     btDynamicsWorld *m_world;
+
+    OnRaycastHitCallback m_raycastHitCallback;
 
     std::vector<btRigidBody*> m_bodies;
 };

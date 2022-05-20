@@ -51,7 +51,7 @@ struct Model3D
     Mesh3D *pMeshes;
     size_t meshesCount;
 
-    Material *pMaterials;
+    Material **pMaterials;
     size_t materialsCount;
 
     Material* pMat;

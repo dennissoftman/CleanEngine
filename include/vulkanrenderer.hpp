@@ -70,6 +70,8 @@ struct VkMeshData
     VkBufferObject memObj;
 };
 
+class VkMaterial;
+
 class VkRenderObject
 {
 public:
@@ -81,10 +83,15 @@ public:
     {
         for(auto &mesh : m_meshes)
         {
-            m_vkDevice.destroyBuffer(mesh.memObj.buffer);
-            m_vkDevice.freeMemory(mesh.memObj.memory);
+            m_vkDevice.destroyBuffer(mesh.first.memObj.buffer);
+            m_vkDevice.freeMemory(mesh.first.memObj.memory);
         }
         m_meshes.clear();
+    }
+
+    const std::vector<std::pair<VkMeshData, VkMaterial*>> &getMeshes() const
+    {
+        return m_meshes;
     }
 
     [[nodiscard]] const Model3D *getParent() const
@@ -92,19 +99,14 @@ public:
         return m_parent;
     }
 
-    const std::vector<VkMeshData> &getMeshes() const
+    void addMesh(const VkMeshData &mesh, VkMaterial *mat=nullptr)
     {
-        return m_meshes;
-    }
-
-    void addMesh(const VkMeshData &mesh)
-    {
-        m_meshes.push_back(mesh);
+        m_meshes.push_back(std::pair<VkMeshData, VkMaterial*>(mesh, mat));
     }
 private:
     vk::Device m_vkDevice;
     const Model3D *m_parent;
-    std::vector<VkMeshData> m_meshes;
+    std::vector<std::pair<VkMeshData, VkMaterial*>> m_meshes;
 };
 
 class VkRenderRequest
@@ -167,8 +169,6 @@ struct QueueFamilyInfo
     uint32_t count; // queue count
 };
 
-class VkMaterial;
-
 class VulkanRenderer : public Renderer
 {
 public:
@@ -197,13 +197,16 @@ public:
     void addDeviceExtensions(const std::vector<const char*> &extensions);
     void addValidationLayers(const std::vector<const char*> &layers);
 
-    [[nodiscard]] vk::Device &getDevice();
+    [[nodiscard]] vk::Instance &getInstance();
     [[nodiscard]] vk::PhysicalDevice &getPhysicalDevice();
+    [[nodiscard]] vk::Device &getDevice();
+    [[nodiscard]] vk::Queue &getQueue();
     [[nodiscard]] vk::RenderPass &getRenderPass();
     [[nodiscard]] vk::Format getImageFormat() const;
     [[nodiscard]] vk::SampleCountFlagBits getSamplingValue() const;
     [[nodiscard]] uint32_t getImageCount() const;
     [[nodiscard]] uint32_t getQueueFamilyIndex() const;
+    [[nodiscard]] vk::CommandBuffer getCommandBuffer() const; // current drawing command buffer
 
     [[nodiscard]] VkBufferObject createBuffer(vk::DeviceSize size,
                                               vk::BufferUsageFlags usage,
@@ -225,10 +228,10 @@ public:
     void transitionImageLayout(VkImageObject imageObject,
                                vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
     void copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height);
-private:
+
     vk::CommandBuffer beginOneShotCmd();
     void endOneShotCmd(vk::CommandBuffer cmdBuff);
-
+private:
     void recordCommandBuffer(vk::CommandBuffer cmdBuff, uint32_t imgIndex);
     uint32_t getMemoryType(uint32_t memTypeBits, vk::MemoryPropertyFlags propFlags);
     [[nodiscard]] VkRenderObject *createRenderObject(const Model3D *obj);

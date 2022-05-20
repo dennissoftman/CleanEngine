@@ -24,7 +24,9 @@ inline std::string get_timestamp()
 }
 
 DebugLogger::~DebugLogger()
-= default;
+{
+
+}
 
 void DebugLogger::info(const std::string_view &module, const std::string_view &msg)
 {

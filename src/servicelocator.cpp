@@ -1,10 +1,14 @@
 #include "servicelocator.hpp"
 #include <memory>
 
-Renderer *ServiceLocator::m_renderer = nullptr;
-DummyRenderer ServiceLocator::m_defaultRenderer = DummyRenderer();
+//
+DummyLogger ServiceLocator::m_defaultLogger = DummyLogger();
+Logger *ServiceLocator::m_logger = nullptr;
 
 ResourceManager *ServiceLocator::m_resmgr = nullptr;
+
+Renderer *ServiceLocator::m_renderer = nullptr;
+DummyRenderer ServiceLocator::m_defaultRenderer = DummyRenderer();
 
 MaterialManager *ServiceLocator::m_matmgr = nullptr;
 
@@ -15,17 +19,60 @@ SceneManager *ServiceLocator::m_scnmgr = nullptr;
 PhysicsManager *ServiceLocator::m_physmgr = nullptr;
 DummyPhysicsManager ServiceLocator::m_defaultPhysMgr = DummyPhysicsManager();
 
-DummyLogger ServiceLocator::m_defaultLogger = DummyLogger();
-Logger *ServiceLocator::m_logger = nullptr;
+AudioManager *ServiceLocator::m_audiomgr = nullptr;
+DummyAudioManager ServiceLocator::m_defaultAudioMgr = DummyAudioManager();
+
+UIManager *ServiceLocator::m_uimgr = nullptr;
+DummyUIManager ServiceLocator::m_defaultUImgr = DummyUIManager();
+
+//
 
 void ServiceLocator::init()
 {
-    m_renderer = &m_defaultRenderer;
+    m_logger = &m_defaultLogger;
+
     m_resmgr = new ResourceManager();
+    m_renderer = &m_defaultRenderer;
     m_matmgr = new MaterialManager();
     m_mdlmgr = new ModelManager();
     m_scnmgr = new SceneManager();
     m_physmgr = &m_defaultPhysMgr;
+    m_audiomgr = &m_defaultAudioMgr;
+    m_uimgr = &m_defaultUImgr;
+}
+
+void ServiceLocator::terminate()
+{
+    if(m_uimgr != &m_defaultUImgr)
+        delete m_uimgr;
+    m_uimgr = &m_defaultUImgr;
+
+    if(m_audiomgr != &m_defaultAudioMgr)
+        delete m_audiomgr;
+    m_audiomgr = &m_defaultAudioMgr;
+
+    if(m_physmgr != &m_defaultPhysMgr)
+        delete m_physmgr;
+    m_physmgr = &m_defaultPhysMgr;
+
+    delete m_scnmgr;
+    m_scnmgr = nullptr;
+
+    delete m_mdlmgr;
+    m_mdlmgr = nullptr;
+
+    delete m_matmgr;
+    m_matmgr = nullptr;
+
+    if(m_renderer != &m_defaultRenderer)
+        delete m_renderer;
+    m_renderer = &m_defaultRenderer;
+
+    delete m_resmgr;
+    m_resmgr = nullptr;
+
+    if(m_logger != &m_defaultLogger)
+        delete m_logger;
     m_logger = &m_defaultLogger;
 }
 
@@ -95,6 +142,28 @@ void ServiceLocator::setPhysicsManager(PhysicsManager *mgr)
         m_physmgr = mgr;
 }
 
+AudioManager &ServiceLocator::getAudioManager()
+{
+    return *m_audiomgr;
+}
+
+void ServiceLocator::setAudioManager(AudioManager *mgr)
+{
+    if(mgr)
+        m_audiomgr = mgr;
+}
+
+UIManager &ServiceLocator::getUIManager()
+{
+    return *m_uimgr;
+}
+
+void ServiceLocator::setUIManager(UIManager *mgr)
+{
+    if(mgr)
+        m_uimgr = mgr;
+}
+
 Logger &ServiceLocator::getLogger()
 {
     return *m_logger;
@@ -104,20 +173,4 @@ void ServiceLocator::setLogger(Logger *logger)
 {
     if(logger)
         m_logger = logger;
-}
-
-void ServiceLocator::clear()
-{
-    if(m_physmgr != &m_defaultPhysMgr)
-        delete m_physmgr;
-
-    delete m_scnmgr;
-    delete m_mdlmgr;
-    delete m_matmgr;
-
-    if(m_renderer != &m_defaultRenderer)
-        delete m_renderer;
-
-    if(m_logger != &m_defaultLogger)
-        delete m_logger;
 }

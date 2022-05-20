@@ -20,6 +20,7 @@ public:
     void init() override;
 
     void setImage(const std::string &path, const std::string &name) override;
+    void setColor(const glm::vec4 &color, const std::string &name) override;
 
     void use(TransformData &transformData) override;
     void use(TransformData &transformData, VkRenderData &renderData);
@@ -29,6 +30,8 @@ public:
 
     void setRenderer(VulkanRenderer *rend);
 private:
+    bool m_wasInit;
+
     VulkanRenderer *m_renderer; // associated renderer
     VkShader *m_shader;
     vk::DescriptorSetLayout m_descSetLayout;
@@ -41,10 +44,12 @@ private:
     vk::DescriptorPool m_descPool;
     std::vector<vk::DescriptorSet> m_descSets;
 
-    // TODO: textures
+    // TODO: textures, colors
     std::optional<VkImageObject> m_image;
     std::optional<vk::ImageView> m_imageView;
     std::optional<vk::Sampler> m_textureSampler;
+
+    std::optional<glm::vec4> m_color;
     //
 
     bool m_doubleSided{};

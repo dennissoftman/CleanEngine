@@ -7,6 +7,7 @@
 
 #include "uuid/uuid_v4.h"
 #include "renderer.hpp"
+#include "physicsmanager.hpp"
 #include "camera3d.hpp"
 
 #include <unordered_map>
@@ -25,6 +26,12 @@ public:
     virtual void draw(Renderer *rend) = 0;
     virtual void update(double dt) = 0;
 
+    virtual void setVisible(bool yes) = 0;
+
+    // events
+    virtual void setOnContactBeginCallback(OnContactBeginCallback callb) = 0;
+    virtual void OnContactBegin(const PhysicsContactData &data) = 0;
+
     // tells scene that it should be destroyed
     virtual void destroy() = 0;
 
@@ -38,108 +45,7 @@ public:
     virtual const glm::vec3 &getScale() const = 0;
 
     virtual void setScene(Scene3D *parent) = 0;
-};
-
-class StaticMesh : public Entity
-{
-public:
-    StaticMesh()
-        : rObj(nullptr), m_changedMatrix(1),
-          m_pos(glm::vec3(0, 0, 0)), m_rot(glm::vec3(0, 0, 0)), m_scale(glm::vec3(1, 1, 1))
-    {
-    }
-
-    ~StaticMesh() override
-    {
-
-    }
-
-    void setModel(const Model3D *mdl)
-    {
-        rObj = mdl;
-    }
-
-    void draw(Renderer *rend) override
-    {
-        if(rObj == nullptr)
-            return;
-
-        if(m_changedMatrix)
-            updateMatrix();
-
-        rend->queueRenderObject(rObj, modelMatrix);
-    }
-
-    void update(double dt) override
-    {
-        (void)dt;
-    }
-
-    void destroy() override {}
-
-    void updateMatrix()
-    {
-        modelMatrix = glm::translate(glm::mat4(1.f), m_pos) *
-                      glm::toMat4(m_rot) *
-                      glm::scale(glm::mat4(1.f), m_scale);
-
-        m_changedMatrix = 0;
-    }
-
-    void setPosition(const glm::vec3 &pos) override
-    {
-        m_pos = pos;
-        m_changedMatrix |= 1;
-    }
-
-    void setRotation(const glm::quat &rot) override
-    {
-        m_rot = rot;
-        m_changedMatrix |= 2;
-    }
-
-    void setRotation(const glm::vec3 &rot) override
-    {
-        setRotation(glm::quat(rot));
-    }
-
-    void setScale(const glm::vec3 &scl) override
-    {
-        m_scale = scl;
-        m_changedMatrix |= 4;
-    }
-
-    const glm::vec3 &getPosition() const override
-    {
-        return m_pos;
-    }
-
-    const glm::quat &getRotation() const override
-    {
-        return m_rot;
-    }
-
-    const glm::vec3 &getScale() const override
-    {
-        return m_scale;
-    }
-
-    void setScene(Scene3D *parent) override
-    {
-        m_parentScene = parent;
-    }
-protected:
-    // TMP
-    const Model3D *rObj;
-    //
-
-    int m_changedMatrix;
-    glm::mat4 modelMatrix;
-    glm::vec3 m_pos;
-    glm::quat m_rot;
-    glm::vec3 m_scale;
-
-    Scene3D *m_parentScene;
+    virtual Scene3D *getParentScene() const = 0;
 };
 
 class Scene3D
@@ -155,6 +61,10 @@ public:
 
     void addObject(Entity *other); // add with uuid
     void addObject(Entity *other, const std::string &name); // add with custom name
+
+    void removeObject(Entity *other);
+
+    void clear();
 
     const Entity *getObject(const std::string &name) const;
 

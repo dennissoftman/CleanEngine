@@ -239,7 +239,7 @@ void VulkanRenderer::init(const VideoMode &mode)
                                               m_nsp.window.value());
             m_vkSurface = m_vkInstance.createXcbSurfaceKHR(cInfo);
 #elif _WIN32
-            vk::Win32SurfaceCreateInfoKHR cInfo(vk::Win32SurfaceCreateInfoKHR(),
+            vk::Win32SurfaceCreateInfoKHR cInfo(vk::Win32SurfaceCreateFlagsKHR(),
                                                 m_nsp.hInstance.value(),
                                                 m_nsp.hwnd.value());
             m_vkSurface = m_vkInstance.createWin32SurfaceKHR(cInfo);
@@ -545,6 +545,7 @@ void VulkanRenderer::init(const VideoMode &mode)
 
     {
         m_defaultMaterial = new VkMaterial(this);
+        m_defaultMaterial->setColor(glm::vec4(1, 0, 1, 1), "color");
         m_defaultMaterial->init();
     }
 
@@ -561,11 +562,19 @@ void VulkanRenderer::queueRenderObject(const Model3D *obj, const glm::mat4 &mode
             return;
         }
     }
-    VkRenderObject *gObj = createRenderObject(obj);
-    if(gObj)
+
+    try
     {
-        m_createdObjects.push_back(gObj);
-        queueRenderObject(gObj, modelMatrix);
+        VkRenderObject *gObj = createRenderObject(obj);
+        if(gObj)
+        {
+            m_createdObjects.push_back(gObj);
+            queueRenderObject(gObj, modelMatrix);
+        }
+    }
+    catch(const std::exception &e)
+    {
+        ServiceLocator::getLogger().error(MODULE_NAME, "Failed to queue render object: " + std::string(e.what()));
     }
 }
 
@@ -615,11 +624,18 @@ VkRenderObject *VulkanRenderer::createRenderObject(const Model3D *obj)
                                                  vk::BufferUsageFlagBits::eVertexBuffer,
                                                  vk::MemoryPropertyFlagBits::eHostVisible |
                                                  vk::MemoryPropertyFlagBits::eHostCoherent);
-            void *dataPtr;
-            m_vkDevice.mapMemory(memObj.memory, 0, memObj.size, vk::MemoryMapFlags(), &dataPtr);
+
+            void *dataPtr = m_vkDevice.mapMemory(memObj.memory, 0, memObj.size, vk::MemoryMapFlags());
+            if(dataPtr == nullptr)
+                throw std::runtime_error("failed to map buffer memory");
+
             memcpy(dataPtr, mesh.tris.data(), vertexDataSize);
             m_vkDevice.unmapMemory(memObj.memory);
-            rObj->addMesh({mesh.tris.size()*3, memObj});
+            VkMaterial *mat = nullptr;
+            if(obj->pMaterials)
+                mat = dynamic_cast<VkMaterial*>(obj->pMaterials[i % obj->materialsCount]);
+
+            rObj->addMesh({mesh.tris.size()*3, memObj}, mat);
         }
         catch(const std::exception &e)
         {
@@ -654,9 +670,8 @@ void VulkanRenderer::recordCommandBuffer(vk::CommandBuffer cmdBuff, uint32_t img
     {
         VkRenderRequest &req = m_renderQueue.front();
         const VkRenderObject *obj = req.getRenderObject();
-        const Model3D *objParent = obj->getParent();
 
-        for(auto &meshObj : obj->getMeshes())
+        for(auto &kv : obj->getMeshes())
         {
             TransformData td =
             {
@@ -665,23 +680,23 @@ void VulkanRenderer::recordCommandBuffer(vk::CommandBuffer cmdBuff, uint32_t img
                 .Model = req.getMatrix()
             };
 
-            if(objParent->pMat)
-            {
-                auto *mat = dynamic_cast<VkMaterial*>(objParent->pMat);
-                mat->use(td, renderData);
-            }
+            if(kv.second)
+                kv.second->use(td, renderData);
             else
                 m_defaultMaterial->use(td, renderData);
 
             vk::DeviceSize offsets[] = {0};
             cmdBuff.bindVertexBuffers(0, 1,
-                                      &meshObj.memObj.buffer,
+                                      &kv.first.memObj.buffer,
                                       offsets);
-            cmdBuff.draw(meshObj.vertices, 1, 0, 0);
+            cmdBuff.draw(kv.first.vertices, 1, 0, 0);
         }
         m_renderQueue.pop();
     }
     // =============================================================================================
+
+    // UI
+    ServiceLocator::getUIManager().draw(this);
 
     cmdBuff.endRenderPass();
 
@@ -693,8 +708,8 @@ void VulkanRenderer::draw()
     Logger &logger = ServiceLocator::getLogger();
 
     vk::Result r;
-    m_vkDevice.waitForFences(1, &m_vkFences[m_currentFrame],
-                             VK_TRUE, UINT64_MAX);
+    static_cast<void>(m_vkDevice.waitForFences(1, &m_vkFences[m_currentFrame],
+                                               VK_TRUE, UINT64_MAX));
     uint32_t imageIndex;
     r = m_vkDevice.acquireNextImageKHR(m_vkSwapchain,
                                        UINT64_MAX,
@@ -708,7 +723,7 @@ void VulkanRenderer::draw()
         return;
     }
 
-    m_vkDevice.resetFences(1, &m_vkFences[m_currentFrame]);
+    static_cast<void>(m_vkDevice.resetFences(1, &m_vkFences[m_currentFrame]));
     vk::CommandBuffer &cmdBuff = m_vkCmdBuffers[m_currentFrame];
     cmdBuff.reset(vk::CommandBufferResetFlags());
     recordCommandBuffer(cmdBuff, imageIndex);
@@ -757,13 +772,11 @@ void VulkanRenderer::resize(const glm::ivec2 &size)
 
 void VulkanRenderer::setProjectionMatrix(const glm::mat4 &projmx)
 {
-    // update UBO?
     m_projMatrix = projmx;
 }
 
 void VulkanRenderer::setViewMatrix(const glm::mat4 &viewmx)
 {
-    // update UBO?
     m_viewMatrix = viewmx;
 }
 
@@ -790,9 +803,19 @@ void VulkanRenderer::addValidationLayers(const std::vector<const char *> &layers
         m_validationLayers.push_back(layer);
 }
 
+vk::Instance &VulkanRenderer::getInstance()
+{
+    return m_vkInstance;
+}
+
 vk::Device &VulkanRenderer::getDevice()
 {
     return m_vkDevice;
+}
+
+vk::Queue &VulkanRenderer::getQueue()
+{
+    return m_vkQueues[0]; // for now
 }
 
 vk::PhysicalDevice &VulkanRenderer::getPhysicalDevice()
@@ -823,6 +846,11 @@ uint32_t VulkanRenderer::getImageCount() const
 uint32_t VulkanRenderer::getQueueFamilyIndex() const
 {
     return m_queueInfo.familyIndex;
+}
+
+vk::CommandBuffer VulkanRenderer::getCommandBuffer() const
+{
+    return m_vkCmdBuffers[m_currentFrame];
 }
 
 void VulkanRenderer::setNSP(const NativeSurfaceProps &nsp)
@@ -969,7 +997,9 @@ vk::CommandBuffer VulkanRenderer::beginOneShotCmd()
     vk::CommandBufferAllocateInfo allocInfo(m_vkCmdPool, vk::CommandBufferLevel::ePrimary, 1);
 
     vk::CommandBuffer cmdBuff;
-    m_vkDevice.allocateCommandBuffers(&allocInfo, &cmdBuff);
+    vk::Result r = m_vkDevice.allocateCommandBuffers(&allocInfo, &cmdBuff);
+    if(r != vk::Result::eSuccess)
+         throw std::runtime_error("failed to allocate command buffer");
 
     vk::CommandBufferBeginInfo beginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
     cmdBuff.begin(beginInfo);
@@ -984,8 +1014,8 @@ void VulkanRenderer::endOneShotCmd(vk::CommandBuffer cmdBuff)
                               1, &cmdBuff,
                               0, VK_NULL_HANDLE);
 
-    m_vkQueues[0].submit(1, &submitInfo,
-                         VK_NULL_HANDLE);
+    static_cast<void>(m_vkQueues[0].submit(1, &submitInfo,
+                                           VK_NULL_HANDLE));
     m_vkQueues[0].waitIdle();
     m_vkDevice.freeCommandBuffers(m_vkCmdPool, 1, &cmdBuff);
 }
@@ -1010,6 +1040,7 @@ void VulkanRenderer::copyBufferToImage(vk::Buffer buffer, vk::Image image,
     cmdBuff.copyBufferToImage(buffer, image, vk::ImageLayout::eTransferDstOptimal, 1, &region);
     endOneShotCmd(cmdBuff);
 }
+
 void VulkanRenderer::transitionImageLayout(VkImageObject imageObject,
                                            vk::ImageLayout oldLayout, vk::ImageLayout newLayout)
 {

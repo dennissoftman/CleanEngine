@@ -12,6 +12,11 @@ public:
     void init() override;
     void update(double dt) override;
 
+    void clear() override;
+
+    void setRaycastCallback(OnRaycastHitCallback callb) override;
+    bool raycast(const glm::vec3 &pos, const glm::vec3 &dir, float len) override;
+
     void createBody(const PhysicsBodyCreateInfo &cInfo, Entity *parent = nullptr) override;
 };
 

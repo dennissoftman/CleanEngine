@@ -3,14 +3,17 @@
 
 static const char *MODULE_NAME = "BulletPhysicsManager";
 
+BulletPhysicsManager *BulletPhysicsManager::p_shared = nullptr;
+
 BulletPhysicsManager::BulletPhysicsManager()
     : m_collisionConfig(nullptr),
       m_dispatcher(nullptr),
       m_pairCache(nullptr),
       m_solver(nullptr),
-      m_world(nullptr)
+      m_world(nullptr),
+      m_raycastHitCallback(nullptr)
 {
-
+    BulletPhysicsManager::p_shared = this;
 }
 
 BulletPhysicsManager::~BulletPhysicsManager()
@@ -68,6 +71,8 @@ void BulletPhysicsManager::init()
 
     m_world->setGravity(btVector3(0, -9.8f, 0));
 
+    gContactStartedCallback = BulletPhysicsManager::OnContactBegin;
+
     ServiceLocator::getLogger().info(MODULE_NAME, "Physics init completed");
 }
 
@@ -87,6 +92,11 @@ void BulletPhysicsManager::terminate()
     m_collisionConfig = nullptr;
 }
 
+void BulletPhysicsManager::clear()
+{
+    resetWorld();
+}
+
 void BulletPhysicsManager::resetWorld()
 {
     for(auto &body : m_bodies)
@@ -101,11 +111,10 @@ void BulletPhysicsManager::resetWorld()
 
 void BulletPhysicsManager::update(double dt)
 {
-    // m_world->stepSimulation(dt, 1);
-    m_world->stepSimulation(dt, 3);
+    m_world->stepSimulation(dt, 1);
     for(auto &body : m_bodies)
     {
-        if(!body->isActive()) // little optimization
+        if(!body->isActive())
             continue;
 
         void *ptr = body->getUserPointer();
@@ -114,7 +123,6 @@ void BulletPhysicsManager::update(double dt)
             const btTransform &t = body->getWorldTransform();
             const btVector3 &pos = t.getOrigin();
             const btQuaternion &rot = t.getRotation();
-
 
             Entity *ent = static_cast<Entity*>(ptr);
             ent->setPosition(glm::vec3(pos.x(), pos.y(), pos.z()));
@@ -172,8 +180,10 @@ void BulletPhysicsManager::createBody(const PhysicsBodyCreateInfo &cInfo, Entity
     { // apply body modifiers
         const PhysicsBodyProperties &props = cInfo.getBodyProperties();
         body->setRestitution(props.getRestitution());
+        body->setFriction(props.getFriction());
 
-        body->setFriction(1.f);
+        if(cInfo.getMass() > 0)
+            body->setCollisionFlags(body->getCollisionFlags() | btCollisionObject::CF_CUSTOM_MATERIAL_CALLBACK);
 
         const glm::vec3 &startImpulse = cInfo.getImpulse();
         if(glm::length(startImpulse) > 0.f)
@@ -183,3 +193,47 @@ void BulletPhysicsManager::createBody(const PhysicsBodyCreateInfo &cInfo, Entity
     m_world->addRigidBody(body);
     m_bodies.push_back(body);
 }
+
+void BulletPhysicsManager::setRaycastCallback(OnRaycastHitCallback callb)
+{
+    m_raycastHitCallback = callb;
+}
+
+bool BulletPhysicsManager::raycast(const glm::vec3 &pos, const glm::vec3 &dir, float len)
+{
+    btVector3 fromWorld = btVector3(pos.x, pos.y, pos.z),
+              toWorld   = btVector3(pos.x+dir.x*len, pos.y+dir.y*len, pos.z+dir.z*len);
+    btCollisionWorld::ClosestRayResultCallback rayCallback(fromWorld, toWorld);
+    m_world->rayTest(fromWorld, toWorld, rayCallback);
+
+    bool hasHit = rayCallback.hasHit();
+    if(hasHit)
+    {
+        if(m_raycastHitCallback)
+        {
+            const btRigidBody *body = btRigidBody::upcast(rayCallback.m_collisionObject);
+
+            btVector3 hitPos = rayCallback.m_hitPointWorld;
+
+            m_raycastHitCallback(static_cast<Entity*>(body->getUserPointer()),
+                                 PhysicsRaycastData{glm::vec3(hitPos.x(), hitPos.y(), hitPos.z())
+                                 });
+        }
+    }
+    return hasHit;
+}
+
+void BulletPhysicsManager::OnContactBegin(btPersistentManifold * const &manifold)
+{
+    if(manifold->getBody0()->getUserPointer())
+    {
+        const btRigidBody *body = btRigidBody::upcast(manifold->getBody0());
+        Entity *ent = static_cast<Entity*>(manifold->getBody0()->getUserPointer());
+        btVector3 contactPos = manifold->getContactPoint(0).getPositionWorldOnA();
+        btVector3 velocity = btRigidBody::upcast(manifold->getBody0())->getLinearVelocity();
+        ent->OnContactBegin({glm::vec3(contactPos.x(),contactPos.y(),contactPos.z()),
+                             glm::vec3(velocity.x(), velocity.y(), velocity.z()),
+                             body->getMass()});
+    }
+}
+

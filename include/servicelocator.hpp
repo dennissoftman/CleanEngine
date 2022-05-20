@@ -18,10 +18,23 @@
 #include "physicsmanager.hpp"
 #include "dummyphysicsmanager.hpp"
 
+#include "audiomanager.hpp"
+#include "dummyaudiomanager.hpp"
+
+#include "uimanager.hpp"
+#include "dummyuimanager.hpp"
+
 class ServiceLocator
 {
 public:
+    // register all services
     static void init();
+    // unregister all services
+    static void terminate();
+
+    // logging
+    static Logger &getLogger();
+    static void setLogger(Logger *logger);
 
     // rendering
     static Renderer &getRenderer();
@@ -47,13 +60,18 @@ public:
     static PhysicsManager &getPhysicsManager();
     static void setPhysicsManager(PhysicsManager *mgr);
 
-    // logging
-    static Logger &getLogger();
-    static void setLogger(Logger *logger);
+    // audio management
+    static AudioManager &getAudioManager();
+    static void setAudioManager(AudioManager *mgr);
 
-    // unregister all services
-    static void clear();
+    // ui management
+    static UIManager &getUIManager();
+    static void setUIManager(UIManager *mgr);
 private:
+    // logging
+    static Logger *m_logger;
+    static DummyLogger m_defaultLogger;
+
     // rendering
     static Renderer *m_renderer;
     static DummyRenderer m_defaultRenderer;
@@ -74,11 +92,13 @@ private:
     static PhysicsManager *m_physmgr;
     static DummyPhysicsManager m_defaultPhysMgr;
 
-    // logging
-    static Logger *m_logger;
-    static DummyLogger m_defaultLogger;
+    // audio management
+    static AudioManager *m_audiomgr;
+    static DummyAudioManager m_defaultAudioMgr;
 
-    //
+    // ui management
+    static UIManager *m_uimgr;
+    static DummyUIManager m_defaultUImgr;
 };
 
 #endif // SERVICELOCATOR_HPP

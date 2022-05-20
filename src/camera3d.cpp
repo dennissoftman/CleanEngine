@@ -1,5 +1,7 @@
 #include "camera3d.hpp"
 
+#include "servicelocator.hpp"
+
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/vector_angle.hpp>
 #include <glm/gtx/quaternion.hpp>
@@ -134,6 +136,8 @@ void Camera3D::updateMatrices()
         m_viewMatrix = glm::lookAt(m_position,
                                    m_position + m_front,
                                    m_up);
+
+        ServiceLocator::getAudioManager().updateListener(m_position, glm::vec3(0,0,0), m_front, m_up);
     }
 
     m_changedFlags = 0;

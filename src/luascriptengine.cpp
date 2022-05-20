@@ -21,6 +21,17 @@ void LuaScriptEngine::init()
 
     // register
     luabridge::getGlobalNamespace(m_globalState)
+            .beginClass<glm::vec3>("vec3")
+            .addConstructor<void(*)(float)>()
+            .addConstructor<void(*)(float, float, float)>()
+            .endClass();
+    luabridge::getGlobalNamespace(m_globalState)
+            .beginClass<glm::vec4>("vec4")
+            .addConstructor<void(*)(float)>()
+            .addConstructor<void(*)(float, float, float, float)>()
+            .endClass();
+
+    luabridge::getGlobalNamespace(m_globalState)
             .beginNamespace("Debug")
             .addFunction("log", LuaScriptEngine::print)
             .endNamespace();
@@ -28,6 +39,7 @@ void LuaScriptEngine::init()
     luabridge::getGlobalNamespace(m_globalState)
             .beginNamespace("MaterialManager")
             .addFunction("loadImage", LuaScriptEngine::MtLloadImage)
+            .addFunction("fromColor", LuaScriptEngine::MtLfromColor)
             .endNamespace();
 
     luabridge::getGlobalNamespace(m_globalState)
@@ -36,10 +48,26 @@ void LuaScriptEngine::init()
             .addFunction("setMaterial", LuaScriptEngine::MdLsetMaterial)
             .endNamespace();
 
+    luabridge::getGlobalNamespace(m_globalState)
+            .beginNamespace("AudioManager")
+            .addFunction("loadSound", LuaScriptEngine::AMloadSound)
+            .addFunction("loadMusic", LuaScriptEngine::AMloadMusic)
+            .addFunction("playSound", LuaScriptEngine::AMplaySound)
+            .addFunction("playMusic", LuaScriptEngine::AMplayMusic)
+            .endNamespace();
 
     {
-        luaL_loadfile(m_globalState, ServiceLocator::getResourceManager().getEnginePath("data/scripts/init.lua").c_str());
-        lua_pcall(m_globalState, 0, 0, 0);
+        if(luaL_loadfile(m_globalState,
+                         ServiceLocator::getResourceManager().getEnginePath("data/scripts/init.lua").c_str()) != LUA_OK)
+        {
+            ServiceLocator::getLogger().error(MODULE_NAME, "Lua load error: " + std::string());
+            return;
+        }
+        if(lua_pcall(m_globalState, 0, 0, 0) != LUA_OK)
+        {
+            ServiceLocator::getLogger().error(MODULE_NAME, "Lua execution error: " + std::string());
+            return;
+        }
     }
 }
 
@@ -58,11 +86,42 @@ void LuaScriptEngine::MdLsetMaterial(const std::string &model, const std::string
 
 void LuaScriptEngine::MtLloadImage(const std::string &path, const std::string &name)
 {
-    Material *newMat = Material::createMaterial();
+    Material *newMat = Material::create();
     newMat->setImage(ServiceLocator::getResourceManager().getEnginePath(path),
                      "img");
     newMat->init();
     ServiceLocator::getMatManager().addMaterial(name, newMat);
+}
+
+void LuaScriptEngine::MtLfromColor(const glm::vec4 &color, const std::string &name)
+{
+    Material *newMat = Material::create();
+    newMat->setColor(color, "color");
+    newMat->init();
+    ServiceLocator::getMatManager().addMaterial(name, newMat);
+}
+
+void LuaScriptEngine::AMloadSound(const std::string &path, const std::string &name)
+{
+    ServiceLocator::getAudioManager().loadSound(path, name);
+}
+
+void LuaScriptEngine::AMplaySound(const std::string &name,
+                                  float volume,
+                                  float pitch,
+                                  const glm::vec3 &pos)
+{
+    ServiceLocator::getAudioManager().playSound(name, SoundPropertiesInfo{volume, pitch, pos});
+}
+
+void LuaScriptEngine::AMloadMusic(const std::string &path, const std::string &name)
+{
+    ServiceLocator::getAudioManager().loadMusic(path, name);
+}
+
+void LuaScriptEngine::AMplayMusic(const std::string &name, float volume, float pitch)
+{
+    ServiceLocator::getAudioManager().playMusic(name, MusicPropertiesInfo{volume, pitch});
 }
 
 void LuaScriptEngine::print(const std::string &s)

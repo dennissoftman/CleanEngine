@@ -7,7 +7,7 @@
 static const char *MODULE_NAME = "VkMaterial";
 
 VkMaterial::VkMaterial(VulkanRenderer *rend)
-    : m_renderer(rend), m_shader(nullptr), m_lastImageIndex(~0u)
+    : m_wasInit(false), m_renderer(rend), m_shader(nullptr), m_lastImageIndex(~0u)
 {
 
 }
@@ -57,6 +57,9 @@ void VkMaterial::setRenderer(VulkanRenderer *rend)
 
 void VkMaterial::init()
 {
+    if(m_wasInit)
+        return;
+
     ResourceManager &resMgr = ServiceLocator::getResourceManager();
     Logger &logger = ServiceLocator::getLogger();
     if (!m_renderer)
@@ -69,11 +72,20 @@ void VkMaterial::init()
     m_shader = new VkShader(vkDevice);
     // TEMP
     if(m_image.has_value())
-        m_shader->load(resMgr.getEnginePath("data/shaders/vk/main.vert.spv"),
+        m_shader->load(resMgr.getEnginePath("data/shaders/vk/image.vert.spv"),
                        resMgr.getEnginePath("data/shaders/vk/image.frag.spv"));
-    else
-        m_shader->load(resMgr.getEnginePath("data/shaders/vk/main.vert.spv"),
+    else if(m_color.has_value())
+    {
+        m_shader->load(resMgr.getEnginePath("data/shaders/vk/color.vert.spv"),
                        resMgr.getEnginePath("data/shaders/vk/color.frag.spv"));
+    }
+    else
+    {
+        logger.error(MODULE_NAME, "Specify either color or image");
+        delete m_shader;
+        m_shader = nullptr;
+        return;
+    }
     //
 
     { // create pipeline
@@ -181,8 +193,29 @@ void VkMaterial::init()
             m_descSetLayout
         };
         std::vector<vk::PushConstantRange> pushConstantRanges = {
-            vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex, 0, sizeof(glm::mat4))
+            vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex,
+                                  0, sizeof(glm::mat4))
         };
+
+        if(m_color.has_value())
+        {
+            if(m_color.value().w < 1.f)
+            {
+                colorBlendAttachment.blendEnable = VK_TRUE;
+                colorBlendAttachment.srcColorBlendFactor = vk::BlendFactor::eSrcAlpha;
+                colorBlendAttachment.dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha;
+                colorBlendAttachment.colorBlendOp = vk::BlendOp::eAdd;
+                colorBlendAttachment.srcAlphaBlendFactor = vk::BlendFactor::eSrcAlpha;
+                colorBlendAttachment.dstAlphaBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha;
+                colorBlendAttachment.alphaBlendOp = vk::BlendOp::eSubtract;
+            }
+
+            pushConstantRanges = {
+                vk::PushConstantRange{vk::ShaderStageFlagBits::eVertex,
+                                      0, sizeof(glm::mat4)+sizeof(glm::vec4)}
+            };
+        }
+
         vk::PipelineLayoutCreateInfo pipelineLayoutCInfo(vk::PipelineLayoutCreateFlags(),
                                                          descSetLayouts,
                                                          pushConstantRanges);
@@ -257,9 +290,8 @@ void VkMaterial::init()
             {
                 VkBufferObject memObj = m_renderer->createBuffer(sizeof(SceneTransformData),
                                                                  vk::BufferUsageFlagBits::eUniformBuffer,
-                                                                 vk::MemoryPropertyFlagBits::eHostVisible
-                                                                     |
-                                                                         vk::MemoryPropertyFlagBits::eHostCoherent);
+                                                                 vk::MemoryPropertyFlagBits::eHostVisible |
+                                                                 vk::MemoryPropertyFlagBits::eHostCoherent);
                 m_UBOs.push_back(memObj);
             }
             catch(const std::exception &e)
@@ -339,12 +371,20 @@ void VkMaterial::init()
     }
     delete m_shader;
     m_shader = nullptr;
+    m_wasInit = true;
     m_renderer->registerMaterial(this);
 }
 
 void VkMaterial::setImage(const std::string &path, const std::string &name)
 {
     Logger &logger = ServiceLocator::getLogger();
+
+    if(m_color.has_value())
+    {
+        logger.error(MODULE_NAME, "Configurable materials are WIP, at the moment use either color or image");
+        return;
+    }
+
     // TODO: several images
     ILuint imgId = ilGenImage();
     ilBindImage(imgId);
@@ -373,10 +413,12 @@ void VkMaterial::setImage(const std::string &path, const std::string &name)
 
     try
     {
-        void *texData;
-        m_renderer->getDevice().mapMemory(texStagingBufferObj.memory,
-                                          0, texStagingBufferObj.size,
-                                          vk::MemoryMapFlags(), &texData);
+        void *texData = m_renderer->getDevice().mapMemory(texStagingBufferObj.memory,
+                                                          0, texStagingBufferObj.size,
+                                                          vk::MemoryMapFlags());
+        if(texData == nullptr)
+            throw std::runtime_error("failed to map buffer memory");
+
         memcpy(texData, imageData, imageDataSize);
         m_renderer->getDevice().unmapMemory(texStagingBufferObj.memory);
     }
@@ -440,6 +482,19 @@ void VkMaterial::setImage(const std::string &path, const std::string &name)
     }
 }
 
+void VkMaterial::setColor(const glm::vec4 &color, const std::string &name)
+{
+    (void)name;
+
+    Logger &logger = ServiceLocator::getLogger();
+    if(m_image.has_value())
+    {
+        logger.error(MODULE_NAME, "Configurable materials are WIP, at the moment use either color or image");
+        return;
+    }
+    m_color = color;
+}
+
 void VkMaterial::use(TransformData &transformData)
 {
     (void)transformData;
@@ -451,12 +506,13 @@ void VkMaterial::use(TransformData &transformData, VkRenderData &renderData)
 {
     if(m_lastImageIndex != renderData.getImageIndex())
     {
-        void *buffData;
-        m_renderer->getDevice().mapMemory(m_UBOs[renderData.getImageIndex()].memory,
-                                          0,
-                                          m_UBOs[renderData.getImageIndex()].size,
-                                          vk::MemoryMapFlags(),
-                                          &buffData);
+        void *buffData = m_renderer->getDevice().mapMemory(m_UBOs[renderData.getImageIndex()].memory,
+                                                           0,
+                                                           m_UBOs[renderData.getImageIndex()].size,
+                                                           vk::MemoryMapFlags());
+        if(buffData == nullptr)
+            throw std::runtime_error("Failed to map buffer memory");
+
         memcpy(buffData, reinterpret_cast<void *>(&transformData), sizeof(SceneTransformData));
         m_renderer->getDevice().unmapMemory(m_UBOs[renderData.getImageIndex()].memory);
         m_lastImageIndex = renderData.getImageIndex();
@@ -464,13 +520,29 @@ void VkMaterial::use(TransformData &transformData, VkRenderData &renderData)
 
     vk::CommandBuffer &cmdBuff = renderData.getCmdBuffer();
     cmdBuff.bindPipeline(vk::PipelineBindPoint::eGraphics,
-                                           m_pipeline);
+                         m_pipeline);
     cmdBuff.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
                                m_pipelineLayout,
                                0, 1, &m_descSets[renderData.getImageIndex()],
                                0, VK_NULL_HANDLE);
-    cmdBuff.pushConstants(m_pipelineLayout, vk::ShaderStageFlagBits::eVertex,
-                          0, sizeof(glm::mat4), &transformData.Model);
+
+    if(m_color.has_value())
+    {
+        struct ColorData {
+            glm::mat4 model;
+            glm::vec4 color;
+        } colorData;
+        colorData = {transformData.Model, m_color.value()};
+        cmdBuff.pushConstants(m_pipelineLayout,
+                              vk::ShaderStageFlagBits::eVertex,
+                              0, sizeof(ColorData), &colorData);
+    }
+    else
+    {
+        cmdBuff.pushConstants(m_pipelineLayout,
+                              vk::ShaderStageFlagBits::eVertex,
+                              0, sizeof(glm::mat4), &transformData.Model);
+    }
 }
 
 void VkMaterial::setDoubleSided(bool yes)

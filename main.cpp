@@ -16,6 +16,10 @@
 #include "bulletphysicsmanager.hpp"
 #endif
 
+#ifdef AUDIO_FMOD
+#include "fmodaudiomanager.hpp"
+#endif
+
 static const char *MODULE_NAME = "Main";
 
 int main()
@@ -48,6 +52,14 @@ int main()
         BulletPhysicsManager *bulletPhysicsManager = new BulletPhysicsManager();
         bulletPhysicsManager->init();
         ServiceLocator::setPhysicsManager(bulletPhysicsManager);
+    }
+#endif
+
+#ifdef AUDIO_FMOD
+    {
+        FmodAudioManager *fmodAudioManager = new FmodAudioManager();
+        fmodAudioManager->init();
+        ServiceLocator::setAudioManager(fmodAudioManager);
     }
 #endif
 
