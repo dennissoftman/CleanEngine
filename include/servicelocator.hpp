@@ -24,6 +24,9 @@
 #include "uimanager.hpp"
 #include "dummyuimanager.hpp"
 
+#include "scriptengine.hpp"
+#include "dummyscriptengine.hpp"
+
 class ServiceLocator
 {
 public:
@@ -67,6 +70,10 @@ public:
     // ui management
     static UIManager &getUIManager();
     static void setUIManager(UIManager *mgr);
+
+    // scripts
+    static ScriptEngine &getScriptEngine();
+    static void setScriptEngine(ScriptEngine *eng);
 private:
     // logging
     static Logger *m_logger;
@@ -99,6 +106,10 @@ private:
     // ui management
     static UIManager *m_uimgr;
     static DummyUIManager m_defaultUImgr;
+
+    // scripts
+    static ScriptEngine *m_scengine;
+    static DummyScriptEngine m_defaultScriptEngine;
 };
 
 #endif // SERVICELOCATOR_HPP

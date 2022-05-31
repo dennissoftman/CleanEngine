@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <ctime>
 #include <string>
+#include <iostream>
 
 inline std::string get_timestamp()
 {
@@ -30,18 +31,18 @@ DebugLogger::~DebugLogger()
 
 void DebugLogger::info(const std::string_view &module, const std::string_view &msg)
 {
-    for(FILE *fp : m_infoFP)
+    for(FILE *fp: m_infoFP)
         fprintf(fp, "%s INFO [%s] %s\n", get_timestamp().c_str(), module.data(), msg.data());
 }
 
 void DebugLogger::warning(const std::string_view &module, const std::string_view &msg)
 {
-    for(FILE *fp : m_warnFP)
+    for(FILE *fp: m_warnFP)
         fprintf(fp, "%s WARNING [%s] %s\n", get_timestamp().c_str(), module.data(), msg.data());
 }
 
 void DebugLogger::error(const std::string_view &module, const std::string_view &msg)
 {
-    for(FILE *fp : m_errorFP)
+    for(FILE *fp: m_errorFP)
         fprintf(fp, "%s ERROR [%s] %s\n", get_timestamp().c_str(), module.data(), msg.data());
 }

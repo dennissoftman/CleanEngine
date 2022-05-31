@@ -22,7 +22,7 @@ VkShader::~VkShader()
         m_vkDevice.destroyShaderModule(m_fragModule);
 }
 
-void VkShader::load(const char *vdata, int vsize, const char *fdata, int fsize)
+void VkShader::load(const char *vdata, size_t vsize, const char *fdata, size_t fsize)
 {
     try
     {

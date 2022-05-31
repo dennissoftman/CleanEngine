@@ -12,7 +12,7 @@ public:
     explicit VkShader(vk::Device dev);
     ~VkShader();
 
-    void load(const char *vdata, int vsize, const char *fdata, int fsize) override;
+    void load(const char *vdata, size_t vsize, const char *fdata, size_t fsize) override;
     void load(const std::string &vs, const std::string &fs) override;
 
     void use() override;

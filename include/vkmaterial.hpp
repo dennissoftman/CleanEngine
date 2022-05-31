@@ -4,6 +4,7 @@
 #include "material.hpp"
 #include "vulkanrenderer.hpp"
 #include "vkshader.hpp"
+#include "imageloader.hpp"
 
 struct SceneTransformData
 {
@@ -19,7 +20,8 @@ public:
 
     void init() override;
 
-    void setImage(const std::string &path, const std::string &name) override;
+    void setImage(const ImageData &imgData, const std::string &name) override;
+    void loadImage(const std::string &path, const std::string &name) override;
     void setColor(const glm::vec4 &color, const std::string &name) override;
 
     void use(TransformData &transformData) override;

@@ -6,8 +6,7 @@ StaticMesh::StaticMesh()
     : rObj(nullptr),
       m_visible(true),
       m_changedMatrix(1),
-      m_pos(glm::vec3(0, 0, 0)), m_rot(glm::vec3(0, 0, 0)), m_scale(glm::vec3(1, 1, 1)),
-      m_onRaycastHit(nullptr), m_onContactBegin(nullptr)
+      m_pos(glm::vec3(0, 0, 0)), m_rot(glm::vec3(0, 0, 0)), m_scale(glm::vec3(1, 1, 1))
 {
 
 }
@@ -46,20 +45,10 @@ void StaticMesh::setVisible(bool yes)
     m_visible = yes;
 }
 
-void StaticMesh::setOnContactBeginCallback(OnContactBeginCallback callb)
-{
-    m_onContactBegin = callb;
-}
-
-void StaticMesh::OnContactBegin(const PhysicsContactData &data)
-{
-    if(m_onContactBegin)
-        m_onContactBegin(this, data);
-}
-
 void StaticMesh::destroy()
 {
-    m_parentScene->removeObject(this);
+    // TODO
+    // m_parentScene->removeObject(this);
 }
 
 void StaticMesh::updateMatrix()
@@ -83,7 +72,7 @@ void StaticMesh::setRotation(const glm::quat &rot)
     m_changedMatrix |= 2;
 }
 
-void StaticMesh::setRotation(const glm::vec3 &rot)
+void StaticMesh::setEulerRotation(const glm::vec3 &rot)
 {
     setRotation(glm::quat(rot));
 }
@@ -97,6 +86,11 @@ void StaticMesh::setScale(const glm::vec3 &scl)
 const glm::vec3 &StaticMesh::getPosition() const
 {
     return m_pos;
+}
+
+glm::vec3 StaticMesh::getEulerRotation() const
+{
+    return glm::eulerAngles(m_rot);
 }
 
 const glm::quat &StaticMesh::getRotation() const

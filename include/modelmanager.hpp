@@ -44,7 +44,11 @@ struct Model3D
         if(meshesCount > 0)
         {
             delete[] pMeshes;
+            pMeshes = nullptr;
             meshesCount = 0;
+            if(pMaterials)
+                delete[] pMaterials;
+            pMaterials = nullptr;
         }
     }
 
@@ -71,7 +75,7 @@ public:
     void setModelMaterial(const std::string& name, Material* mat);
 
     void addModel(Model3D *mdl, const std::string &name);
-    void loadModel(const std::string &path, const std::string &name);
+    void loadModel(const void *data, size_t size, const std:: string &name, const char *fmt="glb");
 private:
     std::unordered_map<std::string, Model3D*> m_models;
 };

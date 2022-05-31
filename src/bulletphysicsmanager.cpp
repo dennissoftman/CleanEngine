@@ -1,4 +1,6 @@
 #include "bulletphysicsmanager.hpp"
+#include "entity.hpp"
+
 #include "servicelocator.hpp"
 
 static const char *MODULE_NAME = "BulletPhysicsManager";
@@ -225,6 +227,8 @@ bool BulletPhysicsManager::raycast(const glm::vec3 &pos, const glm::vec3 &dir, f
 
 void BulletPhysicsManager::OnContactBegin(btPersistentManifold * const &manifold)
 {
+    (void)manifold;
+    /*
     if(manifold->getBody0()->getUserPointer())
     {
         const btRigidBody *body = btRigidBody::upcast(manifold->getBody0());
@@ -235,5 +239,6 @@ void BulletPhysicsManager::OnContactBegin(btPersistentManifold * const &manifold
                              glm::vec3(velocity.x(), velocity.y(), velocity.z()),
                              body->getMass()});
     }
+    */
 }
 

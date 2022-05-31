@@ -46,13 +46,12 @@ void ModelManager::addModel(Model3D *mdl, const std::string &name)
         m_models[name] = mdl;
 }
 
-void ModelManager::loadModel(const std::string &path, const std::string &name)
+void ModelManager::loadModel(const void *data, size_t size, const std::string &name, const char *fmt)
 {
     Model3D *outModel = nullptr;
-
+    Assimp::Importer loader;
     {
-        Assimp::Importer loader;
-        const aiScene *scn = loader.ReadFile(path.c_str(), aiProcess_Triangulate | aiProcess_EmbedTextures);
+        const aiScene *scn = loader.ReadFileFromMemory(data, size, aiProcess_Triangulate | aiProcess_EmbedTextures, fmt);
 
         if(scn == nullptr)
         {
