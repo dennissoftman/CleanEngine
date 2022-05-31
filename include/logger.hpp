@@ -2,7 +2,6 @@
 #define LOGGER_HPP
 
 #include <cstdio>
-#include <algorithm>
 #include <string_view>
 #include <vector>
 
@@ -15,21 +14,9 @@ public:
     virtual void warning(const std::string_view &module, const std::string_view &msg) = 0;
     virtual void error(const std::string_view &module, const std::string_view &msg) = 0;
 
-    virtual void addInfoFP(FILE *fp)
-    {
-        if(fp != NULL)
-            m_infoFP.push_back(fp);
-    }
-    virtual void addWarningFP(FILE *fp)
-    {
-        if(fp != NULL)
-            m_warnFP.push_back(fp);
-    }
-    virtual void addErrorFP(FILE *fp)
-    {
-        if(fp != NULL)
-            m_errorFP.push_back(fp);
-    }
+    void addInfoFP(FILE *fp);
+    void addWarningFP(FILE *out);
+    void addErrorFP(FILE *out);
 protected:
     std::vector<FILE*> m_infoFP;
     std::vector<FILE*> m_warnFP;

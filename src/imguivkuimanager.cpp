@@ -47,7 +47,7 @@ void ImguiVkUIManager::init()
             vk::DescriptorPoolSize{ vk::DescriptorType::eInputAttachment, maxDescriptorCount}
         };
         vk::DescriptorPoolCreateInfo cInfo{vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
-                                           maxDescriptorCount * pool_sizes.size(),
+                                           maxDescriptorCount * static_cast<uint32_t>(pool_sizes.size()),
                                            pool_sizes};
 
         try
@@ -116,6 +116,7 @@ void ImguiVkUIManager::terminate()
     renderer->getDevice().waitIdle();
     renderer->getDevice().destroyDescriptorPool(m_descPool);
     ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 }
 
@@ -128,14 +129,6 @@ void ImguiVkUIManager::update(double dt)
     ImGui_ImplGlfw_NewFrame();
 #endif
     ImGui::NewFrame();
-
-    ImGui::Begin("Sample window!");
-    ImGui::Text("This is your FPS: %.2lf", 1.0 / ((dt > 0) ? dt : 1.0));
-    if(ImGui::Button("Generate Colliseum"))
-        OnButtonPressed({0});
-    if(ImGui::Button("Generate Dominoes"))
-        OnButtonPressed({1});
-    ImGui::End();
     //
 }
 

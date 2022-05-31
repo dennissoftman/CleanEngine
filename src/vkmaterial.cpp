@@ -1,6 +1,8 @@
 #include "vkmaterial.hpp"
 #include "servicelocator.hpp"
 
+#include <fstream>
+#include <memory>
 #include <IL/il.h>
 #include <IL/ilu.h>
 
@@ -60,7 +62,6 @@ void VkMaterial::init()
     if(m_wasInit)
         return;
 
-    ResourceManager &resMgr = ServiceLocator::getResourceManager();
     Logger &logger = ServiceLocator::getLogger();
     if (!m_renderer)
     {
@@ -71,13 +72,16 @@ void VkMaterial::init()
     vk::Device &vkDevice = m_renderer->getDevice();
     m_shader = new VkShader(vkDevice);
     // TEMP
+    std::string vsh_path, fsh_path;
     if(m_image.has_value())
-        m_shader->load(resMgr.getEnginePath("data/shaders/vk/image.vert.spv"),
-                       resMgr.getEnginePath("data/shaders/vk/image.frag.spv"));
+    {
+        vsh_path = "data/shaders/vk/image.vert.spv";
+        fsh_path = "data/shaders/vk/image.frag.spv";
+    }
     else if(m_color.has_value())
     {
-        m_shader->load(resMgr.getEnginePath("data/shaders/vk/color.vert.spv"),
-                       resMgr.getEnginePath("data/shaders/vk/color.frag.spv"));
+        vsh_path = "data/shaders/vk/color.vert.spv";
+        fsh_path = "data/shaders/vk/color.frag.spv";
     }
     else
     {
@@ -85,6 +89,14 @@ void VkMaterial::init()
         delete m_shader;
         m_shader = nullptr;
         return;
+    }
+    // load shaders
+    {
+        DataResource vdata = ServiceLocator::getResourceManager().getResource(vsh_path);
+        DataResource fdata = ServiceLocator::getResourceManager().getResource(fsh_path);
+
+        m_shader->load(static_pointer_cast<const char>(vdata.data).get(), vdata.size,
+                       static_pointer_cast<const char>(fdata.data).get(), fdata.size);
     }
     //
 
@@ -375,7 +387,7 @@ void VkMaterial::init()
     m_renderer->registerMaterial(this);
 }
 
-void VkMaterial::setImage(const std::string &path, const std::string &name)
+void VkMaterial::setImage(const ImageData &imgData, const std::string &name)
 {
     Logger &logger = ServiceLocator::getLogger();
 
@@ -385,31 +397,13 @@ void VkMaterial::setImage(const std::string &path, const std::string &name)
         return;
     }
 
+    (void)name;
+
     // TODO: several images
-    ILuint imgId = ilGenImage();
-    ilBindImage(imgId);
-
-    if(!ilLoadImage(path.c_str()))
-    {
-        logger.error(MODULE_NAME, "Image loading error");
-        ilBindImage(0);
-        ilDeleteImage(imgId);
-        return;
-    }
-
-    iluFlipImage();
-    ilConvertImage(IL_RGBA, IL_UNSIGNED_BYTE); // convert any format to this (simplify vulkan operations)
-
-    ILint width  = ilGetInteger(IL_IMAGE_WIDTH),
-          height = ilGetInteger(IL_IMAGE_HEIGHT);
-    uint32_t imageDataSize = width * height * 4;
-
-    VkBufferObject texStagingBufferObj = m_renderer->createBuffer(imageDataSize,
+    VkBufferObject texStagingBufferObj = m_renderer->createBuffer(imgData.size,
                                                                   vk::BufferUsageFlagBits::eTransferSrc,
                                                                   vk::MemoryPropertyFlagBits::eHostVisible |
                                                                   vk::MemoryPropertyFlagBits::eHostCoherent);
-
-    ILubyte *imageData = ilGetData();
 
     try
     {
@@ -419,24 +413,20 @@ void VkMaterial::setImage(const std::string &path, const std::string &name)
         if(texData == nullptr)
             throw std::runtime_error("failed to map buffer memory");
 
-        memcpy(texData, imageData, imageDataSize);
+        memcpy(texData, static_pointer_cast<void>(imgData.data).get(), imgData.size);
         m_renderer->getDevice().unmapMemory(texStagingBufferObj.memory);
     }
     catch(const std::exception &e)
     {
         logger.error(MODULE_NAME, "Failed to copy texture data: " + std::string(e.what()));
-        ilBindImage(0);
-        ilDeleteImage(imgId);
         return;
     }
-    ilBindImage(0);
-    ilDeleteImage(imgId);
 
     //
     try
     {
-        uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
-        m_image = m_renderer->createImage(width, height,
+        uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(imgData.width, imgData.height)))) + 1;
+        m_image = m_renderer->createImage(imgData.width, imgData.height,
                                           vk::Format::eR8G8B8A8Srgb, mipLevels,
                                           vk::ImageTiling::eOptimal,
                                           vk::ImageUsageFlagBits::eTransferSrc |
@@ -454,8 +444,8 @@ void VkMaterial::setImage(const std::string &path, const std::string &name)
         m_renderer->transitionImageLayout(m_image.value(),
                                           vk::ImageLayout::eUndefined,
                                           vk::ImageLayout::eTransferDstOptimal);
-        m_renderer
-            ->copyBufferToImage(texStagingBufferObj.buffer, m_image.value().image, width, height);
+        m_renderer->copyBufferToImage(texStagingBufferObj.buffer, m_image.value().image,
+                                      imgData.width, imgData.height);
 
         m_renderer->getDevice().destroyBuffer(texStagingBufferObj.buffer);
         m_renderer->getDevice().freeMemory(texStagingBufferObj.memory);
@@ -480,6 +470,12 @@ void VkMaterial::setImage(const std::string &path, const std::string &name)
         logger.error(MODULE_NAME, "Failed to create vk::ImageView: " + std::string(e.what()));
         return;
     }
+}
+
+void VkMaterial::loadImage(const std::string &path, const std::string &name)
+{
+    ImageData imgData = ImageLoader::loadImage(path);
+    setImage(imgData, name);
 }
 
 void VkMaterial::setColor(const glm::vec4 &color, const std::string &name)

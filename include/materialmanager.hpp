@@ -6,11 +6,18 @@
 #include <string>
 #include <unordered_map>
 
+#include "resourcemanager.hpp"
+
 class MaterialManager
 {
 public:
     MaterialManager();
     ~MaterialManager();
+
+    // temp?
+    void loadImage(const DataResource &imgResource, const std::string &name);
+    void loadColor(const glm::vec4 &color, const std::string &name);
+    //
 
     void addMaterial(const std::string &name, Material *mat);
 

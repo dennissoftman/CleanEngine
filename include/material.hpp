@@ -4,6 +4,8 @@
 #include <glm/mat4x4.hpp>
 #include <string>
 
+#include "imageloader.hpp"
+
 struct TransformData
 {
     alignas(16) glm::mat4 Projection;
@@ -29,7 +31,8 @@ public:
     // execute before draw calls
     virtual void use(TransformData &transformData) = 0;
 
-    virtual void setImage(const std::string &path, const std::string &name) = 0;
+    virtual void setImage(const ImageData &imgData, const std::string &name) = 0;
+    virtual void loadImage(const std::string &path, const std::string &name) = 0;
     virtual void setColor(const glm::vec4 &color, const std::string &name) = 0;
 
     // material properties

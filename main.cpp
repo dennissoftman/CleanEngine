@@ -26,17 +26,17 @@ int main()
 {
     ServiceLocator::init(); // AT FIRST!
 #ifndef NDEBUG
-    FILE *debugFP = nullptr;
+    FILE *debugFP = NULL;
     {
-       debugFP = fopen(ServiceLocator::getResourceManager().getEnginePath("debug.log").c_str(), "a");
-       DebugLogger *logger = new DebugLogger();
-       logger->addInfoFP(stdout);
-       logger->addInfoFP(debugFP);
-       logger->addWarningFP(stdout);
-       logger->addWarningFP(debugFP);
-       logger->addErrorFP(stderr);
-       logger->addErrorFP(debugFP);
-       ServiceLocator::setLogger(logger);
+        debugFP = fopen("debug.log", "a");
+        DebugLogger *logger = new DebugLogger();
+        logger->addInfoFP(stdout);
+        logger->addInfoFP(debugFP);
+        logger->addWarningFP(stdout);
+        logger->addWarningFP(debugFP);
+        logger->addErrorFP(stderr);
+        logger->addErrorFP(debugFP);
+        ServiceLocator::setLogger(logger);
     }
 #else // release
     {
@@ -62,6 +62,8 @@ int main()
         ServiceLocator::setAudioManager(fmodAudioManager);
     }
 #endif
+
+    ServiceLocator::getResourceManager().init(); // init configs
 
 // TODO: create EngineCore parent class to remove macros from main.cpp
 #ifdef CORE_GLFW

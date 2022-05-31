@@ -25,6 +25,9 @@ DummyAudioManager ServiceLocator::m_defaultAudioMgr = DummyAudioManager();
 UIManager *ServiceLocator::m_uimgr = nullptr;
 DummyUIManager ServiceLocator::m_defaultUImgr = DummyUIManager();
 
+ScriptEngine *ServiceLocator::m_scengine = nullptr;
+DummyScriptEngine ServiceLocator::m_defaultScriptEngine = DummyScriptEngine();
+
 //
 
 void ServiceLocator::init()
@@ -39,10 +42,15 @@ void ServiceLocator::init()
     m_physmgr = &m_defaultPhysMgr;
     m_audiomgr = &m_defaultAudioMgr;
     m_uimgr = &m_defaultUImgr;
+    m_scengine = &m_defaultScriptEngine;
 }
 
 void ServiceLocator::terminate()
 {
+    if(m_scengine != &m_defaultScriptEngine)
+        delete m_scengine;
+    m_scengine = &m_defaultScriptEngine;
+
     if(m_uimgr != &m_defaultUImgr)
         delete m_uimgr;
     m_uimgr = &m_defaultUImgr;
@@ -162,6 +170,17 @@ void ServiceLocator::setUIManager(UIManager *mgr)
 {
     if(mgr)
         m_uimgr = mgr;
+}
+
+ScriptEngine &ServiceLocator::getScriptEngine()
+{
+    return *m_scengine;
+}
+
+void ServiceLocator::setScriptEngine(ScriptEngine *eng)
+{
+    if(eng)
+        m_scengine = eng;
 }
 
 Logger &ServiceLocator::getLogger()

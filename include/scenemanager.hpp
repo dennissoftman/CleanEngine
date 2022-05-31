@@ -8,6 +8,7 @@ class SceneManager
 {
 public:
     SceneManager();
+    ~SceneManager();
 
     void changeScene(const std::string &name);
 

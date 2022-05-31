@@ -3,10 +3,13 @@
 
 #include "scriptengine.hpp"
 
-#include <lua.hpp>
-#include <LuaBridge/LuaBridge.h>
+#define SOL_ALL_SAFETIES_ON 1
 
-#include "audiomanager.hpp"
+#include <limits>
+#include <sol/sol.hpp>
+
+class Model3D;
+class Scene3D;
 
 class LuaScriptEngine : public ScriptEngine
 {
@@ -16,31 +19,25 @@ public:
 
     void init() override;
 
-    // ModelLoader
-    static void MdLloadModel(const std::string &path, const std::string &name);
-    static void MdLsetMaterial(const std::string &model, const std::string &material);
+    // Logging
+    static void Debug_log(const std::string &msg);
+    static void Debug_warning(const std::string &msg);
+    static void Debug_error(const std::string &msg);
 
-    // MaterialLoader
-    static void MtLloadImage(const std::string &path, const std::string &name);
-    static void MtLfromColor(const glm::vec4 &color, const std::string &name);
+    // Material manager
+    static void MaterialManager_loadImage(const std::string &path, const std::string &name);
 
-    // AudioManager
-    static void AMloadSound(const std::string &path, const std::string &name);
-    static void AMplaySound(const std::string &name,
-                            float volume=1.f,
-                            float pitch=1.f,
-                            const glm::vec3 &pos=glm::vec3(0,0,0));
+    // Model manager
+    static void ModelManager_loadModel(const std::string &path, const std::string &name);
+    static const Model3D *ModelManager_getModel(const std::string &name);
 
-    static void AMloadMusic(const std::string &path, const std::string &name);
-    static void AMplayMusic(const std::string &name,
-                            float volume=1.f,
-                            float pitch=1.f);
+    // Audio manager
+    static void AudioManager_loadSound(const std::string &path, const std::string &name);
 
-    // Debug
-    static void print(const std::string &s);
-
+    // Scene manager
+    static Scene3D &SceneManager_getActiveScene();
 private:
-    lua_State *m_globalState;
+    sol::state m_globalState;
 };
 
 #endif // LUASCRIPTENGINE_HPP

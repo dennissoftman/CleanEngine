@@ -15,7 +15,7 @@ class Shader
 {
 public:
     // load from memory
-    virtual void load(const char *vdata, int vsize, const char *fdata, int fsize) = 0;
+    virtual void load(const char *vdata, size_t vsize, const char *fdata, size_t fsize) = 0;
 
     // load from file
     virtual void load(const std::string &vs, const std::string &fs) = 0;

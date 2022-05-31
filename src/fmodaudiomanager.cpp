@@ -1,6 +1,8 @@
 #include "fmodaudiomanager.hpp"
 #include "servicelocator.hpp"
 
+#include <fstream>
+#include <memory>
 #include <sstream>
 
 static const char *MODULE_NAME = "FmodAudioManager";
@@ -38,6 +40,7 @@ void FmodAudioManager::terminate()
     m_musicChannelsPool.clear();
     for(auto &kv : m_musicStreams)
         kv.second->release();
+    m_musicResources.clear();
 
     stopAllSounds();
     for(auto &kv : m_preloadedSounds)
@@ -82,10 +85,14 @@ void FmodAudioManager::loadSound(const std::string &path, const std::string &nam
         return;
     }
 
-    FMOD::Sound *newSound;
-    m_audioSystem->createSound(ServiceLocator::getResourceManager().getEnginePath(path).c_str(),
-                               FMOD_CREATESAMPLE | FMOD_3D,
-                               nullptr, &newSound);
+    DataResource sndData = ServiceLocator::getResourceManager().getResource(path);
+
+    FMOD::Sound *newSound = nullptr;
+    FMOD_CREATESOUNDEXINFO createInfo{};
+    createInfo.length = sndData.size;
+    m_audioSystem->createSound(static_pointer_cast<const char>(sndData.data).get(),
+                               FMOD_OPENMEMORY | FMOD_CREATESAMPLE | FMOD_3D,
+                               &createInfo, &newSound);
     if(newSound)
         m_preloadedSounds[name] = newSound;
     else
@@ -122,10 +129,15 @@ void FmodAudioManager::loadMusic(const std::string &path, const std::string &nam
         return;
     }
 
-    FMOD::Sound *newMusic;
-    m_audioSystem->createSound(ServiceLocator::getResourceManager().getEnginePath(path).c_str(),
-                               FMOD_CREATESTREAM | FMOD_2D,
-                               nullptr, &newMusic);
+    DataResource musData = ServiceLocator::getResourceManager().getResource(path);
+    m_musicResources.push_back(musData);
+
+    FMOD::Sound *newMusic = nullptr;
+    FMOD_CREATESOUNDEXINFO createInfo{};
+    createInfo.length = musData.size;
+    m_audioSystem->createSound(static_pointer_cast<const char>(musData.data).get(),
+                               FMOD_OPENMEMORY | FMOD_CREATESTREAM | FMOD_2D,
+                               &createInfo, &newMusic);
     if(newMusic)
         m_musicStreams[name] = newMusic;
     else

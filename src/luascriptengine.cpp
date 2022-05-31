@@ -1,7 +1,18 @@
 #include "luascriptengine.hpp"
 #include "servicelocator.hpp"
 
-const char *MODULE_NAME = "LuaScriptEngine";
+#include <fstream>
+#include <functional>
+#include <memory>
+
+// used classes
+#include "staticmesh.hpp"
+
+SOL_BASE_CLASSES(StaticMesh, Entity);
+SOL_DERIVED_CLASSES(Entity, StaticMesh);
+//
+
+static const char *MODULE_NAME = "LuaScriptEngine";
 
 LuaScriptEngine::LuaScriptEngine()
 {
@@ -15,116 +26,130 @@ LuaScriptEngine::~LuaScriptEngine()
 
 void LuaScriptEngine::init()
 {
+    m_globalState.open_libraries(sol::lib::base,
+                                 sol::lib::package,
+                                 sol::lib::string,
+#ifndef NDEBUG
+                                 sol::lib::debug,
+#endif
+                                 sol::lib::math,
+                                 sol::lib::table);
 
-    m_globalState = luaL_newstate();
-    luaL_openlibs(m_globalState);
-
-    // register
-    luabridge::getGlobalNamespace(m_globalState)
-            .beginClass<glm::vec3>("vec3")
-            .addConstructor<void(*)(float)>()
-            .addConstructor<void(*)(float, float, float)>()
-            .endClass();
-    luabridge::getGlobalNamespace(m_globalState)
-            .beginClass<glm::vec4>("vec4")
-            .addConstructor<void(*)(float)>()
-            .addConstructor<void(*)(float, float, float, float)>()
-            .endClass();
-
-    luabridge::getGlobalNamespace(m_globalState)
-            .beginNamespace("Debug")
-            .addFunction("log", LuaScriptEngine::print)
-            .endNamespace();
-
-    luabridge::getGlobalNamespace(m_globalState)
-            .beginNamespace("MaterialManager")
-            .addFunction("loadImage", LuaScriptEngine::MtLloadImage)
-            .addFunction("fromColor", LuaScriptEngine::MtLfromColor)
-            .endNamespace();
-
-    luabridge::getGlobalNamespace(m_globalState)
-            .beginNamespace("ModelManager")
-            .addFunction("loadModel", LuaScriptEngine::MdLloadModel)
-            .addFunction("setMaterial", LuaScriptEngine::MdLsetMaterial)
-            .endNamespace();
-
-    luabridge::getGlobalNamespace(m_globalState)
-            .beginNamespace("AudioManager")
-            .addFunction("loadSound", LuaScriptEngine::AMloadSound)
-            .addFunction("loadMusic", LuaScriptEngine::AMloadMusic)
-            .addFunction("playSound", LuaScriptEngine::AMplaySound)
-            .addFunction("playMusic", LuaScriptEngine::AMplayMusic)
-            .endNamespace();
-
+    // init functions, namespaces, etc.
     {
-        if(luaL_loadfile(m_globalState,
-                         ServiceLocator::getResourceManager().getEnginePath("data/scripts/init.lua").c_str()) != LUA_OK)
+        m_globalState.create_named_table("Debug",
+                                         "log", LuaScriptEngine::Debug_log);
+
+        m_globalState.create_named_table("MaterialManager",
+                                         "loadImage", LuaScriptEngine::MaterialManager_loadImage);
+
+        m_globalState.create_named_table("ModelManager",
+                                         "loadModel", LuaScriptEngine::ModelManager_loadModel,
+                                         "getModel", LuaScriptEngine::ModelManager_getModel);
+
+        m_globalState.create_named_table("SceneManager",
+                                         "getActiveScene", LuaScriptEngine::SceneManager_getActiveScene);
+
+        m_globalState.create_named_table("AudioManager",
+                                         "loadSound", LuaScriptEngine::AudioManager_loadSound);
+    }
+
+    // register object types
+    m_globalState.new_usertype<glm::vec3>("vec3",
+                                          sol::call_constructor,
+                                          sol::factories([&](float a) {return glm::vec3(a);},
+                                                         [&](float x, float y, float z) {return glm::vec3(x, y, z);}),
+                                          "x", &glm::vec3::x,
+                                          "y", &glm::vec3::y,
+                                          "z", &glm::vec3::z);
+
+    m_globalState.new_usertype<Scene3D>("Scene3D",
+                                        "addObject", &Scene3D::addObject);
+
+    // defining object types
+    m_globalState.new_usertype<Entity>("Entity", sol::no_constructor);
+
+    m_globalState.new_usertype<StaticMesh>("StaticMesh",
+                                           sol::factories([&]() -> std::shared_ptr<StaticMesh> { return std::make_shared<StaticMesh>(); }),
+                                           "setPosition", &StaticMesh::setPosition,
+                                           "getPosition", &StaticMesh::getPosition,
+                                           "setRotation", &StaticMesh::setEulerRotation,
+                                           "setScale", &StaticMesh::setScale,
+                                           "setModel", &StaticMesh::setModel);
+    //
+
+    // move init script to config file?
+    try
+    {
+        DataResource scData = ServiceLocator::getResourceManager().getResource("data/scripts/init.lua");
+
+        sol::protected_function_result result = m_globalState.safe_script(static_pointer_cast<const char>(scData.data).get());
+        if(!result.valid())
         {
-            ServiceLocator::getLogger().error(MODULE_NAME, "Lua load error: " + std::string());
-            return;
+            sol::error err = result;
+            ServiceLocator::getLogger().error(MODULE_NAME, "Script execution failed: " + std::string(err.what()));
         }
-        if(lua_pcall(m_globalState, 0, 0, 0) != LUA_OK)
-        {
-            ServiceLocator::getLogger().error(MODULE_NAME, "Lua execution error: " + std::string());
-            return;
-        }
+    }
+    catch(const std::exception &e)
+    {
+        ServiceLocator::getLogger().error(MODULE_NAME, std::string(e.what()));
+    }
+    ServiceLocator::getLogger().info(MODULE_NAME, "Script engine init completed");
+}
+
+void LuaScriptEngine::Debug_log(const std::string &msg)
+{
+    ServiceLocator::getLogger().info(MODULE_NAME, msg);
+}
+
+void LuaScriptEngine::Debug_warning(const std::string &msg)
+{
+    ServiceLocator::getLogger().warning(MODULE_NAME, msg);
+}
+
+void LuaScriptEngine::Debug_error(const std::string &msg)
+{
+    ServiceLocator::getLogger().error(MODULE_NAME, msg);
+}
+
+void LuaScriptEngine::MaterialManager_loadImage(const std::string &path, const std::string &name)
+{
+    try
+    {
+        DataResource imgData = ServiceLocator::getResourceManager().getResource(path);
+        ServiceLocator::getMatManager().loadImage(imgData, name);
+    }
+    catch(const std::exception &e)
+    {
+        ServiceLocator::getLogger().error(MODULE_NAME, "Failed to load image: " + std::string(e.what()));
     }
 }
 
-void LuaScriptEngine::MdLloadModel(const std::string &path, const std::string &name)
+void LuaScriptEngine::ModelManager_loadModel(const std::string &path, const std::string &name)
 {
-    ServiceLocator::getModelManager().loadModel(ServiceLocator::getResourceManager().getEnginePath(path),
-                                                name);
+    try
+    {
+        DataResource mdlData = ServiceLocator::getResourceManager().getResource(path);
+        ServiceLocator::getModelManager().loadModel(mdlData.data.get(), mdlData.size,
+                                                    name, path.substr(path.length()-path.find_last_of(".")).c_str());
+    }
+    catch(const std::exception &e)
+    {
+        ServiceLocator::getLogger().error(MODULE_NAME, "Failed to load model: " + std::string(e.what()));
+    }
 }
 
-void LuaScriptEngine::MdLsetMaterial(const std::string &model, const std::string &material)
+const Model3D *LuaScriptEngine::ModelManager_getModel(const std::string &name)
 {
-    Material *mat = ServiceLocator::getMatManager().getMaterial(material);
-    if(mat)
-        ServiceLocator::getModelManager().setModelMaterial(model, mat);
+    return ServiceLocator::getModelManager().getModel(name);
 }
 
-void LuaScriptEngine::MtLloadImage(const std::string &path, const std::string &name)
-{
-    Material *newMat = Material::create();
-    newMat->setImage(ServiceLocator::getResourceManager().getEnginePath(path),
-                     "img");
-    newMat->init();
-    ServiceLocator::getMatManager().addMaterial(name, newMat);
-}
-
-void LuaScriptEngine::MtLfromColor(const glm::vec4 &color, const std::string &name)
-{
-    Material *newMat = Material::create();
-    newMat->setColor(color, "color");
-    newMat->init();
-    ServiceLocator::getMatManager().addMaterial(name, newMat);
-}
-
-void LuaScriptEngine::AMloadSound(const std::string &path, const std::string &name)
+void LuaScriptEngine::AudioManager_loadSound(const std::string &path, const std::string &name)
 {
     ServiceLocator::getAudioManager().loadSound(path, name);
 }
 
-void LuaScriptEngine::AMplaySound(const std::string &name,
-                                  float volume,
-                                  float pitch,
-                                  const glm::vec3 &pos)
+Scene3D &LuaScriptEngine::SceneManager_getActiveScene()
 {
-    ServiceLocator::getAudioManager().playSound(name, SoundPropertiesInfo{volume, pitch, pos});
-}
-
-void LuaScriptEngine::AMloadMusic(const std::string &path, const std::string &name)
-{
-    ServiceLocator::getAudioManager().loadMusic(path, name);
-}
-
-void LuaScriptEngine::AMplayMusic(const std::string &name, float volume, float pitch)
-{
-    ServiceLocator::getAudioManager().playMusic(name, MusicPropertiesInfo{volume, pitch});
-}
-
-void LuaScriptEngine::print(const std::string &s)
-{
-    ServiceLocator::getLogger().info(MODULE_NAME, s);
+    return std::ref(ServiceLocator::getSceneManager().activeScene());
 }

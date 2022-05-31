@@ -1,4 +1,6 @@
 #include "scene3d.hpp"
+#include "entity.hpp"
+
 #include "servicelocator.hpp"
 
 static const char *MODULE_NAME = "Scene3D";
@@ -16,8 +18,10 @@ Scene3D::~Scene3D()
 
 void Scene3D::draw(Renderer *rend)
 {
+    // add dirty flag
     rend->setProjectionMatrix(m_camera.getProjectionMatrix());
     rend->setViewMatrix(m_camera.getViewMatrix());
+    //
     for(auto &kv : m_objects)
     {
         kv.second->draw(rend);
@@ -37,15 +41,13 @@ void Scene3D::terminate()
     clear();
 }
 
-void Scene3D::addObject(Entity *other)
+void Scene3D::addObject(std::shared_ptr<Entity> other)
 {
-    addObject(other, m_uuidGenerator.getUUID().str());
+    addNamedObject(other, m_uuidGenerator.getUUID().str());
 }
 
-void Scene3D::addObject(Entity *other, const std::string &name)
+void Scene3D::addNamedObject(std::shared_ptr<Entity> other, const std::string &name)
 {
-    assert(other != nullptr && "Null pointer exception");
-
     if(m_objects.find(name) == m_objects.end())
     {
         other->setScene(this);
@@ -57,34 +59,24 @@ void Scene3D::addObject(Entity *other, const std::string &name)
     }
 }
 
-void Scene3D::removeObject(Entity *other)
+void Scene3D::removeObject(const std::string &name)
 {
     // DO NOT REMOVE OBJECT IF IT HAS RIGIDBODY CONNECTED!
     // SEGFAULT GUARANTEED
     // to be fixed
-    for(auto &kv : m_objects)
-    {
-        if(kv.second == other)
-        {
-            m_objects.erase(kv.first);
-            delete other;
-            break;
-        }
-    }
+    m_objects.erase(name);
 }
 
 void Scene3D::clear()
 {
-    for (auto& kv : m_objects)
-        delete kv.second;
     m_objects.clear();
 }
 
-const Entity *Scene3D::getObject(const std::string &name) const
+std::weak_ptr<Entity> Scene3D::getObject(const std::string &name) const
 {
     if(m_objects.find(name) != m_objects.end())
         return m_objects.at(name);
-    return nullptr;
+    return std::weak_ptr<Entity>();
 }
 
 void Scene3D::setCamera(const Camera3D &cam)

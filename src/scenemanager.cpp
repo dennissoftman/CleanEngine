@@ -1,9 +1,18 @@
 #include "scenemanager.hpp"
 
-SceneManager::SceneManager()
-    : m_currentScene(nullptr)
-{
+static Scene3D *defaultScene = nullptr;
 
+SceneManager::SceneManager()
+{
+    if(defaultScene == nullptr)
+        defaultScene = new Scene3D();
+    m_currentScene = defaultScene;
+}
+
+SceneManager::~SceneManager()
+{
+    delete defaultScene;
+    defaultScene = nullptr;
 }
 
 void SceneManager::changeScene(const std::string &name)

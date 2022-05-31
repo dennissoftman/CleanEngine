@@ -1,9 +1,11 @@
 #ifndef FMODAUDIOMANAGER_HPP
 #define FMODAUDIOMANAGER_HPP
 
-#include "audiomanager.hpp"
 #include <fmod.hpp>
 #include <vector>
+
+#include "audiomanager.hpp"
+#include "resourcemanager.hpp"
 
 class FmodAudioManager : public AudioManager
 {
@@ -33,6 +35,7 @@ private:
 
     std::unordered_map<std::string, FMOD::Sound*> m_preloadedSounds;
     std::unordered_map<std::string, FMOD::Sound*> m_musicStreams;
+    std::vector<DataResource> m_musicResources;
 
     std::vector<FMOD::Channel*> m_musicChannelsPool;
 
