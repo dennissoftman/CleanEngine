@@ -1,10 +1,13 @@
 #include "vkmaterial.hpp"
 #include "servicelocator.hpp"
 
+// precompiled shaders
+#include "vk_color_shader.hpp"
+#include "vk_image_shader.hpp"
+//
+
 #include <fstream>
 #include <memory>
-#include <IL/il.h>
-#include <IL/ilu.h>
 
 static const char *MODULE_NAME = "VkMaterial";
 
@@ -72,16 +75,21 @@ void VkMaterial::init()
     vk::Device &vkDevice = m_renderer->getDevice();
     m_shader = new VkShader(vkDevice);
     // TEMP
-    std::string vsh_path, fsh_path;
+    std::optional<const char *> vsh_data, fsh_data;
+    std::optional<size_t> vsh_size, fsh_size;
     if(m_image.has_value())
     {
-        vsh_path = "data/shaders/vk/image.vert.spv";
-        fsh_path = "data/shaders/vk/image.frag.spv";
+        vsh_data = vk_image_shader::vert_data();
+        vsh_size = vk_image_shader::vert_size();
+        fsh_data = vk_image_shader::frag_data();
+        fsh_size = vk_image_shader::frag_size();
     }
     else if(m_color.has_value())
     {
-        vsh_path = "data/shaders/vk/color.vert.spv";
-        fsh_path = "data/shaders/vk/color.frag.spv";
+        vsh_data = vk_color_shader::vert_data();
+        vsh_size = vk_color_shader::vert_size();
+        fsh_data = vk_color_shader::frag_data();
+        fsh_size = vk_color_shader::frag_size();
     }
     else
     {
@@ -92,11 +100,22 @@ void VkMaterial::init()
     }
     // load shaders
     {
+        if(!vsh_data.has_value())
+        {
+            logger.error(MODULE_NAME, "Specify either color or image");
+            delete m_shader;
+            m_shader = nullptr;
+            return;
+        }
+        m_shader->load(vsh_data.value(), vsh_size.value(),
+                       fsh_data.value(), fsh_size.value());
+        /*
         DataResource vdata = ServiceLocator::getResourceManager().getResource(vsh_path);
         DataResource fdata = ServiceLocator::getResourceManager().getResource(fsh_path);
 
         m_shader->load(static_pointer_cast<const char>(vdata.data).get(), vdata.size,
                        static_pointer_cast<const char>(fdata.data).get(), fdata.size);
+        */
     }
     //
 
