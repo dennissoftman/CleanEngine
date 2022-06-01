@@ -87,6 +87,10 @@ if(USE_VULKAN)
     ${CMAKE_SOURCE_DIR}/include/vulkanrenderer.hpp
     ${CMAKE_SOURCE_DIR}/src/vkshader.cpp
     ${CMAKE_SOURCE_DIR}/include/vkshader.hpp
+    ${CMAKE_SOURCE_DIR}/include/vk_color_shader.hpp
+    ${CMAKE_SOURCE_DIR}/src/vk_color_shader.cpp
+    ${CMAKE_SOURCE_DIR}/src/vk_image_shader.cpp
+    ${CMAKE_SOURCE_DIR}/include/vk_image_shader.hpp
     ${CMAKE_SOURCE_DIR}/src/vkmaterial.cpp
     ${CMAKE_SOURCE_DIR}/include/vkmaterial.hpp
   )
@@ -216,6 +220,9 @@ if(USE_VULKAN)
     find_package(Lua REQUIRED)
     target_include_directories(CleanEngineVk PRIVATE ${LUA_INCLUDE_DIR})
     target_link_libraries(CleanEngineVk ${LUA_LIBRARIES})
+
+    find_package(sol2 REQUIRED)
+    target_link_libraries(CleanEngineVk sol2::sol2)
   endif()
 
   if(MSVC)
