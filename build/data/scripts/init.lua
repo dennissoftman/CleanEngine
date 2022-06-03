@@ -11,11 +11,6 @@ ModelManager.loadModel(":/models/cube.glb", "cube")
 ModelManager.loadModel(":/models/sphere.glb", "sphere")
 ModelManager.loadModel(":/models/domino.glb", "domino")
 
--- sounds
-AudioManager.loadSound(":/audio/sounds/2462.flac", "click")
-AudioManager.loadSound(":/audio/sounds/1825.flac", "bounce")
-AudioManager.loadSound(":/audio/sounds/1501.flac", "crack")
-
 -- spawn object
 function generate_colliseum(radius, height)
     if radius <= 0 or height <= 0 then return end

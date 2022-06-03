@@ -2,22 +2,25 @@
 #include <stdexcept>
 #include <cstdio>
 
-#include "servicelocator.hpp"
+#include "common/servicelocator.hpp"
+#include "common/debuglogger.hpp"
 
-#include "debuglogger.hpp"
-
-#ifdef CORE_GLFW
-#include "enginecoreglfw.hpp"
+#ifdef CLIENT_GLFW
+#include "client/gameclientglfw.hpp"
 #else
 #error No core library selected
 #endif
 
 #ifdef PHYSICS_BULLET
-#include "bulletphysicsmanager.hpp"
+#include "server/bulletphysicsmanager.hpp"
 #endif
 
 #ifdef AUDIO_FMOD
-#include "fmodaudiomanager.hpp"
+#include "client/fmodaudiomanager.hpp"
+#endif
+
+#ifdef SERVICES_STEAM
+#include "common/steamservices.hpp"
 #endif
 
 static const char *MODULE_NAME = "Main";
@@ -37,6 +40,8 @@ int main()
         logger->addErrorFP(stderr);
         logger->addErrorFP(debugFP);
         ServiceLocator::setLogger(logger);
+
+        ServiceLocator::getLogger().info(MODULE_NAME, "Started logging");
     }
 #else // release
     {
@@ -45,7 +50,6 @@ int main()
         ServiceLocator::setLogger(logger);
     }
 #endif
-    ServiceLocator::getLogger().info(MODULE_NAME, "Started logging");
 
 #ifdef PHYSICS_BULLET
     {
@@ -65,16 +69,23 @@ int main()
 
     ServiceLocator::getResourceManager().init(); // init configs
 
-// TODO: create EngineCore parent class to remove macros from main.cpp
-#ifdef CORE_GLFW
-    EngineCoreGLFW core{};
-
-    core.init();
-    core.mainLoop();
-#else
-#error No core library selected
+#ifdef SERVICES_STEAM
+    {
+        SteamServices *steamServices = new SteamServices();
+        steamServices->init();
+        ServiceLocator::setGameServices(steamServices);
+    }
 #endif
-    core.terminate();
+
+#ifdef CLIENT_GLFW
+    GameClientGLFW client{};
+
+    client.init();
+    client.mainLoop();
+#else
+#error No client selected
+#endif
+    client.terminate();
 
 #ifndef NDEBUG
     fclose(debugFP);

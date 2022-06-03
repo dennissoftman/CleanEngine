@@ -27,53 +27,53 @@ option(USE_STEAM "Enable Steam API" OFF)
 set(FMOD_DIR "C:/Program Files (x86)/FMOD SoundSystem/FMOD Studio API Windows" CACHE PATH "Path to FMOD SDK")
 
 set(COMMON_SOURCES
-  ${CMAKE_SOURCE_DIR}/include/renderer.hpp
-  ${CMAKE_SOURCE_DIR}/src/dummyrenderer.cpp
-  ${CMAKE_SOURCE_DIR}/include/dummyrenderer.hpp
-  ${CMAKE_SOURCE_DIR}/include/shader.hpp
-  ${CMAKE_SOURCE_DIR}/src/logger.cpp
-  ${CMAKE_SOURCE_DIR}/include/logger.hpp
-  ${CMAKE_SOURCE_DIR}/src/dummylogger.cpp
-  ${CMAKE_SOURCE_DIR}/include/dummylogger.hpp
-  ${CMAKE_SOURCE_DIR}/src/debuglogger.cpp
-  ${CMAKE_SOURCE_DIR}/include/debuglogger.hpp
-  ${CMAKE_SOURCE_DIR}/src/servicelocator.cpp
-  ${CMAKE_SOURCE_DIR}/include/servicelocator.hpp
-  ${CMAKE_SOURCE_DIR}/src/eventmanager.cpp
-  ${CMAKE_SOURCE_DIR}/include/eventmanager.hpp
-  ${CMAKE_SOURCE_DIR}/src/camera3d.cpp
-  ${CMAKE_SOURCE_DIR}/include/camera3d.hpp
-  ${CMAKE_SOURCE_DIR}/src/imageloader.cpp
-  ${CMAKE_SOURCE_DIR}/include/imageloader.hpp
-  ${CMAKE_SOURCE_DIR}/src/material.cpp
-  ${CMAKE_SOURCE_DIR}/include/material.hpp
-  ${CMAKE_SOURCE_DIR}/src/materialmanager.cpp
-  ${CMAKE_SOURCE_DIR}/include/materialmanager.hpp
-  ${CMAKE_SOURCE_DIR}/src/modelmanager.cpp
-  ${CMAKE_SOURCE_DIR}/include/modelmanager.hpp
-  ${CMAKE_SOURCE_DIR}/include/scriptengine.hpp
-  ${CMAKE_SOURCE_DIR}/src/dummyscriptengine.cpp
-  ${CMAKE_SOURCE_DIR}/include/dummyscriptengine.hpp
-  ${CMAKE_SOURCE_DIR}/include/audiomanager.hpp
-  ${CMAKE_SOURCE_DIR}/src/dummyaudiomanager.cpp
-  ${CMAKE_SOURCE_DIR}/include/dummyaudiomanager.hpp
-  ${CMAKE_SOURCE_DIR}/src/scenemanager.cpp
-  ${CMAKE_SOURCE_DIR}/include/scenemanager.hpp
-  ${CMAKE_SOURCE_DIR}/src/entity.cpp
-  ${CMAKE_SOURCE_DIR}/include/entity.hpp
-  ${CMAKE_SOURCE_DIR}/src/staticmesh.cpp
-  ${CMAKE_SOURCE_DIR}/include/staticmesh.hpp
-  ${CMAKE_SOURCE_DIR}/src/scene3d.cpp
-  ${CMAKE_SOURCE_DIR}/include/scene3d.hpp
-  ${CMAKE_SOURCE_DIR}/include/physicsmanager.hpp
-  ${CMAKE_SOURCE_DIR}/src/dummyphysicsmanager.cpp
-  ${CMAKE_SOURCE_DIR}/include/dummyphysicsmanager.hpp
-  ${CMAKE_SOURCE_DIR}/src/resourcemanager.cpp
-  ${CMAKE_SOURCE_DIR}/include/resourcemanager.hpp
-  ${CMAKE_SOURCE_DIR}/src/uimanager.cpp
-  ${CMAKE_SOURCE_DIR}/include/uimanager.hpp
-  ${CMAKE_SOURCE_DIR}/src/dummyuimanager.cpp
-  ${CMAKE_SOURCE_DIR}/include/dummyuimanager.hpp
+  ${CMAKE_SOURCE_DIR}/include/client/renderer.hpp
+  ${CMAKE_SOURCE_DIR}/src/client/dummyrenderer.cpp
+  ${CMAKE_SOURCE_DIR}/include/client/dummyrenderer.hpp
+  ${CMAKE_SOURCE_DIR}/include/client/shader.hpp
+  ${CMAKE_SOURCE_DIR}/src/common/logger.cpp
+  ${CMAKE_SOURCE_DIR}/include/common/logger.hpp
+  ${CMAKE_SOURCE_DIR}/src/common/dummylogger.cpp
+  ${CMAKE_SOURCE_DIR}/include/common/dummylogger.hpp
+  ${CMAKE_SOURCE_DIR}/src/common/debuglogger.cpp
+  ${CMAKE_SOURCE_DIR}/include/common/debuglogger.hpp
+  ${CMAKE_SOURCE_DIR}/src/common/servicelocator.cpp
+  ${CMAKE_SOURCE_DIR}/include/common/servicelocator.hpp
+  ${CMAKE_SOURCE_DIR}/src/client/eventmanager.cpp
+  ${CMAKE_SOURCE_DIR}/include/client/eventmanager.hpp
+  ${CMAKE_SOURCE_DIR}/src/common/entities/camera3d.cpp
+  ${CMAKE_SOURCE_DIR}/include/common/entities/camera3d.hpp
+  ${CMAKE_SOURCE_DIR}/src/client/imageloader.cpp
+  ${CMAKE_SOURCE_DIR}/include/client/imageloader.hpp
+  ${CMAKE_SOURCE_DIR}/include/client/material.hpp
+  ${CMAKE_SOURCE_DIR}/src/client/materialmanager.cpp
+  ${CMAKE_SOURCE_DIR}/include/client/materialmanager.hpp
+  ${CMAKE_SOURCE_DIR}/src/common/modelmanager.cpp
+  ${CMAKE_SOURCE_DIR}/include/common/modelmanager.hpp
+  ${CMAKE_SOURCE_DIR}/include/common/scriptengine.hpp
+  ${CMAKE_SOURCE_DIR}/src/common/dummyscriptengine.cpp
+  ${CMAKE_SOURCE_DIR}/include/common/dummyscriptengine.hpp
+  ${CMAKE_SOURCE_DIR}/include/client/audiomanager.hpp
+  ${CMAKE_SOURCE_DIR}/src/client/dummyaudiomanager.cpp
+  ${CMAKE_SOURCE_DIR}/include/client/dummyaudiomanager.hpp
+  ${CMAKE_SOURCE_DIR}/src/server/scenemanager.cpp
+  ${CMAKE_SOURCE_DIR}/include/server/scenemanager.hpp
+  ${CMAKE_SOURCE_DIR}/include/common/entities/entity.hpp
+  ${CMAKE_SOURCE_DIR}/src/common/entities/staticmesh.cpp
+  ${CMAKE_SOURCE_DIR}/include/common/entities/staticmesh.hpp
+  ${CMAKE_SOURCE_DIR}/src/server/scene3d.cpp
+  ${CMAKE_SOURCE_DIR}/include/server/scene3d.hpp
+  ${CMAKE_SOURCE_DIR}/include/server/physicsmanager.hpp
+  ${CMAKE_SOURCE_DIR}/src/server/dummyphysicsmanager.cpp
+  ${CMAKE_SOURCE_DIR}/include/server/dummyphysicsmanager.hpp
+  ${CMAKE_SOURCE_DIR}/src/common/resourcemanager.cpp
+  ${CMAKE_SOURCE_DIR}/include/common/resourcemanager.hpp
+  ${CMAKE_SOURCE_DIR}/include/client/uimanager.hpp
+  ${CMAKE_SOURCE_DIR}/src/client/dummyuimanager.cpp
+  ${CMAKE_SOURCE_DIR}/include/client/dummyuimanager.hpp
+  ${CMAKE_SOURCE_DIR}/include/common/gameservices.hpp
+  ${CMAKE_SOURCE_DIR}/src/common/dummyservices.cpp
+  ${CMAKE_SOURCE_DIR}/include/common/dummyservices.hpp
 )
 
 if(USE_VULKAN)
@@ -83,23 +83,23 @@ if(USE_VULKAN)
 
   target_sources(CleanEngineVk PRIVATE
     ${COMMON_SOURCES}
-    ${CMAKE_SOURCE_DIR}/src/vulkanrenderer.cpp
-    ${CMAKE_SOURCE_DIR}/include/vulkanrenderer.hpp
-    ${CMAKE_SOURCE_DIR}/src/vkshader.cpp
-    ${CMAKE_SOURCE_DIR}/include/vkshader.hpp
-    ${CMAKE_SOURCE_DIR}/include/vk_color_shader.hpp
-    ${CMAKE_SOURCE_DIR}/src/vk_color_shader.cpp
-    ${CMAKE_SOURCE_DIR}/src/vk_image_shader.cpp
-    ${CMAKE_SOURCE_DIR}/include/vk_image_shader.hpp
-    ${CMAKE_SOURCE_DIR}/src/vkmaterial.cpp
-    ${CMAKE_SOURCE_DIR}/include/vkmaterial.hpp
+    ${CMAKE_SOURCE_DIR}/src/client/vulkanrenderer.cpp
+    ${CMAKE_SOURCE_DIR}/include/client/vulkanrenderer.hpp
+    ${CMAKE_SOURCE_DIR}/src/client/vkshader.cpp
+    ${CMAKE_SOURCE_DIR}/include/client/vkshader.hpp
+    ${CMAKE_SOURCE_DIR}/include/client/shaders/vk_color_shader.hpp
+    ${CMAKE_SOURCE_DIR}/src/client/shaders/vk_color_shader.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/shaders/vk_image_shader.cpp
+    ${CMAKE_SOURCE_DIR}/include/client/shaders/vk_image_shader.hpp
+    ${CMAKE_SOURCE_DIR}/src/client/vkmaterial.cpp
+    ${CMAKE_SOURCE_DIR}/include/client/vkmaterial.hpp
   )
 
   if(USE_FMOD)
     target_compile_definitions(CleanEngineVk PRIVATE AUDIO_FMOD)
     target_sources(CleanEngineVk PRIVATE
-      ${CMAKE_SOURCE_DIR}/src/fmodaudiomanager.cpp
-      ${CMAKE_SOURCE_DIR}/include/fmodaudiomanager.hpp
+      ${CMAKE_SOURCE_DIR}/src/client/fmodaudiomanager.cpp
+      ${CMAKE_SOURCE_DIR}/include/client/fmodaudiomanager.hpp
     )
   endif()
 
@@ -126,6 +126,7 @@ if(USE_VULKAN)
   target_include_directories(CleanEngineVk PRIVATE Vulkan::Headers)
   target_link_libraries(CleanEngineVk Vulkan::Vulkan)
 
+  # minizip
   find_package(minizip REQUIRED)
   target_link_libraries(CleanEngineVk minizip::minizip)
 
@@ -143,8 +144,8 @@ if(USE_VULKAN)
 
   if(USE_IMGUI)
     target_sources(CleanEngineVk PRIVATE
-      ${CMAKE_SOURCE_DIR}/src/imguivkuimanager.cpp
-      ${CMAKE_SOURCE_DIR}/include/imguivkuimanager.hpp
+      ${CMAKE_SOURCE_DIR}/src/client/imguivkuimanager.cpp
+      ${CMAKE_SOURCE_DIR}/include/client/imguivkuimanager.hpp
     )
 
     find_package(Freetype REQUIRED)
@@ -178,10 +179,10 @@ if(USE_VULKAN)
     target_link_libraries(CleanEngineVk glfw)
 
     target_sources(CleanEngineVk PUBLIC
-      ${CMAKE_SOURCE_DIR}/src/enginecoreglfw.cpp
-      ${CMAKE_SOURCE_DIR}/include/enginecoreglfw.hpp
+      ${CMAKE_SOURCE_DIR}/src/client/gameclientglfw.cpp
+      ${CMAKE_SOURCE_DIR}/include/client/gameclientglfw.hpp
     )
-    target_compile_definitions(CleanEngineVk PRIVATE CORE_GLFW)
+    target_compile_definitions(CleanEngineVk PRIVATE CLIENT_GLFW)
   endif()
 
   if(USE_BULLET)
@@ -204,8 +205,8 @@ if(USE_VULKAN)
     endif()
 
     target_sources(CleanEngineVk PRIVATE
-      ${CMAKE_SOURCE_DIR}/src/bulletphysicsmanager.cpp
-      ${CMAKE_SOURCE_DIR}/include/bulletphysicsmanager.hpp
+      ${CMAKE_SOURCE_DIR}/src/server/bulletphysicsmanager.cpp
+      ${CMAKE_SOURCE_DIR}/include/server/bulletphysicsmanager.hpp
     )
     target_compile_definitions(CleanEngineVk PRIVATE PHYSICS_BULLET)
   endif()
@@ -213,8 +214,8 @@ if(USE_VULKAN)
   if(USE_LUA)
     target_compile_definitions(CleanEngineVk PRIVATE SCRIPT_ENGINE_LUA)
     target_sources(CleanEngineVk PRIVATE
-      ${CMAKE_SOURCE_DIR}/src/luascriptengine.cpp
-      ${CMAKE_SOURCE_DIR}/include/luascriptengine.hpp
+      ${CMAKE_SOURCE_DIR}/src/common/luascriptengine.cpp
+      ${CMAKE_SOURCE_DIR}/include/common/luascriptengine.hpp
     )
 
     find_package(Lua REQUIRED)
@@ -263,6 +264,10 @@ if(USE_VULKAN)
     endif()
 
     if(USE_STEAM)
+      target_sources(CleanEngineVk PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/common/steamservices.cpp
+        ${CMAKE_SOURCE_DIR}/include/common/steamservices.hpp
+      )
       target_include_directories(CleanEngineVk PRIVATE
         ${CMAKE_SOURCE_DIR}/libs/steamworks_sdk/public
       )
@@ -270,6 +275,7 @@ if(USE_VULKAN)
         ${CMAKE_SOURCE_DIR}/libs/steamworks_sdk/redistributable_bin/linux64/
       )
       target_link_libraries(CleanEngineVk -lsteam_api)
+      target_compile_definitions(CleanEngineVk PRIVATE SERVICES_STEAM)
     endif()
   endif()
 elseif(USE_OPENGL)
