@@ -9,15 +9,17 @@
 
 #define CAMERA_UP (glm::vec3(0, 1, 0))
 
-namespace CamChangedFlagBits
-{
-    enum CamChangedFlagBits
-    {
-        eProjection=0x1,
-        eView=0x2,
-        eAll=~0
-    };
-}
+//namespace CamChangedFlagBits
+//{
+//    enum CamChangedFlagBits
+//    {
+//        eProjection=0x1,
+//        eView=0x2,
+//        eAll=~0
+//    };
+//}
+
+#include "common/dirty_flag.hpp"
 
 class Camera3D : public Entity
 {
@@ -48,8 +50,7 @@ public:
 
     const char *getType() override;
 
-    void move(const glm::vec3 &d);
-    void rotate(float a, const glm::vec3 &axis);
+    [[deprecated]] void move(const glm::vec3 &d);
 
     void setPitchConstraint(float _min, float _max);
 
@@ -71,7 +72,7 @@ private:
     Scene3D *m_parentScene;
 
     float m_fov, m_aspect, m_znear, m_zfar;
-    glm::mat4 m_projectionMatrix, m_viewMatrix;
+    clean::dirty_flag<glm::mat4> m_projectionMatrix, m_viewMatrix;
     glm::vec3 m_position;
     glm::quat m_rotation;
     glm::vec3 m_scale;

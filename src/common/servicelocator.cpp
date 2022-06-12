@@ -17,6 +17,8 @@ ModelManager *ServiceLocator::m_mdlmgr = nullptr;
 
 SceneManager *ServiceLocator::m_scnmgr = nullptr;
 
+EventManager *ServiceLocator::m_evtmgr = nullptr;
+
 PhysicsManager *ServiceLocator::m_physmgr = nullptr;
 DummyPhysicsManager ServiceLocator::m_defaultPhysMgr = DummyPhysicsManager();
 
@@ -43,6 +45,7 @@ void ServiceLocator::init()
     m_matmgr = new MaterialManager();
     m_mdlmgr = new ModelManager();
     m_scnmgr = new SceneManager();
+    m_evtmgr = new EventManager();
     m_physmgr = &m_defaultPhysMgr;
     m_audiomgr = &m_defaultAudioMgr;
     m_uimgr = &m_defaultUImgr;
@@ -70,6 +73,9 @@ void ServiceLocator::terminate()
     if(m_physmgr != &m_defaultPhysMgr)
         delete m_physmgr;
     m_physmgr = &m_defaultPhysMgr;
+
+    delete m_evtmgr;
+    m_evtmgr = nullptr;
 
     delete m_scnmgr;
     m_scnmgr = nullptr;
@@ -145,6 +151,17 @@ void ServiceLocator::setSceneManager(SceneManager *mgr)
 {
     if(mgr)
         m_scnmgr = mgr;
+}
+
+EventManager &ServiceLocator::getEventManager()
+{
+    return *m_evtmgr;
+}
+
+void ServiceLocator::setEventManager(EventManager *mgr)
+{
+    if(mgr)
+        m_evtmgr = mgr;
 }
 
 PhysicsManager &ServiceLocator::getPhysicsManager()

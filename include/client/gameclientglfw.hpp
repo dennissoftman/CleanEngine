@@ -35,14 +35,19 @@ public:
 
     GLFWwindow *getWindowPtr() const;
 
+    // for events
+    static void onKeyboardEvent(GLFWwindow *win, int key, int scancode, int action, int mods);
+    static void onMouseButtonEvent(GLFWwindow *win, int button, int action, int mods);
+    static void onMousePositionEvent(GLFWwindow *win, double mx, double my);
+    static void onMouseScrollEvent(GLFWwindow *win, double sx, double sy);
+
     static void onWindowResized(GLFWwindow *win, int width, int height);
+    //
     static GameClientGLFW *corePtr;
 private:
     GLFWwindow *m_mainWindow;
     Renderer *m_mainRenderer;
     double m_elapsedTime, m_deltaTime;
-    // TEMP
-    ScriptEngine *m_scriptEngine;
 
     glm::ivec2 m_windowSize;
 };

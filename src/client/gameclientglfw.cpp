@@ -15,7 +15,6 @@ static const char *MODULE_NAME = "EngineCoreGLFW";
 GameClientGLFW::GameClientGLFW()
     : m_mainWindow(nullptr),
       m_elapsedTime(0), m_deltaTime(0),
-      m_scriptEngine(nullptr),
       m_windowSize(glm::ivec2(1920, 1080))
 {
     assert(corePtr == nullptr && "Instance is already running");
@@ -31,6 +30,40 @@ void GameClientGLFW::onWindowResized(GLFWwindow *win, int width, int height)
 {
     (void)win;
     GameClientGLFW::corePtr->m_mainRenderer->resize(glm::ivec2(width, height));
+}
+
+void GameClientGLFW::onKeyboardEvent(GLFWwindow *win, int key, int scancode, int action, int mods)
+{
+    (void)win;
+    (void)mods;
+
+    ServiceLocator::getEventManager().keyboardCallback(key,
+                                                       scancode,
+                                                       (action == GLFW_PRESS) ? 1 : ((action == GLFW_RELEASE) ? -1 : 0),
+                                                       0);
+}
+
+void GameClientGLFW::onMouseButtonEvent(GLFWwindow *win, int button, int action, int mods)
+{
+    (void)win;
+    (void)mods;
+
+    ServiceLocator::getEventManager().mouseButtonCallback(button,
+                                                          (action == GLFW_PRESS) ? 1 : ((action == GLFW_RELEASE) ? -1 : 0));
+}
+
+void GameClientGLFW::onMousePositionEvent(GLFWwindow *win, double mx, double my)
+{
+    (void)win;
+    ServiceLocator::getEventManager().mousePositionCallback(static_cast<int>(mx),
+                                                            static_cast<int>(my));
+}
+
+void GameClientGLFW::onMouseScrollEvent(GLFWwindow *win, double sx, double sy)
+{
+    (void)win;
+    ServiceLocator::getEventManager().mouseScrollCallback(static_cast<int>(sx),
+                                                          static_cast<int>(sy));
 }
 
 void GameClientGLFW::init()
@@ -83,7 +116,10 @@ void GameClientGLFW::init()
     }
 
     { // events
-
+        glfwSetKeyCallback(m_mainWindow, GameClientGLFW::onKeyboardEvent);
+        glfwSetMouseButtonCallback(m_mainWindow, GameClientGLFW::onMouseButtonEvent);
+        glfwSetCursorPosCallback(m_mainWindow, GameClientGLFW::onMousePositionEvent);
+        glfwSetScrollCallback(m_mainWindow, GameClientGLFW::onMouseScrollEvent);
     }
 
     { // ui
@@ -95,29 +131,25 @@ void GameClientGLFW::init()
     { // scene
         Scene3D &activeScene = ServiceLocator::getSceneManager().activeScene();
         activeScene.getCamera().setPosition(glm::vec3(0, 2.f, 0));
-        activeScene.getCamera().setRotation(glm::vec3(glm::pi<float>()/2.f, 0, 0));
     }
 
     { // scripts
-        m_scriptEngine = new LuaScriptEngine();
-        m_scriptEngine->init();
+        ScriptEngine *scengine = new LuaScriptEngine();
+        scengine->init();
+        ServiceLocator::setScriptEngine(scengine);
     }
 }
 
 void GameClientGLFW::terminate()
 {
-    // TODO: move to ServiceLocator
-    delete m_scriptEngine;
-    m_scriptEngine = nullptr;
-    //
     ServiceLocator::terminate();
-    glfwSetInputMode(m_mainWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     glfwTerminate();
 }
 
 void GameClientGLFW::mainLoop()
 {
     SceneManager &sceneManager = ServiceLocator::getSceneManager();
+    EventManager &eventManager = ServiceLocator::getEventManager();
     PhysicsManager &physicsManager = ServiceLocator::getPhysicsManager();
     AudioManager &audioManager = ServiceLocator::getAudioManager();
     UIManager &uiManager = ServiceLocator::getUIManager();
@@ -128,22 +160,11 @@ void GameClientGLFW::mainLoop()
         m_elapsedTime = glfwGetTime();
         glfwPollEvents();
 
+        // update events
+        eventManager.update(m_deltaTime);
+
         // update physics
         physicsManager.update(m_deltaTime);
-
-        {
-            Camera3D &cam = sceneManager.activeScene().getCamera();
-            float cam_speed = 5.f;
-            if(glfwGetKey(m_mainWindow, GLFW_KEY_W) == GLFW_PRESS)
-                cam.move(cam.frontVector() * cam_speed * (float)m_deltaTime);
-            else if(glfwGetKey(m_mainWindow, GLFW_KEY_S) == GLFW_PRESS)
-                cam.move(-cam.frontVector() * cam_speed * (float)m_deltaTime);
-
-            if(glfwGetKey(m_mainWindow, GLFW_KEY_D) == GLFW_PRESS)
-                cam.move(cam.rightVector() * cam_speed * (float)m_deltaTime);
-            else if(glfwGetKey(m_mainWindow, GLFW_KEY_A) == GLFW_PRESS)
-                cam.move(-cam.rightVector() * cam_speed * (float)m_deltaTime);
-        }
 
         // update scene
         sceneManager.activeScene().update(m_deltaTime);

@@ -39,8 +39,8 @@ set(COMMON_SOURCES
   ${CMAKE_SOURCE_DIR}/include/common/debuglogger.hpp
   ${CMAKE_SOURCE_DIR}/src/common/servicelocator.cpp
   ${CMAKE_SOURCE_DIR}/include/common/servicelocator.hpp
-  ${CMAKE_SOURCE_DIR}/src/client/eventmanager.cpp
-  ${CMAKE_SOURCE_DIR}/include/client/eventmanager.hpp
+  ${CMAKE_SOURCE_DIR}/src/common/eventmanager.cpp
+  ${CMAKE_SOURCE_DIR}/include/common/eventmanager.hpp
   ${CMAKE_SOURCE_DIR}/src/common/entities/camera3d.cpp
   ${CMAKE_SOURCE_DIR}/include/common/entities/camera3d.hpp
   ${CMAKE_SOURCE_DIR}/src/client/imageloader.cpp
@@ -74,6 +74,7 @@ set(COMMON_SOURCES
   ${CMAKE_SOURCE_DIR}/include/common/gameservices.hpp
   ${CMAKE_SOURCE_DIR}/src/common/dummyservices.cpp
   ${CMAKE_SOURCE_DIR}/include/common/dummyservices.hpp
+  ${CMAKE_SOURCE_DIR}/include/common/dirty_flag.hpp
 )
 
 if(USE_VULKAN)
@@ -110,6 +111,10 @@ if(USE_VULKAN)
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/libs
   )
+
+  # boost
+  find_package(Boost REQUIRED)
+  target_link_libraries(CleanEngineVk Boost::boost)
 
   # toml++
   find_package(tomlplusplus REQUIRED)
