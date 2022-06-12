@@ -9,22 +9,16 @@ static const char *MODULE_NAME = "Camera3D";
 
 Camera3D::Camera3D(float fov, float aspect, float znear, float zfar)
     : m_fov(fov), m_aspect(aspect), m_znear(znear), m_zfar(zfar),
-      m_position(glm::vec3()), m_rotation(glm::vec3()), m_scale(glm::vec3(1,1,1)),
-      m_pitchConstraint(-INFINITY, INFINITY)
+      m_position(glm::vec3()), m_rotation(glm::vec3()), m_scale(glm::vec3(1,1,1))
 {
-    m_changedFlags = CamChangedFlagBits::eAll; // all ones
+    m_viewMatrix = glm::mat4(1);
+    m_projectionMatrix = glm::mat4(1);
 }
 
 void Camera3D::move(const glm::vec3 &d)
 {
     m_position += d;
-    m_changedFlags |= CamChangedFlagBits::eView;
-}
-
-void Camera3D::rotate(float a, const glm::vec3 &axis)
-{
-    m_rotation = glm::rotate(m_rotation, a, axis);
-    m_changedFlags |= CamChangedFlagBits::eView;
+    m_viewMatrix.set_dirty();
 }
 
 void Camera3D::setPitchConstraint(float _min, float _max)
@@ -35,7 +29,7 @@ void Camera3D::setPitchConstraint(float _min, float _max)
 void Camera3D::setPosition(const glm::vec3 &pos)
 {
     m_position = pos;
-    m_changedFlags |= CamChangedFlagBits::eView;
+    m_viewMatrix.set_dirty();
 }
 
 const glm::vec3 &Camera3D::getPosition() const
@@ -97,62 +91,57 @@ const glm::vec3 &Camera3D::upVector()
 void Camera3D::setFOV(float fov)
 {
     m_fov = fov;
-    m_changedFlags |= CamChangedFlagBits::eProjection;
+    m_projectionMatrix.set_dirty();
 }
 
 void Camera3D::setAspect(float aspect)
 {
     m_aspect = aspect;
-    m_changedFlags |= CamChangedFlagBits::eProjection;
+    m_projectionMatrix.set_dirty();
 }
 
 void Camera3D::setClipping(float near, float far)
 {
     m_znear = std::min(near, far);
     m_zfar = std::max(near, far);
-    m_changedFlags |= CamChangedFlagBits::eProjection;
+    m_projectionMatrix.set_dirty();
 }
 
 const glm::mat4 &Camera3D::getViewMatrix()
 {
-    if(m_changedFlags)
+    if(m_viewMatrix.is_dirty())
         updateMatrices();
-    return m_viewMatrix;
+    return m_viewMatrix.value();
 }
 
 const glm::mat4 &Camera3D::getProjectionMatrix()
 {
-    if(m_changedFlags)
+    if(m_projectionMatrix.is_dirty())
         updateMatrices();
-    return m_projectionMatrix;
+    return m_projectionMatrix.value();
 }
 
 void Camera3D::updateMatrices()
 {
-    if(m_changedFlags & CamChangedFlagBits::eProjection)
+    if(m_projectionMatrix.is_dirty())
     {
         m_projectionMatrix = glm::perspective(glm::radians(m_fov), m_aspect, m_znear, m_zfar);
-        m_changedFlags |= CamChangedFlagBits::eView;
+        m_projectionMatrix.clear_dirty();
     }
 
-    if(m_changedFlags & CamChangedFlagBits::eView)
+    if(m_viewMatrix.is_dirty())
     {
-        glm::vec3 front = glm::vec3(m_rotation.x,
-                                    m_rotation.y,
-                                    m_rotation.z);
-
-        m_front = glm::normalize(front);
-        m_right = glm::normalize(glm::cross(m_front, CAMERA_UP));
-        m_up    = glm::normalize(glm::cross(m_right, m_front));
+        m_right = glm::normalize(m_rotation * glm::vec3(1, 0, 0));
+        m_up    = glm::normalize(m_rotation * glm::vec3(0, 1, 0));
+        m_front = glm::normalize(m_rotation * glm::vec3(0, 0, 1));
 
         m_viewMatrix = glm::lookAt(m_position,
                                    m_position + m_front,
                                    m_up);
+        m_viewMatrix.clear_dirty();
 
         ServiceLocator::getAudioManager().updateListener(m_position, glm::vec3(0,0,0), m_front, m_up);
     }
-
-    m_changedFlags = 0;
 }
 
 void Camera3D::draw(Renderer *rend)
@@ -178,7 +167,7 @@ void Camera3D::destroy()
 void Camera3D::setRotation(const glm::quat &qrot)
 {
     m_rotation = qrot;
-    m_changedFlags |= CamChangedFlagBits::eView;
+    m_viewMatrix.set_dirty();
 }
 
 void Camera3D::setEulerRotation(const glm::vec3 &rot)
