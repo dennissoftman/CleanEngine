@@ -17,6 +17,8 @@
 
 #ifdef AUDIO_FMOD
 #include "client/fmodaudiomanager.hpp"
+#elif AUDIO_OPENAL
+#include "client/openalaudiomanager.hpp"
 #endif
 
 #ifdef SERVICES_STEAM
@@ -64,6 +66,12 @@ int main()
         FmodAudioManager *fmodAudioManager = new FmodAudioManager();
         fmodAudioManager->init();
         ServiceLocator::setAudioManager(fmodAudioManager);
+    }
+#elif AUDIO_OPENAL
+    {
+        OpenALAudioManager *alAudioManager = new OpenALAudioManager();
+        alAudioManager->init();
+        ServiceLocator::setAudioManager(alAudioManager);
     }
 #endif
 

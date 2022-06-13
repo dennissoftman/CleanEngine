@@ -9,17 +9,8 @@
 
 #define CAMERA_UP (glm::vec3(0, 1, 0))
 
-//namespace CamChangedFlagBits
-//{
-//    enum CamChangedFlagBits
-//    {
-//        eProjection=0x1,
-//        eView=0x2,
-//        eAll=~0
-//    };
-//}
-
 #include "common/dirty_flag.hpp"
+#include <boost/signals2.hpp>
 
 class Camera3D : public Entity
 {
@@ -34,6 +25,8 @@ public:
 
     // you probably won't use it
     void destroy() override;
+
+    Camera3D &operator =(const Camera3D &other);
 
     void setPosition(const glm::vec3 &pos) override;
     void setRotation(const glm::quat &qrot) override;
@@ -50,10 +43,6 @@ public:
 
     const char *getType() override;
 
-    [[deprecated]] void move(const glm::vec3 &d);
-
-    void setPitchConstraint(float _min, float _max);
-
     const glm::vec3 &frontVector();
     const glm::vec3 &rightVector();
     const glm::vec3 &upVector();
@@ -64,10 +53,15 @@ public:
 
     const glm::mat4 &getViewMatrix();
     const glm::mat4 &getProjectionMatrix();
+
+    // events
+    void updateSubscribe(const std::function<void (Entity*, double)> &callb) override;
+    void destroySubscribe(const std::function<void (Entity*)> &callb) override;
 private:
     void updateMatrices();
 
-    int m_changedFlags; // dirty flag
+    boost::signals2::signal<void(Entity*, double)> m_updateEvents;
+    boost::signals2::signal<void(Entity*)> m_destroyEvents;
 
     Scene3D *m_parentScene;
 
@@ -76,7 +70,6 @@ private:
     glm::vec3 m_position;
     glm::quat m_rotation;
     glm::vec3 m_scale;
-    glm::vec2 m_pitchConstraint;
 
     glm::vec3 m_front, m_right, m_up;
 };

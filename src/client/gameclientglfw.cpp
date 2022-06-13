@@ -150,7 +150,6 @@ void GameClientGLFW::mainLoop()
 {
     SceneManager &sceneManager = ServiceLocator::getSceneManager();
     EventManager &eventManager = ServiceLocator::getEventManager();
-    PhysicsManager &physicsManager = ServiceLocator::getPhysicsManager();
     AudioManager &audioManager = ServiceLocator::getAudioManager();
     UIManager &uiManager = ServiceLocator::getUIManager();
 
@@ -162,9 +161,6 @@ void GameClientGLFW::mainLoop()
 
         // update events
         eventManager.update(m_deltaTime);
-
-        // update physics
-        physicsManager.update(m_deltaTime);
 
         // update scene
         sceneManager.activeScene().update(m_deltaTime);

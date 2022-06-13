@@ -35,7 +35,12 @@ public:
     Scene3D *getParentScene() const override;
 
     const char *getType() override;
+
+    void updateSubscribe(const std::function<void (Entity*, double)> &callb) override;
+    void destroySubscribe(const std::function<void (Entity*)> &callb) override;
 protected:
+    boost::signals2::signal<void(Entity*, double)> m_updateEvents;
+    boost::signals2::signal<void(Entity*)> m_destroyEvents;
     // TMP
     const Model3D *rObj;
     //

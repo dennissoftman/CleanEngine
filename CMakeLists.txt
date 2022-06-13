@@ -17,7 +17,8 @@ option(USE_GLFW "Use GLFW library" ON)
 option(USE_IMGUI "Use bloat-free imgui library" ON)
 option(USE_CEGUI "Use Crazy Eddie's GUI library" OFF)
 
-option(USE_FMOD "Use FMODex as audio backend" OFF) # by default use DummyAudioManager (no sound)
+option(USE_OPENAL "Use OpenAL as audio backend" OFF) # by default no sound
+option(USE_FMOD "Use FMODex as audio backend" OFF) # by default uses DummyAudioManager (no sound)
 
 option(USE_LUA "Use Lua script backend" ON)
 
@@ -96,7 +97,17 @@ if(USE_VULKAN)
     ${CMAKE_SOURCE_DIR}/include/client/vkmaterial.hpp
   )
 
-  if(USE_FMOD)
+  if(USE_OPENAL)
+    target_sources(CleanEngineVk PRIVATE
+      ${CMAKE_SOURCE_DIR}/src/client/openalaudiomanager.cpp
+      ${CMAKE_SOURCE_DIR}/include/client/openalaudiomanager.hpp
+    )
+
+    find_package(OpenAL REQUIRED)
+    target_include_directories(CleanEngineVk PRIVATE ${OPENAL_INCLUDE_DIR})
+    target_link_libraries(CleanEngineVk ${OPENAL_LIBRARY})
+    target_compile_definitions(CleanEngineVk PRIVATE AUDIO_OPENAL)
+  elseif(USE_FMOD)
     target_compile_definitions(CleanEngineVk PRIVATE AUDIO_FMOD)
     target_sources(CleanEngineVk PRIVATE
       ${CMAKE_SOURCE_DIR}/src/client/fmodaudiomanager.cpp

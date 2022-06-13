@@ -50,6 +50,7 @@ void LuaScriptEngine::init()
         m_globalState.create_named_table("Client",
                                          "onUpdate", LuaScriptEngine::Client_onUpdateEvent,
                                          "getDeltaTime", LuaScriptEngine::Client_getDeltaTime,
+                                         "getElapsedTime", LuaScriptEngine::Client_getElapsedTime,
                                          "lockCursor", LuaScriptEngine::Client_lockCursor,
                                          "releaseCursor", LuaScriptEngine::Client_releaseCursor,
                                          "exit", LuaScriptEngine::Client_exit);
@@ -72,7 +73,10 @@ void LuaScriptEngine::init()
                                          "onMouseScroll", LuaScriptEngine::EventManager_onMouseScrollEvent);
 
         m_globalState.create_named_table("AudioManager",
-                                         "loadSound", LuaScriptEngine::AudioManager_loadSound);
+                                         "loadSound", LuaScriptEngine::AudioManager_loadSound,
+                                         "playSound", LuaScriptEngine::AudioManager_playSound,
+                                         "loadMusic", LuaScriptEngine::AudioManager_loadMusic,
+                                         "playMusic", LuaScriptEngine::AudioManager_playMusic);
     }
 
     // register object types
@@ -137,7 +141,14 @@ void LuaScriptEngine::init()
                                         "getCamera", &Scene3D::getCamera);
 
     // defining object types
-    m_globalState.new_usertype<Entity>("Entity", sol::no_constructor);
+    m_globalState.new_usertype<Entity>("Entity",
+                                       sol::no_constructor,
+                                       "setPosition", &Entity::setPosition,
+                                       "getPosition", &Entity::getPosition,
+                                       "setRotation", &Entity::setRotation,
+                                       "setEulerRotation", &Entity::setEulerRotation,
+                                       "getRotation", &Entity::getRotation,
+                                       "setScale", &Entity::setScale);
 
     m_globalState.new_usertype<Camera3D>("Camera3D",
                                          sol::factories([&]() -> std::shared_ptr<Camera3D> { return std::make_shared<Camera3D>(); }),
@@ -148,7 +159,8 @@ void LuaScriptEngine::init()
                                          "getRotation", &Camera3D::getRotation,
                                          "front", &Camera3D::frontVector,
                                          "right", &Camera3D::rightVector,
-                                         "up", &Camera3D::upVector);
+                                         "up", &Camera3D::upVector,
+                                         "onUpdate", &Camera3D::updateSubscribe);
 
     m_globalState.new_usertype<StaticMesh>("StaticMesh",
                                            sol::factories([&]() -> std::shared_ptr<StaticMesh> { return std::make_shared<StaticMesh>(); }),
@@ -158,13 +170,23 @@ void LuaScriptEngine::init()
                                            "setEulerRotation", &StaticMesh::setEulerRotation,
                                            "getRotation", &StaticMesh::getRotation,
                                            "setScale", &StaticMesh::setScale,
-                                           "setModel", &StaticMesh::setModel);
+                                           "setModel", &StaticMesh::setModel,
+                                           "onUpdate", &StaticMesh::updateSubscribe);
     //
 
     // move init script to config file?
     try
     {
         DataResource scData = ServiceLocator::getResourceManager().getResource("data/scripts/init.lua");
+        if(scData.size == 0)
+        {
+            scData = ServiceLocator::getResourceManager().getResource(":/scripts/init.lua");
+            if(scData.size == 0)
+            {
+                ServiceLocator::getLogger().warning(MODULE_NAME, "Init script not found");
+                return;
+            }
+        }
 
         sol::protected_function_result result = m_globalState.safe_script(static_pointer_cast<const char>(scData.data).get());
         if(!result.valid())
@@ -204,6 +226,15 @@ double LuaScriptEngine::Client_getDeltaTime()
 {
 #ifdef CLIENT_GLFW
     return GameClientGLFW::corePtr->getDeltaTime();
+#else
+    return 0;
+#endif
+}
+
+double LuaScriptEngine::Client_getElapsedTime()
+{
+#ifdef CLIENT_GLFW
+    return GameClientGLFW::corePtr->getElapsedTime();
 #else
     return 0;
 #endif
@@ -272,6 +303,21 @@ const Model3D *LuaScriptEngine::ModelManager_getModel(const std::string &name)
 void LuaScriptEngine::AudioManager_loadSound(const std::string &path, const std::string &name)
 {
     ServiceLocator::getAudioManager().loadSound(path, name);
+}
+
+void LuaScriptEngine::AudioManager_playSound(const std::string &name, const glm::vec3 &pos)
+{
+    ServiceLocator::getAudioManager().playSound(name, SoundPropertiesInfo{1.f, 1.f, pos, glm::vec3()});
+}
+
+void LuaScriptEngine::AudioManager_loadMusic(const std::string &path, const std::string &name)
+{
+    ServiceLocator::getAudioManager().loadMusic(path, name);
+}
+
+void LuaScriptEngine::AudioManager_playMusic(const std::string &name, bool looped)
+{
+    ServiceLocator::getAudioManager().playMusic(name, MusicPropertiesInfo{1.f, 1.f, looped});
 }
 
 Scene3D &LuaScriptEngine::SceneManager_getActiveScene()
