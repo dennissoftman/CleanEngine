@@ -1,7 +1,7 @@
-keyboardButtons = {0, 0, 0, 0}
-cursorLocked = true
+local keyboardButtons = {0, 0, 0, 0}
+local cursorLocked = true
 
-function keyHandler(key, scancode, action, mods)
+local function keyHandler(key, scancode, action, mods)
 
     if key == 256 and action > 0 then
         if cursorLocked then
@@ -13,7 +13,7 @@ function keyHandler(key, scancode, action, mods)
         end
         return
     end
-
+    
     if key == 87 then
         if action < 0 then keyboardButtons[1] = 0
         elseif action > 0 then keyboardButtons[1] = 1 end
@@ -31,11 +31,13 @@ function keyHandler(key, scancode, action, mods)
     end
 end
 
-camMoveSpeed   = 2
-camRotateSpeed = 10
-cameraRotation = vec3(math.rad(45.0), 0, 0)
-function mouseHandler(mx, my)
-    if not mouseLastPos then
+-- FPS properties
+local camMoveSpeed   = 2
+local camRotateSpeed = 1.6
+local cameraRotation = vec3(math.rad(45.0), 0, 0)
+--
+local function mouseHandler(mx, my)
+    if not mouseLastPos or not cursorLocked then
         mouseLastPos = vec2(mx, my)
         return
     end
@@ -46,24 +48,14 @@ function mouseHandler(mx, my)
     dx = mx - mouseLastPos.x
     dy = my - mouseLastPos.y
 
-    xrot = 0
-    if dy > 0 then
-        xrot = camRotateSpeed*dt
-    elseif dy < 0 then
-        xrot = -camRotateSpeed*dt
-    end
+    xrot = dy * camRotateSpeed * dt
     oldx = cameraRotation.x
     cameraRotation.x = cameraRotation.x + xrot
     if math.abs(cameraRotation.x) > math.pi/2 then
         cameraRotation.x = oldx
     end
 
-    yrot = 0
-    if dx > 0 then
-        yrot = -camRotateSpeed*dt
-    elseif dx < 0 then
-        yrot = camRotateSpeed*dt
-    end
+    yrot = -dx * camRotateSpeed * dt
     cameraRotation.y = cameraRotation.y + yrot
     
     cam:setEulerRotation(cameraRotation)
@@ -71,7 +63,7 @@ function mouseHandler(mx, my)
     mouseLastPos = vec2(mx, my)
 end
 
-function updateHandler(dt)
+local function updateHandler(dt)
     cam = SceneManager.getActiveScene():getCamera()
     dv = vec3(0, 0, 0)
     if keyboardButtons[1] > 0 then
@@ -88,23 +80,12 @@ function updateHandler(dt)
     cam:setPosition(cam:getPosition() + dv)
 end
 
+local function coinUpdater(obj, dt)
+    obj:setEulerRotation(vec3(math.pi/2, (2 * Client.getElapsedTime()), 0))
+    obj:setPosition(vec3(2, math.sin(2 * Client.getElapsedTime())*0.25 + 1.25, 0))
+end
 
 Client.onUpdate(updateHandler)
 Input.onKeyboard(keyHandler)
 Input.onMouseMove(mouseHandler)
-
-cube_model = ModelManager.getModel("cube")
-scene = SceneManager.getActiveScene()
--- create floor
-floorObj = StaticMesh.new()
-floorObj:setModel(cube_model)
-floorObj:setScale(vec3(1000, 1, 1000))
-scene:addObject(floorObj)
--- create object
-obj = StaticMesh.new()
-obj:setModel(cube_model)
-obj:setPosition(vec3(0, 1, 1))
-
-scene:addObject(obj)
-
 Client.lockCursor()

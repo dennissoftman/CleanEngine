@@ -2,8 +2,11 @@
 #define ENTITY_HPP
 
 #include "client/renderer.hpp"
+#include <functional>
 
 class Scene3D;
+
+class Entity;
 
 class Entity
 {
@@ -31,6 +34,10 @@ public:
 
     virtual void setScene(Scene3D *parent) = 0;
     virtual Scene3D *getParentScene() const = 0;
+
+    // events
+    virtual void updateSubscribe(const std::function<void(Entity*, double)> &callb) = 0;
+    virtual void destroySubscribe(const std::function<void(Entity*)> &callb) = 0;
 };
 
 #endif // ENTITY_HPP

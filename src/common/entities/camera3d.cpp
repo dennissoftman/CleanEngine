@@ -15,17 +15,6 @@ Camera3D::Camera3D(float fov, float aspect, float znear, float zfar)
     m_projectionMatrix = glm::mat4(1);
 }
 
-void Camera3D::move(const glm::vec3 &d)
-{
-    m_position += d;
-    m_viewMatrix.set_dirty();
-}
-
-void Camera3D::setPitchConstraint(float _min, float _max)
-{
-    m_pitchConstraint = glm::vec2(_min, _max);
-}
-
 void Camera3D::setPosition(const glm::vec3 &pos)
 {
     m_position = pos;
@@ -69,21 +58,21 @@ const char *Camera3D::getType()
 
 const glm::vec3 &Camera3D::frontVector()
 {
-    if(m_changedFlags)
+    if(m_viewMatrix.is_dirty())
         updateMatrices();
     return m_front;
 }
 
 const glm::vec3 &Camera3D::rightVector()
 {
-    if(m_changedFlags)
+    if(m_viewMatrix.is_dirty())
         updateMatrices();
     return m_right;
 }
 
 const glm::vec3 &Camera3D::upVector()
 {
-    if(m_changedFlags)
+    if(m_viewMatrix.is_dirty())
         updateMatrices();
     return m_up;
 }
@@ -121,6 +110,16 @@ const glm::mat4 &Camera3D::getProjectionMatrix()
     return m_projectionMatrix.value();
 }
 
+void Camera3D::updateSubscribe(const std::function<void (Entity*, double)> &callb)
+{
+    m_updateEvents.connect(callb);
+}
+
+void Camera3D::destroySubscribe(const std::function<void (Entity*)> &callb)
+{
+    m_destroyEvents.connect(callb);
+}
+
 void Camera3D::updateMatrices()
 {
     if(m_projectionMatrix.is_dirty())
@@ -151,7 +150,7 @@ void Camera3D::draw(Renderer *rend)
 
 void Camera3D::update(double dt)
 {
-    (void)dt;
+    m_updateEvents(this, dt);
 }
 
 void Camera3D::setVisible(bool yes)
@@ -161,7 +160,28 @@ void Camera3D::setVisible(bool yes)
 
 void Camera3D::destroy()
 {
+    m_destroyEvents(this);
+}
 
+Camera3D &Camera3D::operator =(const Camera3D &other)
+{
+    m_parentScene = other.m_parentScene;
+
+    m_fov = other.m_fov;
+    m_aspect = other.m_aspect;
+    m_znear = other.m_znear;
+    m_zfar = other.m_zfar;
+
+    m_projectionMatrix = other.m_projectionMatrix;
+    m_viewMatrix = other.m_projectionMatrix;
+    m_position = other.m_position;
+    m_rotation = other.m_rotation;
+    m_scale = other.m_scale;
+
+    m_projectionMatrix.set_dirty();
+    m_viewMatrix.set_dirty();
+
+    return *this;
 }
 
 void Camera3D::setRotation(const glm::quat &qrot)

@@ -23,7 +23,7 @@ FmodAudioManager::~FmodAudioManager()
 void FmodAudioManager::init()
 {
     FMOD::System_Create(&m_audioSystem);
-    m_audioSystem->init(16, FMOD_INIT_NORMAL, nullptr);
+    m_audioSystem->init(16, FMOD_INIT_NORMAL | FMOD_INIT_3D_RIGHTHANDED, nullptr);
     {
         m_forward.z = -1;
         m_up.y = 1;
@@ -89,6 +89,7 @@ void FmodAudioManager::loadSound(const std::string &path, const std::string &nam
 
     FMOD::Sound *newSound = nullptr;
     FMOD_CREATESOUNDEXINFO createInfo{};
+    createInfo.cbsize = sizeof(FMOD_CREATESOUNDEXINFO);
     createInfo.length = sndData.size;
     m_audioSystem->createSound(static_pointer_cast<const char>(sndData.data).get(),
                                FMOD_OPENMEMORY | FMOD_CREATESAMPLE | FMOD_3D,
@@ -134,16 +135,17 @@ void FmodAudioManager::loadMusic(const std::string &path, const std::string &nam
 
     FMOD::Sound *newMusic = nullptr;
     FMOD_CREATESOUNDEXINFO createInfo{};
+    createInfo.cbsize = sizeof(FMOD_CREATESOUNDEXINFO);
     createInfo.length = musData.size;
-    m_audioSystem->createSound(static_pointer_cast<const char>(musData.data).get(),
-                               FMOD_OPENMEMORY | FMOD_CREATESTREAM | FMOD_2D,
-                               &createInfo, &newMusic);
+    FMOD_RESULT r = m_audioSystem->createStream(static_pointer_cast<const char>(musData.data).get(),
+                                                FMOD_OPENMEMORY | FMOD_CREATESTREAM | FMOD_2D,
+                                                &createInfo, &newMusic);
     if(newMusic)
         m_musicStreams[name] = newMusic;
     else
     {
         std::stringstream errorstr;
-        errorstr << "Failed to load music '" << path << "'";
+        errorstr << "Failed to load music '" << path << "'. FMOD error: " << r;
         ServiceLocator::getLogger().error(MODULE_NAME, errorstr.str());
     }
 }

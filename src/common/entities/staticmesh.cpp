@@ -1,5 +1,6 @@
 #include "common/entities/staticmesh.hpp"
 #include "common/servicelocator.hpp"
+#include <memory>
 
 StaticMesh::StaticMesh()
     : rObj(nullptr),
@@ -36,7 +37,7 @@ void StaticMesh::draw(Renderer *rend)
 
 void StaticMesh::update(double dt)
 {
-    (void)dt;
+    m_updateEvents(this, dt);
 }
 
 void StaticMesh::setVisible(bool yes)
@@ -46,8 +47,7 @@ void StaticMesh::setVisible(bool yes)
 
 void StaticMesh::destroy()
 {
-    // TODO
-    // m_parentScene->removeObject(this);
+    m_destroyEvents(this);
 }
 
 void StaticMesh::updateMatrix()
@@ -115,4 +115,14 @@ Scene3D *StaticMesh::getParentScene() const
 const char *StaticMesh::getType()
 {
     return "StaticMesh";
+}
+
+void StaticMesh::updateSubscribe(const std::function<void (Entity*, double)> &callb)
+{
+    m_updateEvents.connect(callb);
+}
+
+void StaticMesh::destroySubscribe(const std::function<void (Entity*)> &callb)
+{
+    m_destroyEvents.connect(callb);
 }

@@ -30,6 +30,7 @@ public:
     // Client
     static void Client_onUpdateEvent(const std::function<void(double)> &slot);
     static double Client_getDeltaTime();
+    static double Client_getElapsedTime();
     static void Client_lockCursor();
     static void Client_releaseCursor();
     static void Client_exit();
@@ -44,6 +45,9 @@ public:
 
     // Audio manager
     static void AudioManager_loadSound(const std::string &path, const std::string &name);
+    static void AudioManager_playSound(const std::string &name, const glm::vec3 &pos);
+    static void AudioManager_loadMusic(const std::string &path, const std::string &name);
+    static void AudioManager_playMusic(const std::string &name, bool looped);
 
     // Scene manager
     static Scene3D &SceneManager_getActiveScene();
