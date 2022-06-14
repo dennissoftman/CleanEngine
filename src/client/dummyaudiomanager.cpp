@@ -1,5 +1,10 @@
 #include "client/dummyaudiomanager.hpp"
 
+AudioManager *AudioManager::create()
+{
+    return new DummyAudioManager();
+}
+
 DummyAudioManager::DummyAudioManager()
 {
 

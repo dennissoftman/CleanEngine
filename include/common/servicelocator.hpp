@@ -93,7 +93,6 @@ private:
 
     // rendering
     static Renderer *m_renderer;
-    static DummyRenderer m_defaultRenderer;
 
     // resources
     static ResourceManager *m_resmgr;
@@ -116,15 +115,12 @@ private:
 
     // audio management
     static AudioManager *m_audiomgr;
-    static DummyAudioManager m_defaultAudioMgr;
 
     // ui management
     static UIManager *m_uimgr;
-    static DummyUIManager m_defaultUImgr;
 
     // scripts
     static ScriptEngine *m_scengine;
-    static DummyScriptEngine m_defaultScriptEngine;
 
     // game services
     static GameServices *m_gamesvcs;

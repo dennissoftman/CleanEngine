@@ -29,8 +29,6 @@ set(FMOD_DIR "C:/Program Files (x86)/FMOD SoundSystem/FMOD Studio API Windows" C
 
 set(COMMON_SOURCES
   ${CMAKE_SOURCE_DIR}/include/client/renderer.hpp
-  ${CMAKE_SOURCE_DIR}/src/client/dummyrenderer.cpp
-  ${CMAKE_SOURCE_DIR}/include/client/dummyrenderer.hpp
   ${CMAKE_SOURCE_DIR}/include/client/shader.hpp
   ${CMAKE_SOURCE_DIR}/src/common/logger.cpp
   ${CMAKE_SOURCE_DIR}/include/common/logger.hpp
@@ -40,6 +38,7 @@ set(COMMON_SOURCES
   ${CMAKE_SOURCE_DIR}/include/common/debuglogger.hpp
   ${CMAKE_SOURCE_DIR}/src/common/servicelocator.cpp
   ${CMAKE_SOURCE_DIR}/include/common/servicelocator.hpp
+  ${CMAKE_SOURCE_DIR}/include/client/gameclient.hpp
   ${CMAKE_SOURCE_DIR}/src/common/eventmanager.cpp
   ${CMAKE_SOURCE_DIR}/include/common/eventmanager.hpp
   ${CMAKE_SOURCE_DIR}/src/common/entities/camera3d.cpp
@@ -52,11 +51,7 @@ set(COMMON_SOURCES
   ${CMAKE_SOURCE_DIR}/src/common/modelmanager.cpp
   ${CMAKE_SOURCE_DIR}/include/common/modelmanager.hpp
   ${CMAKE_SOURCE_DIR}/include/common/scriptengine.hpp
-  ${CMAKE_SOURCE_DIR}/src/common/dummyscriptengine.cpp
-  ${CMAKE_SOURCE_DIR}/include/common/dummyscriptengine.hpp
   ${CMAKE_SOURCE_DIR}/include/client/audiomanager.hpp
-  ${CMAKE_SOURCE_DIR}/src/client/dummyaudiomanager.cpp
-  ${CMAKE_SOURCE_DIR}/include/client/dummyaudiomanager.hpp
   ${CMAKE_SOURCE_DIR}/src/server/scenemanager.cpp
   ${CMAKE_SOURCE_DIR}/include/server/scenemanager.hpp
   ${CMAKE_SOURCE_DIR}/include/common/entities/entity.hpp
@@ -65,25 +60,22 @@ set(COMMON_SOURCES
   ${CMAKE_SOURCE_DIR}/src/server/scene3d.cpp
   ${CMAKE_SOURCE_DIR}/include/server/scene3d.hpp
   ${CMAKE_SOURCE_DIR}/include/server/physicsmanager.hpp
-  ${CMAKE_SOURCE_DIR}/src/server/dummyphysicsmanager.cpp
-  ${CMAKE_SOURCE_DIR}/include/server/dummyphysicsmanager.hpp
   ${CMAKE_SOURCE_DIR}/src/common/resourcemanager.cpp
   ${CMAKE_SOURCE_DIR}/include/common/resourcemanager.hpp
   ${CMAKE_SOURCE_DIR}/include/client/uimanager.hpp
-  ${CMAKE_SOURCE_DIR}/src/client/dummyuimanager.cpp
-  ${CMAKE_SOURCE_DIR}/include/client/dummyuimanager.hpp
   ${CMAKE_SOURCE_DIR}/include/common/gameservices.hpp
-  ${CMAKE_SOURCE_DIR}/src/common/dummyservices.cpp
-  ${CMAKE_SOURCE_DIR}/include/common/dummyservices.hpp
   ${CMAKE_SOURCE_DIR}/include/common/dirty_flag.hpp
+  ${CMAKE_SOURCE_DIR}/include/client/ui/uielement.hpp
+  ${CMAKE_SOURCE_DIR}/src/client/ui/uilabel.cpp
+  ${CMAKE_SOURCE_DIR}/include/client/ui/uilabel.hpp
 )
 
 if(USE_VULKAN)
-  add_executable(CleanEngineVk
+  add_executable(CleanEngine
     ${CMAKE_SOURCE_DIR}/main.cpp
   )
 
-  target_sources(CleanEngineVk PRIVATE
+  target_sources(CleanEngine PRIVATE
     ${COMMON_SOURCES}
     ${CMAKE_SOURCE_DIR}/src/client/vulkanrenderer.cpp
     ${CMAKE_SOURCE_DIR}/include/client/vulkanrenderer.hpp
@@ -98,202 +90,242 @@ if(USE_VULKAN)
   )
 
   if(USE_OPENAL)
-    target_sources(CleanEngineVk PRIVATE
+    target_sources(CleanEngine PRIVATE
       ${CMAKE_SOURCE_DIR}/src/client/openalaudiomanager.cpp
       ${CMAKE_SOURCE_DIR}/include/client/openalaudiomanager.hpp
     )
 
     find_package(OpenAL REQUIRED)
-    target_include_directories(CleanEngineVk PRIVATE ${OPENAL_INCLUDE_DIR})
-    target_link_libraries(CleanEngineVk ${OPENAL_LIBRARY})
-    target_compile_definitions(CleanEngineVk PRIVATE AUDIO_OPENAL)
+    target_include_directories(CleanEngine PRIVATE ${OPENAL_INCLUDE_DIR})
+    target_link_libraries(CleanEngine ${OPENAL_LIBRARY})
+    target_compile_definitions(CleanEngine PRIVATE AUDIO_OPENAL)
   elseif(USE_FMOD)
-    target_compile_definitions(CleanEngineVk PRIVATE AUDIO_FMOD)
-    target_sources(CleanEngineVk PRIVATE
+    target_compile_definitions(CleanEngine PRIVATE AUDIO_FMOD)
+    target_sources(CleanEngine PRIVATE
       ${CMAKE_SOURCE_DIR}/src/client/fmodaudiomanager.cpp
       ${CMAKE_SOURCE_DIR}/include/client/fmodaudiomanager.hpp
     )
+  else()
+    target_sources(CleanEngine PRIVATE
+      ${CMAKE_SOURCE_DIR}/src/client/dummyaudiomanager.cpp
+      ${CMAKE_SOURCE_DIR}/include/client/dummyaudiomanager.hpp
+    )
   endif()
 
-  target_compile_definitions(CleanEngineVk PRIVATE GLM_FORCE_RADIANS)
-  target_compile_definitions(CleanEngineVk PRIVATE RENDERER_VULKAN)
+  target_compile_definitions(CleanEngine PRIVATE GLM_FORCE_RADIANS)
+  target_compile_definitions(CleanEngine PRIVATE RENDERER_VULKAN)
 
-  target_include_directories(CleanEngineVk PUBLIC
+  target_include_directories(CleanEngine PUBLIC
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/libs
   )
 
   # boost
   find_package(Boost REQUIRED)
-  target_link_libraries(CleanEngineVk Boost::boost)
+  target_link_libraries(CleanEngine Boost::boost)
 
   # toml++
   find_package(tomlplusplus REQUIRED)
-  target_link_libraries(CleanEngineVk tomlplusplus::tomlplusplus)
+  target_link_libraries(CleanEngine tomlplusplus::tomlplusplus)
 
   # GLM
   find_package(glm REQUIRED)
-  target_compile_definitions(CleanEngineVk PRIVATE GLM_FORCE_DEPTH_ZERO_TO_ONE) # depth fix
-  target_include_directories(CleanEngineVk PRIVATE ${GLM_INCLUDE_DIR})
-  target_link_libraries(CleanEngineVk glm::glm)
+  target_compile_definitions(CleanEngine PRIVATE GLM_FORCE_DEPTH_ZERO_TO_ONE) # depth fix
+  target_include_directories(CleanEngine PRIVATE ${GLM_INCLUDE_DIR})
+  target_link_libraries(CleanEngine glm::glm)
 
   # Vulkan
   find_package(Vulkan REQUIRED)
-  target_include_directories(CleanEngineVk PRIVATE Vulkan::Headers)
-  target_link_libraries(CleanEngineVk Vulkan::Vulkan)
+  target_include_directories(CleanEngine PRIVATE Vulkan::Headers)
+  target_link_libraries(CleanEngine Vulkan::Vulkan)
 
   # minizip
   find_package(minizip REQUIRED)
-  target_link_libraries(CleanEngineVk minizip::minizip)
+  target_link_libraries(CleanEngine minizip::minizip)
 
   # SAIL
   find_package(Sail CONFIG REQUIRED)
-  target_link_libraries(CleanEngineVk SAIL::sail sail-manip)
+  target_link_libraries(CleanEngine SAIL::sail sail-manip)
 
   # minizip
   find_package(minizip REQUIRED)
-  target_link_libraries(CleanEngineVk minizip::minizip)
+  target_link_libraries(CleanEngine minizip::minizip)
 
   # Assimp
   find_package(assimp REQUIRED)
-  target_link_libraries(CleanEngineVk assimp::assimp)
+  target_link_libraries(CleanEngine assimp::assimp)
 
   if(USE_IMGUI)
-    target_sources(CleanEngineVk PRIVATE
+    target_sources(CleanEngine PRIVATE
       ${CMAKE_SOURCE_DIR}/src/client/imguivkuimanager.cpp
       ${CMAKE_SOURCE_DIR}/include/client/imguivkuimanager.hpp
     )
 
     find_package(Freetype REQUIRED)
-    target_link_libraries(CleanEngineVk ${FREETYPE_LIBRARIES})
+    target_link_libraries(CleanEngine ${FREETYPE_LIBRARIES})
 
     find_package(imgui REQUIRED)
-    target_include_directories(CleanEngineVk PRIVATE
+    target_include_directories(CleanEngine PRIVATE
       ${IMGUI_INCLUDE_DIR}
     )
-    target_link_libraries(CleanEngineVk imgui::imgui)
+    target_link_libraries(CleanEngine imgui::imgui)
 
-    target_sources(CleanEngineVk PRIVATE
+    target_sources(CleanEngine PRIVATE
       ${CMAKE_SOURCE_DIR}/libs/imgui_backends/src/imgui_impl_vulkan.cpp
       ${CMAKE_SOURCE_DIR}/libs/imgui_backends/include/imgui_impl_vulkan.h
     )
     if(USE_GLFW)
-      target_sources(CleanEngineVk PRIVATE
+      target_sources(CleanEngine PRIVATE
         ${CMAKE_SOURCE_DIR}/libs/imgui_backends/src/imgui_impl_glfw.cpp
         ${CMAKE_SOURCE_DIR}/libs/imgui_backends/include/imgui_impl_glfw.h
       )
     endif()
 
-    target_include_directories(CleanEngineVk PRIVATE
+    target_include_directories(CleanEngine PRIVATE
       ${CMAKE_SOURCE_DIR}/libs/imgui_backends/include
     )
-    target_compile_definitions(CleanEngineVk PRIVATE UI_IMGUI)
+    target_compile_definitions(CleanEngine PRIVATE UI_IMGUI)
+  else()
+    target_sources(CleanEngine PRIVATE
+      ${CMAKE_SOURCE_DIR}/src/client/dummyuimanager.cpp
+      ${CMAKE_SOURCE_DIR}/include/client/dummyuimanager.hpp
+    )
   endif()
 
   if(USE_GLFW)
     find_package(glfw3 REQUIRED)
-    target_link_libraries(CleanEngineVk glfw)
+    target_link_libraries(CleanEngine glfw)
 
-    target_sources(CleanEngineVk PUBLIC
+    target_sources(CleanEngine PUBLIC
       ${CMAKE_SOURCE_DIR}/src/client/gameclientglfw.cpp
       ${CMAKE_SOURCE_DIR}/include/client/gameclientglfw.hpp
     )
-    target_compile_definitions(CleanEngineVk PRIVATE CLIENT_GLFW)
+    target_compile_definitions(CleanEngine PRIVATE CLIENT_GLFW)
+  else()
+    target_sources(CleanEngine PUBLIC
+      ${CMAKE_SOURCE_DIR}/src/client/dummygameclient.cpp
+      ${CMAKE_SOURCE_DIR}/include/client/dummygameclient.hpp
+    )
   endif()
 
   if(USE_BULLET)
     find_package(Bullet REQUIRED)
-    target_include_directories(CleanEngineVk PRIVATE
+    target_include_directories(CleanEngine PRIVATE
       ${BULLET_INCLUDE_DIRS}
     )
-    target_link_libraries(CleanEngineVk
+    target_link_libraries(CleanEngine
       ${BULLET_LIBRARIES}
     )
 
     find_package(OpenMP REQUIRED)
-    target_include_directories(CleanEngineVk PRIVATE
+    target_include_directories(CleanEngine PRIVATE
       ${OpenMP_CXX_INCLUDE_DIRS}
     )
-    target_link_libraries(CleanEngineVk ${OpenMP_CXX_LIBRARIES})
+    target_link_libraries(CleanEngine ${OpenMP_CXX_LIBRARIES})
 
     if(BULLET_MULTITHREADED)
-      target_compile_definitions(CleanEngineVk PRIVATE BULLET_MULTITHREADED)
+      target_compile_definitions(CleanEngine PRIVATE BULLET_MULTITHREADED)
     endif()
 
-    target_sources(CleanEngineVk PRIVATE
+    target_sources(CleanEngine PRIVATE
       ${CMAKE_SOURCE_DIR}/src/server/bulletphysicsmanager.cpp
       ${CMAKE_SOURCE_DIR}/include/server/bulletphysicsmanager.hpp
     )
-    target_compile_definitions(CleanEngineVk PRIVATE PHYSICS_BULLET)
+    target_compile_definitions(CleanEngine PRIVATE PHYSICS_BULLET)
+  else()
+    target_sources(CleanEngine PRIVATE
+      ${CMAKE_SOURCE_DIR}/src/server/dummyphysicsmanager.cpp
+      ${CMAKE_SOURCE_DIR}/include/server/dummyphysicsmanager.hpp
+    )
   endif()
 
   if(USE_LUA)
-    target_compile_definitions(CleanEngineVk PRIVATE SCRIPT_ENGINE_LUA)
-    target_sources(CleanEngineVk PRIVATE
+    target_compile_definitions(CleanEngine PRIVATE SCRIPT_ENGINE_LUA)
+    target_sources(CleanEngine PRIVATE
       ${CMAKE_SOURCE_DIR}/src/common/luascriptengine.cpp
       ${CMAKE_SOURCE_DIR}/include/common/luascriptengine.hpp
     )
 
     find_package(Lua REQUIRED)
-    target_include_directories(CleanEngineVk PRIVATE ${LUA_INCLUDE_DIR})
-    target_link_libraries(CleanEngineVk ${LUA_LIBRARIES})
+    target_include_directories(CleanEngine PRIVATE ${LUA_INCLUDE_DIR})
+    target_link_libraries(CleanEngine ${LUA_LIBRARIES})
 
     find_package(sol2 REQUIRED)
-    target_link_libraries(CleanEngineVk sol2::sol2)
+    target_link_libraries(CleanEngine sol2::sol2)
+  else()
+    target_sources(CleanEngine PUBLIC
+      ${CMAKE_SOURCE_DIR}/src/common/dummyscriptengine.cpp
+      ${CMAKE_SOURCE_DIR}/include/common/dummyscriptengine.hpp
+    )
   endif()
 
   if(MSVC)
-    set_target_properties(CleanEngineVk PROPERTIES LINK_FLAGS_RELEASE "/ENTRY:mainCRTStartup /SUBSYSTEM:WINDOWS")
+    set_target_properties(CleanEngine PROPERTIES LINK_FLAGS_RELEASE "/ENTRY:mainCRTStartup /SUBSYSTEM:WINDOWS")
     add_compile_options(/std:c++20 /arch:AVX2)
     add_compile_definitions(NOMINMAX)
     # Audio
     if(USE_FMOD)
-      target_include_directories(CleanEngineVk PRIVATE ${FMOD_DIR}/api/core/inc)
-      target_link_directories(CleanEngineVk PRIVATE ${FMOD_DIR}/api/core/lib/x64)
-      target_link_libraries(CleanEngineVk fmod_vc.lib)
+      target_include_directories(CleanEngine PRIVATE ${FMOD_DIR}/api/core/inc)
+      target_link_directories(CleanEngine PRIVATE ${FMOD_DIR}/api/core/lib/x64)
+      target_link_libraries(CleanEngine fmod_vc.lib)
     endif()
 
     if(USE_STEAM)
-      target_include_directories(CleanEngineVk PRIVATE
+      target_include_directories(CleanEngine PRIVATE
         ${CMAKE_SOURCE_DIR}/libs/steamworks_sdk/public
       )
-      target_link_directories(CleanEngineVk PRIVATE
+      target_link_directories(CleanEngine PRIVATE
         ${CMAKE_SOURCE_DIR}/libs/steamworks_sdk/redistributable_bin/win64/
       )
-      target_link_libraries(CleanEngineVk steam_api64.lib)
+      target_link_libraries(CleanEngine steam_api64.lib)
+    else()
+      target_sources(CleanEngine PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/common/dummyservices.cpp
+        ${CMAKE_SOURCE_DIR}/include/common/dummyservices.hpp
+      )
     endif()
 
   elseif(UNIX)
     set(CMAKE_CXX_FLAGS "-mavx2")
 
     find_package(X11 REQUIRED)
-    target_link_libraries(CleanEngineVk ${X11_LIBRARIES} X11::X11_xcb -ldl -lpthread)
+    target_link_libraries(CleanEngine ${X11_LIBRARIES} X11::X11_xcb -ldl -lpthread)
 
     if(USE_FMOD)
-      target_include_directories(CleanEngineVk PRIVATE
+      target_include_directories(CleanEngine PRIVATE
         ${FMOD_DIR}/api/core/inc/
       )
-      target_link_directories(CleanEngineVk PRIVATE
+      target_link_directories(CleanEngine PRIVATE
         ${FMOD_DIR}/api/core/lib/x86_64/
       )
-      target_link_libraries(CleanEngineVk -lfmod) # Audio
+      target_link_libraries(CleanEngine -lfmod) # Audio
     endif()
 
     if(USE_STEAM)
-      target_sources(CleanEngineVk PRIVATE
+      target_sources(CleanEngine PRIVATE
         ${CMAKE_SOURCE_DIR}/src/common/steamservices.cpp
         ${CMAKE_SOURCE_DIR}/include/common/steamservices.hpp
       )
-      target_include_directories(CleanEngineVk PRIVATE
+      target_include_directories(CleanEngine PRIVATE
         ${CMAKE_SOURCE_DIR}/libs/steamworks_sdk/public
       )
-      target_link_directories(CleanEngineVk PRIVATE
+      target_link_directories(CleanEngine PRIVATE
         ${CMAKE_SOURCE_DIR}/libs/steamworks_sdk/redistributable_bin/linux64/
       )
-      target_link_libraries(CleanEngineVk -lsteam_api)
-      target_compile_definitions(CleanEngineVk PRIVATE SERVICES_STEAM)
+      target_link_libraries(CleanEngine -lsteam_api)
+      target_compile_definitions(CleanEngine PRIVATE SERVICES_STEAM)
+    else()
+      target_sources(CleanEngine PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/common/dummyservices.cpp
+        ${CMAKE_SOURCE_DIR}/include/common/dummyservices.hpp
+      )
     endif()
   endif()
 elseif(USE_OPENGL)
   message(SEND_ERROR "Sorry, deprecated!")
+else()
+  target_sources(CleanEngine PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/client/dummyrenderer.cpp
+    ${CMAKE_SOURCE_DIR}/include/client/dummyrenderer.hpp
+  )
 endif()

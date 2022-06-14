@@ -6,6 +6,11 @@ static const char *MODULE_NAME = "BulletPhysicsManager";
 
 BulletPhysicsManager *BulletPhysicsManager::p_shared = nullptr;
 
+PhysicsManager *PhysicsManager::create()
+{
+    return new BulletPhysicsManager();
+}
+
 BulletPhysicsManager::BulletPhysicsManager()
     : m_collisionConfig(nullptr),
       m_dispatcher(nullptr),

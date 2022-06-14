@@ -1,11 +1,9 @@
 #include "common/luascriptengine.hpp"
 #include "common/servicelocator.hpp"
 
-#ifdef CLIENT_GLFW
-#include "client/gameclientglfw.hpp"
-#endif
+#include "client/gameclient.hpp"
 
-// used classes
+// entities
 #include "common/entities/staticmesh.hpp"
 SOL_BASE_CLASSES(StaticMesh, Entity);
 
@@ -15,11 +13,23 @@ SOL_BASE_CLASSES(Camera3D, Entity);
 SOL_DERIVED_CLASSES(Entity, StaticMesh, Camera3D);
 //
 
+// ui
+#include "client/ui/uilabel.hpp"
+SOL_BASE_CLASSES(UILabel, UIElement);
+
+SOL_DERIVED_CLASSES(UIElement, UILabel);
+//
+
 #include <fstream>
 #include <functional>
 #include <memory>
 
 static const char *MODULE_NAME = "LuaScriptEngine";
+
+ScriptEngine *ScriptEngine::create()
+{
+    return new LuaScriptEngine();
+}
 
 LuaScriptEngine::LuaScriptEngine()
 {
@@ -71,6 +81,9 @@ void LuaScriptEngine::init()
                                          "onMouseButton", LuaScriptEngine::EventManager_onMouseButtonEvent,
                                          "onMouseMove", LuaScriptEngine::EventManager_onMouseMoveEvent,
                                          "onMouseScroll", LuaScriptEngine::EventManager_onMouseScrollEvent);
+
+        m_globalState.create_named_table("UI",
+                                         "addElement", LuaScriptEngine::UI_addElement);
 
         m_globalState.create_named_table("AudioManager",
                                          "loadSound", LuaScriptEngine::AudioManager_loadSound,
@@ -172,6 +185,11 @@ void LuaScriptEngine::init()
                                            "setScale", &StaticMesh::setScale,
                                            "setModel", &StaticMesh::setModel,
                                            "onUpdate", &StaticMesh::updateSubscribe);
+
+    m_globalState.new_usertype<UILabel>("Label",
+                                        sol::factories([&]() -> std::shared_ptr<UILabel> { return std::make_shared<UILabel>(); }),
+                                        "setText", &UILabel::setText,
+                                        "getText", &UILabel::text);
     //
 
     // move init script to config file?
@@ -224,43 +242,27 @@ void LuaScriptEngine::Client_onUpdateEvent(const std::function<void (double)> &s
 
 double LuaScriptEngine::Client_getDeltaTime()
 {
-#ifdef CLIENT_GLFW
-    return GameClientGLFW::corePtr->getDeltaTime();
-#else
-    return 0;
-#endif
+    return GameClient::corePtr->getDeltaTime();
 }
 
 double LuaScriptEngine::Client_getElapsedTime()
 {
-#ifdef CLIENT_GLFW
-    return GameClientGLFW::corePtr->getElapsedTime();
-#else
-    return 0;
-#endif
+    return GameClient::corePtr->getElapsedTime();
 }
 
 void LuaScriptEngine::Client_lockCursor()
 {
-#ifdef CLIENT_GLFW
-    // for now
-    glfwSetInputMode(GameClientGLFW::corePtr->getWindowPtr(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-#endif
+    GameClient::corePtr->lockCursor();
 }
 
 void LuaScriptEngine::Client_releaseCursor()
 {
-#ifdef CLIENT_GLFW
-    // for now
-    glfwSetInputMode(GameClientGLFW::corePtr->getWindowPtr(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-#endif
+    GameClient::corePtr->unlockCursor();
 }
 
 void LuaScriptEngine::Client_exit()
 {
-#ifdef CLIENT_GLFW
-    GameClientGLFW::corePtr->terminate();
-#endif
+    GameClient::corePtr->terminate();
 }
 
 void LuaScriptEngine::MaterialManager_loadImage(const std::string &path, const std::string &name)
@@ -323,6 +325,11 @@ void LuaScriptEngine::AudioManager_playMusic(const std::string &name, bool loope
 Scene3D &LuaScriptEngine::SceneManager_getActiveScene()
 {
     return std::ref(ServiceLocator::getSceneManager().activeScene());
+}
+
+void LuaScriptEngine::UI_addElement(std::shared_ptr<UIElement> el)
+{
+    ServiceLocator::getUIManager().addElement(el);
 }
 
 void LuaScriptEngine::EventManager_onKeyEvent(const clean::key_callback &slot)

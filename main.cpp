@@ -5,21 +5,13 @@
 #include "common/servicelocator.hpp"
 #include "common/debuglogger.hpp"
 
-#ifdef CLIENT_GLFW
-#include "client/gameclientglfw.hpp"
-#else
-#error No core library selected
-#endif
+#include "client/gameclient.hpp"
 
 #ifdef PHYSICS_BULLET
 #include "server/bulletphysicsmanager.hpp"
 #endif
 
-#ifdef AUDIO_FMOD
-#include "client/fmodaudiomanager.hpp"
-#elif AUDIO_OPENAL
-#include "client/openalaudiomanager.hpp"
-#endif
+#include "client/audiomanager.hpp"
 
 #ifdef SERVICES_STEAM
 #include "common/steamservices.hpp"
@@ -61,19 +53,11 @@ int main()
     }
 #endif
 
-#ifdef AUDIO_FMOD
-    {
-        FmodAudioManager *fmodAudioManager = new FmodAudioManager();
-        fmodAudioManager->init();
-        ServiceLocator::setAudioManager(fmodAudioManager);
+    { // Audio manager
+        AudioManager *audmgr = AudioManager::create();
+        audmgr->init();
+        ServiceLocator::setAudioManager(audmgr);
     }
-#elif AUDIO_OPENAL
-    {
-        OpenALAudioManager *alAudioManager = new OpenALAudioManager();
-        alAudioManager->init();
-        ServiceLocator::setAudioManager(alAudioManager);
-    }
-#endif
 
     ServiceLocator::getResourceManager().init(); // init configs
 
@@ -85,15 +69,12 @@ int main()
     }
 #endif
 
-#ifdef CLIENT_GLFW
-    GameClientGLFW client{};
-
-    client.init();
-    client.mainLoop();
-#else
-#error No client selected
-#endif
-    client.terminate();
+    { // game client
+        GameClient *client = GameClient::create();
+        client->init();
+        client->run(); // blocking
+        delete client;
+    }
 
 #ifndef NDEBUG
     fclose(debugFP);

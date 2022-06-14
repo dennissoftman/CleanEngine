@@ -9,7 +9,6 @@ Logger *ServiceLocator::m_logger = nullptr;
 ResourceManager *ServiceLocator::m_resmgr = nullptr;
 
 Renderer *ServiceLocator::m_renderer = nullptr;
-DummyRenderer ServiceLocator::m_defaultRenderer = DummyRenderer();
 
 MaterialManager *ServiceLocator::m_matmgr = nullptr;
 
@@ -20,19 +19,14 @@ SceneManager *ServiceLocator::m_scnmgr = nullptr;
 EventManager *ServiceLocator::m_evtmgr = nullptr;
 
 PhysicsManager *ServiceLocator::m_physmgr = nullptr;
-DummyPhysicsManager ServiceLocator::m_defaultPhysMgr = DummyPhysicsManager();
 
 AudioManager *ServiceLocator::m_audiomgr = nullptr;
-DummyAudioManager ServiceLocator::m_defaultAudioMgr = DummyAudioManager();
 
 UIManager *ServiceLocator::m_uimgr = nullptr;
-DummyUIManager ServiceLocator::m_defaultUImgr = DummyUIManager();
 
 ScriptEngine *ServiceLocator::m_scengine = nullptr;
-DummyScriptEngine ServiceLocator::m_defaultScriptEngine = DummyScriptEngine();
 
 GameServices *ServiceLocator::m_gamesvcs = nullptr;
-DummyServices ServiceLocator::m_defaultGameSvcs = DummyServices();
 
 //
 
@@ -41,38 +35,34 @@ void ServiceLocator::init()
     m_logger = &m_defaultLogger;
 
     m_resmgr = new ResourceManager();
-    m_renderer = &m_defaultRenderer;
+    m_renderer = Renderer::create();
     m_matmgr = new MaterialManager();
     m_mdlmgr = new ModelManager();
     m_scnmgr = new SceneManager();
     m_evtmgr = new EventManager();
-    m_physmgr = &m_defaultPhysMgr;
-    m_audiomgr = &m_defaultAudioMgr;
-    m_uimgr = &m_defaultUImgr;
-    m_scengine = &m_defaultScriptEngine;
+    m_physmgr = PhysicsManager::create();
+    m_audiomgr = AudioManager::create();
+    m_uimgr = UIManager::create();
+    m_scengine = ScriptEngine::create();
+    m_gamesvcs = GameServices::create();
 }
 
 void ServiceLocator::terminate()
 {
-    if(m_gamesvcs != &m_defaultGameSvcs)
-        delete m_gamesvcs;
-    m_gamesvcs = &m_defaultGameSvcs;
+    delete m_gamesvcs;
+    m_gamesvcs = nullptr;
 
-    if(m_scengine != &m_defaultScriptEngine)
-        delete m_scengine;
-    m_scengine = &m_defaultScriptEngine;
+    delete m_scengine;
+    m_scengine = nullptr;
 
-    if(m_uimgr != &m_defaultUImgr)
-        delete m_uimgr;
-    m_uimgr = &m_defaultUImgr;
+    delete m_uimgr;
+    m_uimgr = nullptr;
 
-    if(m_audiomgr != &m_defaultAudioMgr)
-        delete m_audiomgr;
-    m_audiomgr = &m_defaultAudioMgr;
+    delete m_audiomgr;
+    m_audiomgr = nullptr;
 
-    if(m_physmgr != &m_defaultPhysMgr)
-        delete m_physmgr;
-    m_physmgr = &m_defaultPhysMgr;
+    delete m_physmgr;
+    m_physmgr = nullptr;
 
     delete m_evtmgr;
     m_evtmgr = nullptr;
@@ -86,9 +76,8 @@ void ServiceLocator::terminate()
     delete m_matmgr;
     m_matmgr = nullptr;
 
-    if(m_renderer != &m_defaultRenderer)
-        delete m_renderer;
-    m_renderer = &m_defaultRenderer;
+    delete m_renderer;
+    m_renderer = nullptr;
 
     delete m_resmgr;
     m_resmgr = nullptr;

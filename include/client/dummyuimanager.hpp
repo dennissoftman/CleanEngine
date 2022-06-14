@@ -8,11 +8,12 @@ class DummyUIManager : public UIManager
 public:
     DummyUIManager();
 
-    void init() override;
+    void init(Renderer *rend) override;
     void update(double dt) override;
     void draw() override;
 
-    void setOnButtonPressedCallback(OnButtonPressedCallback callb) override;
+    void addElement(std::shared_ptr<UIElement> el) override;
+    void removeElement(std::shared_ptr<UIElement> el) override;
 };
 
 #endif // DUMMYUIMANAGER_HPP
