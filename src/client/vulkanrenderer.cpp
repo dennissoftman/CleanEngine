@@ -15,43 +15,7 @@ static const char *MODULE_NAME = "VulkanRenderer";
 
 Renderer *Renderer::create()
 {
-    VulkanRenderer *rend = new VulkanRenderer();
-    //
-#ifdef CLIENT_GLFW
-    GLFWwindow *win = GameClientGLFW::corePtr->getWindowPtr();
-
-    NativeSurfaceProps surfProps;
-#ifdef __linux__
-    surfProps.connection = XGetXCBConnection(glfwGetX11Display());
-    surfProps.window = glfwGetX11Window(win);
-#elif _WIN32
-    surfProps.hInstance = GetModuleHandle(NULL);
-    surfProps.hwnd = glfwGetWin32Window(win);
-#endif
-
-    uint32_t extCount = 0;
-    const char **requiredVkExtensions = glfwGetRequiredInstanceExtensions(&extCount); // enable extensions
-    std::vector<const char*> instExts(extCount);
-    std::copy(requiredVkExtensions, requiredVkExtensions+extCount, instExts.begin());
-    rend->addInstanceExtensions(instExts);
-
-    std::vector<const char*> devExts;
-    devExts.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-    rend->addDeviceExtensions(devExts);
-
-#ifndef NDEBUG
-    std::vector<const char*> validLayers;
-    validLayers.push_back("VK_LAYER_KHRONOS_validation");
-    rend->addValidationLayers(validLayers);
-#endif
-
-#else // client_glfw
-#error Client not implemented
-#endif
-
-    rend->setNSP(surfProps); // native props
-    //
-    return rend;
+    return new VulkanRenderer();
 }
 
 VulkanRenderer::VulkanRenderer()
@@ -142,6 +106,43 @@ void VulkanRenderer::terminate()
 void VulkanRenderer::init(const VideoMode &mode)
 {
     Logger &logger = ServiceLocator::getLogger();
+
+    { // pre-init
+#ifdef CLIENT_GLFW
+    GLFWwindow *win = ((GameClientGLFW*)(GameClient::corePtr))->getWindowPtr();
+
+    NativeSurfaceProps surfProps;
+#ifdef __linux__
+    surfProps.connection = XGetXCBConnection(glfwGetX11Display());
+    surfProps.window = glfwGetX11Window(win);
+#elif _WIN32
+    surfProps.hInstance = GetModuleHandle(NULL);
+    surfProps.hwnd = glfwGetWin32Window(win);
+#endif
+
+    uint32_t extCount = 0;
+    const char **requiredVkExtensions = glfwGetRequiredInstanceExtensions(&extCount); // enable extensions
+    std::vector<const char*> instExts(extCount);
+    std::copy(requiredVkExtensions, requiredVkExtensions+extCount, instExts.begin());
+    addInstanceExtensions(instExts);
+
+    std::vector<const char*> devExts;
+    devExts.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+    addDeviceExtensions(devExts);
+
+#ifndef NDEBUG
+    std::vector<const char*> validLayers;
+    validLayers.push_back("VK_LAYER_KHRONOS_validation");
+    addValidationLayers(validLayers);
+#endif
+
+    setNSP(surfProps); // native props
+    //
+#else
+#error Could not init without client
+#endif
+    }
+
     (void)mode;
     { // instance
         vk::ApplicationInfo appInfo("", 0,

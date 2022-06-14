@@ -7,6 +7,11 @@
 
 static const char *MODULE_NAME = "FmodAudioManager";
 
+AudioManager *AudioManager::create()
+{
+    return new FmodAudioManager();
+}
+
 FmodAudioManager::FmodAudioManager()
     : m_audioSystem(nullptr),
       m_pos({}), m_vel({}),

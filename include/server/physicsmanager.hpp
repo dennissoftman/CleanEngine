@@ -119,6 +119,8 @@ class PhysicsManager
 public:
     virtual ~PhysicsManager() {}
 
+    static PhysicsManager *create();
+
     virtual void init() = 0;
 
     virtual void update(double dt) = 0;

@@ -25,6 +25,8 @@ class AudioManager
 public:
     virtual ~AudioManager() {}
 
+    static AudioManager *create();
+
     virtual void init() = 0;
 
     virtual void update(double dt=1/60.) = 0;

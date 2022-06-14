@@ -8,24 +8,17 @@
 #endif
 #include "imgui_impl_vulkan.h"
 
+#include "client/ui/uilabel.hpp"
+
 static const char *MODULE_NAME = "ImguiVkUIManager";
 
 UIManager *UIManager::create()
 {
-    ImGui::CreateContext();
-    VulkanRenderer *rend = dynamic_cast<VulkanRenderer*>(&ServiceLocator::getRenderer());
-#ifdef CLIENT_GLFW
-    ImGui_ImplGlfw_InitForVulkan(GameClientGLFW::corePtr->getWindowPtr(), true);
-#else
-#error Not implemented
-#endif
-    return new ImguiVkUIManager(rend);
+    return new ImguiVkUIManager();
 }
 
-ImguiVkUIManager::ImguiVkUIManager(VulkanRenderer *rend)
-    : m_renderer(rend),
-      m_descPool(VK_NULL_HANDLE),
-      m_onButtonPressed(nullptr)
+ImguiVkUIManager::ImguiVkUIManager()
+    : m_renderer(nullptr), m_descPool(VK_NULL_HANDLE)
 {
 
 }
@@ -35,9 +28,21 @@ ImguiVkUIManager::~ImguiVkUIManager()
     terminate();
 }
 
-void ImguiVkUIManager::init()
+void ImguiVkUIManager::init(Renderer *rend)
 {
     Logger &logger = ServiceLocator::getLogger();
+    {
+#ifdef CLIENT_GLFW
+        m_renderer = dynamic_cast<VulkanRenderer*>(rend);
+        if(m_renderer == nullptr)
+            throw std::runtime_error("renderer is null");
+
+        ImGui::CreateContext();
+        ImGui_ImplGlfw_InitForVulkan(((GameClientGLFW*)(GameClient::corePtr))->getWindowPtr(), true);
+#else
+#error UI without a client is a nonsence
+#endif
+    }
 
     ImGui::StyleColorsDark();
 
@@ -136,13 +141,16 @@ void ImguiVkUIManager::terminate()
 void ImguiVkUIManager::update(double dt)
 {
     (void)dt;
-    // TODO
+
     ImGui_ImplVulkan_NewFrame();
+
 #ifdef CLIENT_GLFW
     ImGui_ImplGlfw_NewFrame();
 #endif
     ImGui::NewFrame();
-    //
+
+    for(auto &el : m_elements)
+        el->draw();
 }
 
 void ImguiVkUIManager::draw()
@@ -151,13 +159,35 @@ void ImguiVkUIManager::draw()
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_renderer->getCommandBuffer());
 }
 
-void ImguiVkUIManager::setOnButtonPressedCallback(OnButtonPressedCallback callb)
+void ImguiVkUIManager::addElement(std::shared_ptr<UIElement> el)
 {
-    m_onButtonPressed = callb;
+    if(std::find(m_elements.begin(), m_elements.end(), el) == m_elements.end())
+    {
+        UIElement *elPtr = el.get();
+        if(elPtr->getType() == UIElement::eLabel)
+            ((UILabel*)elPtr)->setDrawCallback(ImguiVkUIManager::drawLabel);
+        m_elements.push_back(el);
+    }
 }
 
-void ImguiVkUIManager::OnButtonPressed(const ButtonData &data)
+void ImguiVkUIManager::removeElement(std::shared_ptr<UIElement> el)
 {
-    if(m_onButtonPressed)
-        m_onButtonPressed(data);
+    auto it = std::find(m_elements.begin(), m_elements.end(), el);
+    if(it != m_elements.end())
+        m_elements.erase(it);
+}
+
+void ImguiVkUIManager::drawLabel(const char *text, const glm::vec2 &pos)
+{
+    (void)pos;
+    ImGui::Text(text);
+}
+
+void ImguiVkUIManager::drawButton(const char *text, const glm::vec2 &pos, const glm::vec2 &size, const std::function<void (int)> &callb)
+{
+    (void)pos;
+    if(ImGui::Button(text, ImVec2(size.x, size.y)))
+    {
+        callb(0);
+    }
 }

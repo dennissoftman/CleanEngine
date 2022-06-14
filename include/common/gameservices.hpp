@@ -7,6 +7,8 @@ class GameServices
 public:
     virtual ~GameServices() {} // terminate services
 
+    static GameServices *create();
+
     virtual void init() = 0; // init services
 
     virtual void authorize() = 0; // log in?

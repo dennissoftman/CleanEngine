@@ -3,6 +3,11 @@
 
 static const char *MODULE_NAME = "DummyRenderer";
 
+Renderer *Renderer::create()
+{
+    return new DummyRenderer();
+}
+
 DummyRenderer::DummyRenderer()
 {
 

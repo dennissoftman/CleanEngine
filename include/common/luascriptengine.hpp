@@ -11,6 +11,7 @@
 
 #include "common/eventmanager.hpp"
 
+class UIElement;
 class Model3D;
 class Scene3D;
 
@@ -51,6 +52,9 @@ public:
 
     // Scene manager
     static Scene3D &SceneManager_getActiveScene();
+
+    // UI
+    static void UI_addElement(std::shared_ptr<UIElement> el);
 
     // Event manager
     static void EventManager_onKeyEvent(const clean::key_callback &slot);

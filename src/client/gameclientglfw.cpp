@@ -9,27 +9,32 @@
 #include "imgui_impl_glfw.h"
 #endif
 
-GameClientGLFW *GameClientGLFW::corePtr = nullptr;
+GameClient *GameClient::corePtr = nullptr;
 static const char *MODULE_NAME = "EngineCoreGLFW";
+
+GameClient *GameClient::create()
+{
+    return new GameClientGLFW();
+}
 
 GameClientGLFW::GameClientGLFW()
     : m_mainWindow(nullptr),
       m_elapsedTime(0), m_deltaTime(0),
       m_windowSize(glm::ivec2(1920, 1080))
 {
-    assert(corePtr == nullptr && "Instance is already running");
-    corePtr = this;
+    GameClient::corePtr = this;
 }
 
 GameClientGLFW::~GameClientGLFW()
 {
-
+    terminate();
 }
 
 void GameClientGLFW::onWindowResized(GLFWwindow *win, int width, int height)
 {
     (void)win;
-    GameClientGLFW::corePtr->m_mainRenderer->resize(glm::ivec2(width, height));
+    (void)width;
+    (void)height;
 }
 
 void GameClientGLFW::onKeyboardEvent(GLFWwindow *win, int key, int scancode, int action, int mods)
@@ -110,9 +115,8 @@ void GameClientGLFW::init()
     glfwSwapInterval(0); // disable vsync
 
     { // renderer
-        m_mainRenderer = Renderer::create();
+        m_mainRenderer = &ServiceLocator::getRenderer();
         m_mainRenderer->init(VideoMode(m_windowSize.x, m_windowSize.y));
-        ServiceLocator::setRenderer(m_mainRenderer);
     }
 
     { // events
@@ -122,22 +126,21 @@ void GameClientGLFW::init()
         glfwSetScrollCallback(m_mainWindow, GameClientGLFW::onMouseScrollEvent);
     }
 
-    { // ui
-        UIManager *uimgr = UIManager::create();
-        uimgr->init();
-        ServiceLocator::setUIManager(uimgr);
-    }
+    // ui
+    ServiceLocator::getUIManager().init(m_mainRenderer);
 
     { // scene
         Scene3D &activeScene = ServiceLocator::getSceneManager().activeScene();
         activeScene.getCamera().setPosition(glm::vec3(0, 2.f, 0));
     }
 
-    { // scripts
-        ScriptEngine *scengine = new LuaScriptEngine();
-        scengine->init();
-        ServiceLocator::setScriptEngine(scengine);
-    }
+    // scripts
+    ServiceLocator::getScriptEngine().init();
+}
+
+void GameClientGLFW::run()
+{
+    mainLoop();
 }
 
 void GameClientGLFW::terminate()
@@ -191,6 +194,16 @@ double GameClientGLFW::getDeltaTime() const
 double GameClientGLFW::getElapsedTime() const
 {
     return m_elapsedTime;
+}
+
+void GameClientGLFW::lockCursor()
+{
+    glfwSetInputMode(m_mainWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+}
+
+void GameClientGLFW::unlockCursor()
+{
+    glfwSetInputMode(m_mainWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 }
 
 GLFWwindow *GameClientGLFW::getWindowPtr() const

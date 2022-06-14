@@ -10,4 +10,3 @@ ModelManager.loadModel(":/models/cube.glb", "cube")
 dofile('data/scripts/fps_controller.lua')
 dofile('data/scripts/cube_demo.lua')
 -- dofile('data/scripts/colliseum_demo.lua')
-

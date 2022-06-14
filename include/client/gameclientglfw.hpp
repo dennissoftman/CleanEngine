@@ -1,6 +1,8 @@
 #ifndef GAMECLIENTGLFW_H
 #define GAMECLIENTGLFW_H
 
+#include "client/gameclient.hpp"
+
 #ifdef RENDERER_VULKAN
     #define GLFW_INCLUDE_VULKAN
     #ifdef __linux__
@@ -19,19 +21,23 @@
 
 class ScriptEngine;
 
-class GameClientGLFW
+class GameClientGLFW : public GameClient
 {
 public:
     GameClientGLFW();
     ~GameClientGLFW();
 
-    void init();
-    void terminate();
+    void init() override;
+    void run() override;
+    void terminate() override;
 
     void mainLoop();
 
-    double getDeltaTime() const;
-    double getElapsedTime() const;
+    double getDeltaTime() const override;
+    double getElapsedTime() const override;
+
+    void lockCursor() override;
+    void unlockCursor() override;
 
     GLFWwindow *getWindowPtr() const;
 

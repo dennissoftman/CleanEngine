@@ -1,5 +1,10 @@
 #include "server/dummyphysicsmanager.hpp"
 
+PhysicsManager *PhysicsManager::create()
+{
+    return new DummyPhysicsManager();
+}
+
 DummyPhysicsManager::DummyPhysicsManager()
 {
 

@@ -1,5 +1,10 @@
 #include "common/dummyservices.hpp"
 
+GameServices *GameServices::create()
+{
+    return new DummyServices();
+}
+
 DummyServices::DummyServices()
 {
 
