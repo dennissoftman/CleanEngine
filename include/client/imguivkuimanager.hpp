@@ -21,7 +21,7 @@ public:
     void removeElement(std::shared_ptr<UIElement> el) override;
 private:
     static void drawLabel(const char *text, const glm::vec2 &pos);
-    static void drawButton(const char *text, const glm::vec2 &pos, const glm::vec2 &size, const std::function<void(int)> &callb);
+    static void drawButton(const char *text, const glm::vec2 &pos, const glm::vec2 &size, const std::function<void()> &callb);
 
     VulkanRenderer *m_renderer;
 

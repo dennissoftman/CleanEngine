@@ -1,5 +1,5 @@
 local keyboardButtons = {0, 0, 0, 0}
-local cursorLocked = true
+local cursorLocked = false
 
 local function keyHandler(key, scancode, action, mods)
 
@@ -88,4 +88,4 @@ end
 Client.onUpdate(updateHandler)
 Input.onKeyboard(keyHandler)
 Input.onMouseMove(mouseHandler)
-Client.lockCursor()
+-- Client.lockCursor()

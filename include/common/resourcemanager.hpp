@@ -6,6 +6,8 @@
 #include <string>
 #include <memory>
 
+#include <minizip/unzip.h>
+
 struct DataResource
 {
     std::shared_ptr<char[]> data;
@@ -21,11 +23,11 @@ public:
     void init();
     void terminate();
 
-    DataResource getResource(const std:: string &path, bool enableCaching=true);
+    DataResource getResource(const std:: string &path, bool enableCaching=false);
 private:
     std::map<std::string, DataResource> m_cachedResources;
 
-    std::vector<std::string> m_resourceArchives;
+    std::map<std::string, unzFile> m_resourceArchives;
 };
 
 #endif // RESOURCEMANAGER_HPP

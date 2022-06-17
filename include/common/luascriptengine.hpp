@@ -9,7 +9,7 @@
 #include <sol/sol.hpp>
 #include <glm/vec3.hpp>
 
-#include "common/eventmanager.hpp"
+#include "client/inputmanager.hpp"
 
 class UIElement;
 class Model3D;
@@ -23,6 +23,9 @@ public:
 
     void init() override;
 
+    // custom loaders
+    static int luaRootLoader(lua_State *L);
+
     // Logging
     static void Debug_log(const std::string &msg);
     static void Debug_warning(const std::string &msg);
@@ -35,10 +38,6 @@ public:
     static void Client_lockCursor();
     static void Client_releaseCursor();
     static void Client_exit();
-
-    // Material manager
-    static void MaterialManager_loadImage(const std::string &path, const std::string &name);
-    static void MaterialManager_loadColor(const glm::vec3 &color, const std::string &name);
 
     // Model manager
     static void ModelManager_loadModel(const std::string &path, const std::string &name);

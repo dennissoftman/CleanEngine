@@ -15,7 +15,7 @@
 
 #include "server/scenemanager.hpp"
 
-#include "common/eventmanager.hpp"
+#include "client/inputmanager.hpp"
 
 #include "server/physicsmanager.hpp"
 #include "server/dummyphysicsmanager.hpp"
@@ -64,8 +64,8 @@ public:
     static SceneManager &getSceneManager();
     static void setSceneManager(SceneManager *mgr); // pretty useless
 
-    static EventManager &getEventManager();
-    static void setEventManager(EventManager *mgr);
+    static InputManager &getEventManager();
+    static void setEventManager(InputManager *mgr);
 
     // physics management
     static PhysicsManager &getPhysicsManager();
@@ -107,7 +107,7 @@ private:
     static SceneManager *m_scnmgr;
 
     // event management
-    static EventManager *m_evtmgr;
+    static InputManager *m_evtmgr;
 
     // physics management
     static PhysicsManager *m_physmgr;

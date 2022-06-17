@@ -26,9 +26,12 @@ VulkanRenderer::VulkanRenderer()
       m_vkImageFormat(vk::Format::eUndefined),
       m_samplingValue(vk::SampleCountFlagBits::e2), // MSAA x2
       m_currentFrame(0), m_defaultMaterial(nullptr),
-      m_projMatrix(glm::mat4()), m_viewMatrix(glm::mat4())
+      m_projMatrix(glm::mat4(1.f)), m_viewMatrix(glm::mat4(1.f))
 {
-
+    m_lightingData.lightPositions[0] = glm::vec4(1.f, 1.f, 1.f, 1.f);
+    for(int i=0; i < 16; i++)
+        m_lightingData.lightColors[i] = glm::vec4(1.f);
+    m_lightingData.lightCount = 1;
 }
 
 VulkanRenderer::~VulkanRenderer()
@@ -61,6 +64,9 @@ void VulkanRenderer::terminate()
             m_vkDevice.destroySemaphore(waitSem);
         m_vkWaitSemaphores.clear();
 
+        for(auto &mat : m_registeredMaterials)
+            delete mat;
+
         if(m_vkDefaultRenderPass)
             m_vkDevice.destroyRenderPass(m_vkDefaultRenderPass);
 
@@ -89,9 +95,6 @@ void VulkanRenderer::terminate()
             m_vkDevice.destroyCommandPool(m_vkCmdPool);
 
         m_vkQueues.clear();
-
-        for(auto &mat : m_registeredMaterials)
-            delete mat;
 
         m_vkDevice.destroy();
     }
@@ -816,14 +819,21 @@ void VulkanRenderer::resize(const glm::ivec2 &size)
     ServiceLocator::getLogger().info(MODULE_NAME, infostr.str());
 }
 
-void VulkanRenderer::setProjectionMatrix(const glm::mat4 &projmx)
+void VulkanRenderer::updateCameraData(Camera3D &cam)
 {
-    m_projMatrix = projmx;
+    m_projMatrix = cam.getProjectionMatrix();
+    m_viewMatrix = cam.getViewMatrix();
+    m_lightingData.viewPos = glm::vec4(cam.getPosition(), 1.f);
 }
 
-void VulkanRenderer::setViewMatrix(const glm::mat4 &viewmx)
+void VulkanRenderer::updateLightPosition(const glm::vec4 &pos, int id)
 {
-    m_viewMatrix = viewmx;
+    m_lightingData.lightPositions[id % 16] = pos;
+}
+
+void VulkanRenderer::updateLightColor(const glm::vec4 &color, int id)
+{
+    m_lightingData.lightColors[id % 16] = color;
 }
 
 std::string VulkanRenderer::getType() const
@@ -1023,6 +1033,11 @@ void VulkanRenderer::generateMipmaps(const VkImageObject &imageObject)
                             1, &barrier);
 
     endOneShotCmd(cmdBuff);
+}
+
+const LightingData *VulkanRenderer::getLightingData() const
+{
+    return &m_lightingData;
 }
 
 vk::ImageView VulkanRenderer::createImageView(const VkImageObject &imageObject, vk::ImageAspectFlags aspect)

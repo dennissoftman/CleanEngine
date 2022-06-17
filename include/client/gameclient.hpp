@@ -1,7 +1,9 @@
 #ifndef GAMECLIENT_HPP
 #define GAMECLIENT_HPP
 
+#include <functional>
 
+class Scene3D;
 class GameClient
 {
 public:
@@ -16,8 +18,12 @@ public:
     virtual double getDeltaTime() const = 0;
     virtual double getElapsedTime() const = 0;
 
+    virtual Scene3D &getScene() = 0;
+
     virtual void lockCursor() = 0;
     virtual void unlockCursor() = 0;
+
+    virtual void updateSubscribe(const std::function<void (double)> &callb) = 0;
 
     static GameClient *corePtr;
 };

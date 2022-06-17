@@ -21,6 +21,8 @@
 
 class ScriptEngine;
 
+#include "server/scene3d.hpp"
+
 class GameClientGLFW : public GameClient
 {
 public:
@@ -33,6 +35,8 @@ public:
 
     void mainLoop();
 
+    Scene3D &getScene() override;
+
     double getDeltaTime() const override;
     double getElapsedTime() const override;
 
@@ -40,6 +44,8 @@ public:
     void unlockCursor() override;
 
     GLFWwindow *getWindowPtr() const;
+
+    void updateSubscribe(const std::function<void(double)> &callb);
 
     // for events
     static void onKeyboardEvent(GLFWwindow *win, int key, int scancode, int action, int mods);
@@ -53,6 +59,8 @@ public:
 private:
     GLFWwindow *m_mainWindow;
     Renderer *m_mainRenderer;
+    Scene3D m_currentScene;
+    boost::signals2::signal<void(double)> m_updateEvents;
     double m_elapsedTime, m_deltaTime;
 
     glm::ivec2 m_windowSize;

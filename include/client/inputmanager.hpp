@@ -24,13 +24,10 @@ namespace clean
     typedef std::function<void(int, int)> mouse_button_callback;
 }
 
-class EventManager
+class InputManager
 {
 public:
-    EventManager();
-
-    void update(double dt);
-    void updateSubscribe(const std::function<void(double)> &callb);
+    InputManager();
 
     /*
      * key - virtual mapped key

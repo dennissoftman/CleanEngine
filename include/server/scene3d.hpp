@@ -11,6 +11,7 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/quaternion.hpp>
 
+#include "common/dirty_flag.hpp"
 
 class Scene3D
 {
@@ -35,6 +36,10 @@ public:
     void setCamera(const Camera3D &cam);
     Camera3D &getCamera();
 
+    void setLightPosition(const glm::vec3 &pos, int id=0);
+    void setLightColor(const glm::vec3 &color, int id=0);
+    void setLightCount(int count);
+
     size_t getObjectCount() const;
 
 private:
@@ -42,6 +47,7 @@ private:
     Camera3D m_camera;
     // for now
     std::unordered_map<std::string, std::shared_ptr<Entity>> m_objects;
+    clean::dirty_flag<LightingData> m_lightingData;
 };
 
 #endif // SCENE3D_HPP

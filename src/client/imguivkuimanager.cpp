@@ -9,6 +9,7 @@
 #include "imgui_impl_vulkan.h"
 
 #include "client/ui/uilabel.hpp"
+#include "client/ui/uibutton.hpp"
 
 static const char *MODULE_NAME = "ImguiVkUIManager";
 
@@ -150,7 +151,30 @@ void ImguiVkUIManager::update(double dt)
     ImGui::NewFrame();
 
     for(auto &el : m_elements)
-        el->draw();
+    {
+        switch(el->getType())
+        {
+            case UIElement::eLabel:
+            {
+                UILabel *lbl = dynamic_cast<UILabel*>(el.get());
+                ImGui::Text(lbl->text().c_str());
+                break;
+            }
+            case UIElement::eButton:
+            {
+                UIButton *btn = dynamic_cast<UIButton*>(el.get());
+                if(ImGui::Button(btn->text().c_str()))
+                {
+                    btn->onClick();
+                }
+                break;
+            }
+            default:
+            {
+                break;
+            }
+        }
+    }
 }
 
 void ImguiVkUIManager::draw()
@@ -162,12 +186,7 @@ void ImguiVkUIManager::draw()
 void ImguiVkUIManager::addElement(std::shared_ptr<UIElement> el)
 {
     if(std::find(m_elements.begin(), m_elements.end(), el) == m_elements.end())
-    {
-        UIElement *elPtr = el.get();
-        if(elPtr->getType() == UIElement::eLabel)
-            ((UILabel*)elPtr)->setDrawCallback(ImguiVkUIManager::drawLabel);
         m_elements.push_back(el);
-    }
 }
 
 void ImguiVkUIManager::removeElement(std::shared_ptr<UIElement> el)
@@ -175,19 +194,4 @@ void ImguiVkUIManager::removeElement(std::shared_ptr<UIElement> el)
     auto it = std::find(m_elements.begin(), m_elements.end(), el);
     if(it != m_elements.end())
         m_elements.erase(it);
-}
-
-void ImguiVkUIManager::drawLabel(const char *text, const glm::vec2 &pos)
-{
-    (void)pos;
-    ImGui::Text(text);
-}
-
-void ImguiVkUIManager::drawButton(const char *text, const glm::vec2 &pos, const glm::vec2 &size, const std::function<void (int)> &callb)
-{
-    (void)pos;
-    if(ImGui::Button(text, ImVec2(size.x, size.y)))
-    {
-        callb(0);
-    }
 }

@@ -17,7 +17,10 @@ SOL_DERIVED_CLASSES(Entity, StaticMesh, Camera3D);
 #include "client/ui/uilabel.hpp"
 SOL_BASE_CLASSES(UILabel, UIElement);
 
-SOL_DERIVED_CLASSES(UIElement, UILabel);
+#include "client/ui/uibutton.hpp"
+SOL_BASE_CLASSES(UIButton, UIElement);
+
+SOL_DERIVED_CLASSES(UIElement, UILabel, UIButton);
 //
 
 #include <fstream>
@@ -52,6 +55,8 @@ void LuaScriptEngine::init()
                                  sol::lib::math,
                                  sol::lib::table);
 
+    m_globalState.add_package_loader(luaRootLoader);
+
     // init functions, namespaces, etc.
     {
         m_globalState.create_named_table("Debug",
@@ -64,10 +69,6 @@ void LuaScriptEngine::init()
                                          "lockCursor", LuaScriptEngine::Client_lockCursor,
                                          "releaseCursor", LuaScriptEngine::Client_releaseCursor,
                                          "exit", LuaScriptEngine::Client_exit);
-
-        m_globalState.create_named_table("MaterialManager",
-                                         "loadImage", LuaScriptEngine::MaterialManager_loadImage,
-                                         "loadColor", LuaScriptEngine::MaterialManager_loadColor);
 
         m_globalState.create_named_table("ModelManager",
                                          "loadModel", LuaScriptEngine::ModelManager_loadModel,
@@ -151,7 +152,9 @@ void LuaScriptEngine::init()
 
     m_globalState.new_usertype<Scene3D>("Scene3D",
                                         "addObject", &Scene3D::addObject,
-                                        "getCamera", &Scene3D::getCamera);
+                                        "getCamera", &Scene3D::getCamera,
+                                        "setLightPosition", &Scene3D::setLightPosition,
+                                        "setLightColor", &Scene3D::setLightColor);
 
     // defining object types
     m_globalState.new_usertype<Entity>("Entity",
@@ -168,20 +171,61 @@ void LuaScriptEngine::init()
                                          "setPosition", &Camera3D::setPosition,
                                          "getPosition", &Camera3D::getPosition,
                                          "setRotation", &Camera3D::setRotation,
-                                         "setEulerRotation", &Camera3D::setEulerRotation,
                                          "getRotation", &Camera3D::getRotation,
+                                         "setEulerRotation", &Camera3D::setEulerRotation,
+                                         "getEulerRotation", &Camera3D::getEulerRotation,
                                          "front", &Camera3D::frontVector,
                                          "right", &Camera3D::rightVector,
                                          "up", &Camera3D::upVector,
                                          "onUpdate", &Camera3D::updateSubscribe);
+
+    // material
+    m_globalState.new_usertype<Material>("Material",
+                                         sol::factories([&](const std::string &imgPath, const std::string &name)
+                                                           {
+                                                               Material *mat = Material::create();
+                                                               DataResource imgData = ServiceLocator::getResourceManager().getResource(imgPath);
+                                                               ImageData img = ImageLoader::loadImageMemory(imgData.data.get(), imgData.size);
+                                                               mat->setImage(img, "diffuse");
+                                                               mat->init();
+                                                               ServiceLocator::getMatManager().addMaterial(mat, name);
+                                                           },
+                                                        [&](const glm::vec3 &color, const std::string &name)
+                                                           {
+                                                               Material *mat = Material::create();
+                                                               mat->setColor(glm::vec4(color, 1.f), "diffuse");
+                                                               mat->init();
+                                                               ServiceLocator::getMatManager().addMaterial(mat, name);
+                                                           },
+                                                        [&](const std::string &albedo, const std::string &normal, const std::string &roughness, const std::string &metallic, const std::string &ambient, const std::string &name)
+                                                           {
+                                                               Material *mat = Material::create();
+                                                               ImageData albedoData, normalData, roughnessData, metallicData, aoData;
+                                                               auto imageLoader = [&](const std::string &path) -> ImageData {
+                                                                   DataResource resData = ServiceLocator::getResourceManager().getResource(path);
+                                                                   return ImageLoader::loadImageMemory(resData.data.get(), resData.size);
+                                                               };
+
+                                                               albedoData = imageLoader(albedo);
+                                                               normalData = imageLoader(normal);
+                                                               roughnessData = imageLoader(roughness);
+                                                               metallicData = imageLoader(metallic);
+                                                               aoData = imageLoader(ambient);
+
+                                                               mat->setPBR(albedoData, normalData, roughnessData, metallicData, aoData);
+                                                               mat->init();
+                                                               ServiceLocator::getMatManager().addMaterial(mat, name);
+                                                           })
+                                        );
 
     m_globalState.new_usertype<StaticMesh>("StaticMesh",
                                            sol::factories([&]() -> std::shared_ptr<StaticMesh> { return std::make_shared<StaticMesh>(); }),
                                            "setPosition", &StaticMesh::setPosition,
                                            "getPosition", &StaticMesh::getPosition,
                                            "setRotation", &StaticMesh::setRotation,
-                                           "setEulerRotation", &StaticMesh::setEulerRotation,
                                            "getRotation", &StaticMesh::getRotation,
+                                           "setEulerRotation", &StaticMesh::setEulerRotation,
+                                           "getEulerRotation", &StaticMesh::getEulerRotation,
                                            "setScale", &StaticMesh::setScale,
                                            "setModel", &StaticMesh::setModel,
                                            "onUpdate", &StaticMesh::updateSubscribe);
@@ -190,6 +234,12 @@ void LuaScriptEngine::init()
                                         sol::factories([&]() -> std::shared_ptr<UILabel> { return std::make_shared<UILabel>(); }),
                                         "setText", &UILabel::setText,
                                         "getText", &UILabel::text);
+    m_globalState.new_usertype<UIButton>("Button",
+                                         sol::factories([&]() -> std::shared_ptr<UIButton> { return std::make_shared<UIButton>(); }),
+                                         "setText", &UIButton::setText,
+                                         "getText", &UIButton::text,
+                                         "onClick", &UIButton::clickSubscribe);
+
     //
 
     // move init script to config file?
@@ -220,6 +270,25 @@ void LuaScriptEngine::init()
     ServiceLocator::getLogger().info(MODULE_NAME, "Script engine init completed");
 }
 
+int LuaScriptEngine::luaRootLoader(lua_State *L)
+{
+    std::string path = sol::stack::get<std::string>(L, 1); // get path argument
+
+    if(!path.starts_with(":/") && !path.starts_with("/"))
+        path = "data/scripts/" + path;
+
+    if(!path.ends_with(".lua"))
+        path += ".lua";
+
+    DataResource scriptData = ServiceLocator::getResourceManager().getResource(path, true);
+    if(scriptData.size > 0)
+    {
+        luaL_loadbuffer(L, scriptData.data.get(), scriptData.size, path.c_str());
+        return 1;
+    }
+    return 0;
+}
+
 void LuaScriptEngine::Debug_log(const std::string &msg)
 {
     ServiceLocator::getLogger().info(MODULE_NAME, msg);
@@ -237,7 +306,7 @@ void LuaScriptEngine::Debug_error(const std::string &msg)
 
 void LuaScriptEngine::Client_onUpdateEvent(const std::function<void (double)> &slot)
 {
-    ServiceLocator::getEventManager().updateSubscribe(slot);
+    GameClient::corePtr->updateSubscribe(slot);
 }
 
 double LuaScriptEngine::Client_getDeltaTime()
@@ -263,24 +332,6 @@ void LuaScriptEngine::Client_releaseCursor()
 void LuaScriptEngine::Client_exit()
 {
     GameClient::corePtr->terminate();
-}
-
-void LuaScriptEngine::MaterialManager_loadImage(const std::string &path, const std::string &name)
-{
-    try
-    {
-        DataResource imgData = ServiceLocator::getResourceManager().getResource(path);
-        ServiceLocator::getMatManager().loadImage(imgData, name);
-    }
-    catch(const std::exception &e)
-    {
-        ServiceLocator::getLogger().error(MODULE_NAME, "Failed to load image: " + std::string(e.what()));
-    }
-}
-
-void LuaScriptEngine::MaterialManager_loadColor(const glm::vec3 &color, const std::string &name)
-{
-    ServiceLocator::getMatManager().loadColor(glm::vec4(color, 1.f), name);
 }
 
 void LuaScriptEngine::ModelManager_loadModel(const std::string &path, const std::string &name)
@@ -324,7 +375,7 @@ void LuaScriptEngine::AudioManager_playMusic(const std::string &name, bool loope
 
 Scene3D &LuaScriptEngine::SceneManager_getActiveScene()
 {
-    return std::ref(ServiceLocator::getSceneManager().activeScene());
+    return GameClient::corePtr->getScene();
 }
 
 void LuaScriptEngine::UI_addElement(std::shared_ptr<UIElement> el)
