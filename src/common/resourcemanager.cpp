@@ -28,7 +28,15 @@ void ResourceManager::init()
             const std::string &fpath = it.path().string();
             if(fpath.ends_with(".gar"))
             {
-                m_resourceArchives.push_back(fpath);
+                unzFile fp = unzOpen(fpath.c_str());
+                if(fp)
+                {
+                    m_resourceArchives.emplace(fpath, fp);
+                }
+                else
+                {
+                    ServiceLocator::getLogger().error(MODULE_NAME, "Failed to open archive: '"+fpath+"'");
+                }
             }
         }
     }
@@ -37,6 +45,8 @@ void ResourceManager::init()
 void ResourceManager::terminate()
 {
     m_cachedResources.clear();
+    for(auto &kv : m_resourceArchives)
+        unzClose(kv.second);
     m_resourceArchives.clear();
 }
 
@@ -53,8 +63,7 @@ DataResource ResourceManager::getResource(const std::string &path, bool enableCa
         bool found = false;
         for(auto &arc : m_resourceArchives)
         {
-            // unzip
-            unzFile arcFile = unzOpen(arc.c_str());
+            unzFile arcFile = arc.second;
 
             if(unzLocateFile(arcFile, targetPath.c_str(), 0) != UNZ_OK)
                 continue;
@@ -78,7 +87,6 @@ DataResource ResourceManager::getResource(const std::string &path, bool enableCa
             unzReadCurrentFile(arcFile, res.data.get(), res.size);
 
             unzCloseCurrentFile(arcFile); // close file in archive
-            unzClose(arcFile); // close archive
             break;
         }
         if(!found)

@@ -8,8 +8,6 @@ class UIElement
 public:
     virtual ~UIElement() {}
 
-    virtual void draw() = 0;
-
     virtual void setPosition(const glm::vec2 &pos) = 0;
     virtual const glm::vec2 &getPosition() const = 0;
 

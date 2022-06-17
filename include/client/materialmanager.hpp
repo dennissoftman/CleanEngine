@@ -13,12 +13,7 @@ public:
     MaterialManager();
     ~MaterialManager();
 
-    // temp?
-    void loadImage(const DataResource &imgResource, const std::string &name);
-    void loadColor(const glm::vec4 &color, const std::string &name);
-    //
-
-    void addMaterial(const std::string &name, Material *mat);
+    void addMaterial(Material *mat, const std::string &name);
 
     Material *getMaterial(const std::string &name) const;
 

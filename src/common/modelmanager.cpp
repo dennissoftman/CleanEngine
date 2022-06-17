@@ -117,10 +117,6 @@ void ModelManager::loadModel(const void *data, size_t size, const std::string &n
                     n2 = mesh->mNormals[face.mIndices[2]];
                 }
 
-                {
-                    aiMaterial *mat = scn->mMaterials[mesh->mMaterialIndex];
-                }
-
                 outModel->pMeshes[i].tris.push_back(
                             Triangle3D{
                                 Vertex3D{glm::vec3(v0.x, v0.y, v0.z), glm::vec2(t0.x, t0.y), glm::vec3(n0.x, n0.y, n0.z)},

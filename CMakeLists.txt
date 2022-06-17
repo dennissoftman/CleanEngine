@@ -22,6 +22,9 @@ option(USE_FMOD "Use FMODex as audio backend" OFF) # by default uses DummyAudioM
 
 option(USE_LUA "Use Lua script backend" ON)
 
+option(USE_ENET "Use ENET for server-side" ON)
+option(USE_KISSNET "Use kissnet for server-side" OFF)
+
 option(USE_STEAM "Enable Steam API" OFF)
 
 # default path for windows
@@ -39,8 +42,8 @@ set(COMMON_SOURCES
   ${CMAKE_SOURCE_DIR}/src/common/servicelocator.cpp
   ${CMAKE_SOURCE_DIR}/include/common/servicelocator.hpp
   ${CMAKE_SOURCE_DIR}/include/client/gameclient.hpp
-  ${CMAKE_SOURCE_DIR}/src/common/eventmanager.cpp
-  ${CMAKE_SOURCE_DIR}/include/common/eventmanager.hpp
+  ${CMAKE_SOURCE_DIR}/src/client/inputmanager.cpp
+  ${CMAKE_SOURCE_DIR}/include/client/inputmanager.hpp
   ${CMAKE_SOURCE_DIR}/src/common/entities/camera3d.cpp
   ${CMAKE_SOURCE_DIR}/include/common/entities/camera3d.hpp
   ${CMAKE_SOURCE_DIR}/src/client/imageloader.cpp
@@ -68,6 +71,9 @@ set(COMMON_SOURCES
   ${CMAKE_SOURCE_DIR}/include/client/ui/uielement.hpp
   ${CMAKE_SOURCE_DIR}/src/client/ui/uilabel.cpp
   ${CMAKE_SOURCE_DIR}/include/client/ui/uilabel.hpp
+  ${CMAKE_SOURCE_DIR}/src/client/ui/uibutton.cpp
+  ${CMAKE_SOURCE_DIR}/include/client/ui/uibutton.hpp
+  ${CMAKE_SOURCE_DIR}/include/server/gameserver.hpp
 )
 
 if(USE_VULKAN)
@@ -85,6 +91,8 @@ if(USE_VULKAN)
     ${CMAKE_SOURCE_DIR}/src/client/shaders/vk_color_shader.cpp
     ${CMAKE_SOURCE_DIR}/src/client/shaders/vk_image_shader.cpp
     ${CMAKE_SOURCE_DIR}/include/client/shaders/vk_image_shader.hpp
+    ${CMAKE_SOURCE_DIR}/src/client/shaders/vk_pbr_specular_shader.cpp
+    ${CMAKE_SOURCE_DIR}/include/client/shaders/vk_pbr_specular_shader.hpp
     ${CMAKE_SOURCE_DIR}/src/client/vkmaterial.cpp
     ${CMAKE_SOURCE_DIR}/include/client/vkmaterial.hpp
   )
@@ -128,6 +136,20 @@ if(USE_VULKAN)
   find_package(tomlplusplus REQUIRED)
   target_link_libraries(CleanEngine tomlplusplus::tomlplusplus)
 
+  # server-side
+  if(USE_ENET)
+    target_sources(CleanEngine PRIVATE
+      ${CMAKE_SOURCE_DIR}/src/server/gameserverenet.cpp
+      ${CMAKE_SOURCE_DIR}/include/server/gameserverenet.hpp
+    )
+
+    find_package(unofficial-enet REQUIRED)
+    target_link_libraries(CleanEngine unofficial::enet::enet)
+  else()
+    message(error "Not yet supported")
+  endif()
+
+
   # GLM
   find_package(glm REQUIRED)
   target_compile_definitions(CleanEngine PRIVATE GLM_FORCE_DEPTH_ZERO_TO_ONE) # depth fix
@@ -144,8 +166,9 @@ if(USE_VULKAN)
   target_link_libraries(CleanEngine minizip::minizip)
 
   # SAIL
-  find_package(Sail CONFIG REQUIRED)
-  target_link_libraries(CleanEngine SAIL::sail sail-manip)
+  find_package(Sail REQUIRED)
+  find_package(SailManip REQUIRED)
+  target_link_libraries(CleanEngine SAIL::sail SAIL::sail-manip)
 
   # minizip
   find_package(minizip REQUIRED)

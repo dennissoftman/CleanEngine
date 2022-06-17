@@ -168,6 +168,8 @@ struct QueueFamilyInfo
     uint32_t count; // queue count
 };
 
+class Camera3D;
+
 class VulkanRenderer : public Renderer
 {
 public:
@@ -184,8 +186,9 @@ public:
     [[nodiscard]] glm::ivec2 getSize() const override;
     void resize(const glm::ivec2 &size) override;
 
-    void setProjectionMatrix(const glm::mat4 &projmx) override;
-    void setViewMatrix(const glm::mat4 &viewmx) override;
+    void updateCameraData(Camera3D &cam) override;
+    void updateLightPosition(const glm::vec4 &pos, int id=0) override;
+    void updateLightColor(const glm::vec4 &color, int id=0) override;
 
     [[nodiscard]] std::string getType() const override;
 
@@ -218,6 +221,8 @@ public:
                                             vk::MemoryPropertyFlags memProps,
                                             vk::SampleCountFlagBits samples=vk::SampleCountFlagBits::e1);
     void generateMipmaps(const VkImageObject &imageObject);
+
+    const LightingData *getLightingData() const;
 
     [[nodiscard]] vk::ImageView createImageView(const VkImageObject &imageObject,
                                                 vk::ImageAspectFlags aspect=vk::ImageAspectFlagBits::eColor);
@@ -272,6 +277,8 @@ private:
     std::vector<VkRenderObject*> m_createdObjects;
     std::queue<VkRenderRequest> m_renderQueue;
     glm::mat4 m_projMatrix, m_viewMatrix;
+
+    LightingData m_lightingData;
 };
 
 #endif // VULKANRENDERER_HPP

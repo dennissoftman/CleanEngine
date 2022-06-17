@@ -135,7 +135,7 @@ void FmodAudioManager::loadMusic(const std::string &path, const std::string &nam
         return;
     }
 
-    DataResource musData = ServiceLocator::getResourceManager().getResource(path);
+    DataResource musData = ServiceLocator::getResourceManager().getResource(path, true);
     m_musicResources.push_back(musData);
 
     FMOD::Sound *newMusic = nullptr;

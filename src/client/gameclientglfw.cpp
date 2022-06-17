@@ -151,8 +151,6 @@ void GameClientGLFW::terminate()
 
 void GameClientGLFW::mainLoop()
 {
-    SceneManager &sceneManager = ServiceLocator::getSceneManager();
-    EventManager &eventManager = ServiceLocator::getEventManager();
     AudioManager &audioManager = ServiceLocator::getAudioManager();
     UIManager &uiManager = ServiceLocator::getUIManager();
 
@@ -162,20 +160,20 @@ void GameClientGLFW::mainLoop()
         m_elapsedTime = glfwGetTime();
         glfwPollEvents();
 
-        // update events
-        eventManager.update(m_deltaTime);
-
-        // update scene
-        sceneManager.activeScene().update(m_deltaTime);
-
         // update gui
         uiManager.update(m_deltaTime);
+
+        // update scene
+        m_currentScene.update(m_deltaTime);
 
         // update sounds
         audioManager.update(m_deltaTime);
 
+        // raise update event
+        m_updateEvents(m_deltaTime);
+
         // Draw objects on screen
-        sceneManager.activeScene().draw(m_mainRenderer);
+        m_currentScene.draw(m_mainRenderer);
 
         m_mainRenderer->draw();
 
@@ -184,6 +182,11 @@ void GameClientGLFW::mainLoop()
         glfwSwapBuffers(m_mainWindow);
 #endif
     }
+}
+
+Scene3D &GameClientGLFW::getScene()
+{
+    return m_currentScene;
 }
 
 double GameClientGLFW::getDeltaTime() const
@@ -209,4 +212,9 @@ void GameClientGLFW::unlockCursor()
 GLFWwindow *GameClientGLFW::getWindowPtr() const
 {
     return m_mainWindow;
+}
+
+void GameClientGLFW::updateSubscribe(const std::function<void (double)> &callb)
+{
+    m_updateEvents.connect(callb);
 }

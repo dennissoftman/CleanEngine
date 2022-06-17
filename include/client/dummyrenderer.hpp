@@ -18,8 +18,7 @@ public:
     [[nodiscard]] glm::ivec2 getSize() const override;
     void resize(const glm::ivec2 &size) override;
 
-    void setViewMatrix(const glm::mat4 &viewmx) override;
-    void setProjectionMatrix(const glm::mat4 &projmx) override;
+    void updateCameraData(Camera3D &cam) override;
 
     [[nodiscard]] std::string getType() const override;
 };
