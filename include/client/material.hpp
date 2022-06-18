@@ -18,7 +18,7 @@ struct LightingData
     glm::vec4 lightPositions[16];
     glm::vec4 lightColors[16];
     glm::vec4 viewPos=glm::vec4(0, 1, 0, 1);
-    int lightCount=1;
+    uint32_t lightCount=1;
 };
 
 class RenderData
@@ -26,6 +26,8 @@ class RenderData
 public:
     virtual std::string getType() const = 0;
 };
+
+class DataResource;
 
 class Material
 {
@@ -43,6 +45,7 @@ public:
     virtual void setPBR(const ImageData &albedo, const ImageData &normal,
                         const ImageData &roughness, const ImageData &metallic,
                         const ImageData &ambient) = 0;
+    virtual void setPBR(const DataResource &pbrData) = 0;
 
     virtual void setImage(const ImageData &imgData, const std::string &name) = 0;
     virtual void setColor(const glm::vec4 &color, const std::string &name) = 0;

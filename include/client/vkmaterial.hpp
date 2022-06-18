@@ -70,6 +70,7 @@ public:
     void setPBR(const ImageData &albedo, const ImageData &normal,
                 const ImageData &roughness, const ImageData &metallic,
                 const ImageData &ambient) override;
+    void setPBR(const DataResource &pbrData) override;
 
     void setImage(const ImageData &imgData, const std::string &name) override;
     void setColor(const glm::vec4 &color, const std::string &name) override;

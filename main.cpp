@@ -5,7 +5,7 @@
 #include "common/servicelocator.hpp"
 #include "common/debuglogger.hpp"
 
-#include "client/gameclient.hpp"
+#include "client/gamefrontend.hpp"
 
 #ifdef PHYSICS_BULLET
 #include "server/bulletphysicsmanager.hpp"
@@ -70,7 +70,7 @@ int main()
 #endif
 
     { // game client
-        GameClient *client = GameClient::create();
+        GameFrontend *client = GameFrontend::create();
         client->init();
         client->run(); // blocking
         delete client;

@@ -10,6 +10,9 @@
 #include <fstream>
 #include <memory>
 
+#include <chrono>
+#include <future>
+
 static const char *MODULE_NAME = "VkMaterial";
 
 Material *Material::create()
@@ -676,8 +679,8 @@ void VkMaterial::init()
 }
 
 void VkMaterial::setPBR(const ImageData &albedo, const ImageData &normal,
-                                 const ImageData &roughness, const ImageData &metallic,
-                                 const ImageData &ambient)
+                        const ImageData &roughness, const ImageData &metallic,
+                        const ImageData &ambient)
 {
     m_visualMode = Material::MaterialMode::ePBR;
     m_visualData = std::map<Material::TextureType, TextureObject>{
@@ -687,6 +690,84 @@ void VkMaterial::setPBR(const ImageData &albedo, const ImageData &normal,
         {Material::TextureType::eMetallic, createTexture(metallic)},
         {Material::TextureType::eAmbientOcclusion, createTexture(ambient)}
     };
+}
+
+void VkMaterial::setPBR(const DataResource &pbrData)
+{
+    { // this mess will be replaced! I promise!
+        std::map<std::string, DataResource> imageDatas;
+        uint32_t offset=0;
+        do
+        {
+            ustar_header_s header = *(ustar_header_s*)(pbrData.data.get() + offset);
+
+            uint32_t esize = 0;
+            char ftype = header.typeflag;
+            if(ftype == ResourceManager::TarFileType::eRegType)
+            {
+                esize = std::stol(header.size, nullptr, 8);
+                std::shared_ptr<char[]> buff = std::make_shared<char[]>(esize);
+                memcpy(buff.get(), (pbrData.data.get() + offset + ResourceManager::TarProperty::eBlockSize), esize);
+                imageDatas[header.name] = DataResource{buff, esize};
+            }
+
+            if(esize == 0)
+                offset += ResourceManager::TarProperty::eBlockSize;
+            else if(esize <= ResourceManager::TarProperty::eBlockSize)
+                offset += (1 << 10);
+            else
+            {
+                auto sector_count = [&](uint32_t size) {
+                    if((size % 512) == 0)
+                        return (size >> 9);
+                    return (size >> 9) + 1;
+                };
+                offset += (sector_count(esize) + 1) << 9;
+            }
+        } while(offset < pbrData.size);
+
+        if(!imageDatas.contains("albedo.png"))
+            throw std::runtime_error("no albedo texture");
+        if(!imageDatas.contains("normal.png"))
+            throw std::runtime_error("no normal map texture");
+        if(!imageDatas.contains("roughness.png"))
+            throw std::runtime_error("no roughness texture");
+        if(!imageDatas.contains("metallic.png"))
+            throw std::runtime_error("no metallic texture");
+        if(!imageDatas.contains("ao.png"))
+            throw std::runtime_error("no ambient occlusion texture");
+
+        std::map<Material::TextureType, std::future<ImageData>> asyncData;
+        asyncData.emplace(Material::TextureType::eAlbedo,
+                          std::async(std::launch::async, ImageLoader::loadImageResource, imageDatas["albedo.png"]));
+        asyncData.emplace(Material::TextureType::eNormal,
+                          std::async(std::launch::async, ImageLoader::loadImageResource, imageDatas["normal.png"]));
+        asyncData.emplace(Material::TextureType::eRoughness,
+                          std::async(std::launch::async, ImageLoader::loadImageResource, imageDatas["roughness.png"]));
+        asyncData.emplace(Material::TextureType::eMetallic,
+                          std::async(std::launch::async, ImageLoader::loadImageResource, imageDatas["metallic.png"]));
+        asyncData.emplace(Material::TextureType::eAmbientOcclusion,
+                          std::async(std::launch::async, ImageLoader::loadImageResource, imageDatas["ao.png"]));
+        bool ready;
+        do
+        {
+            ready = true;
+            for(auto &kv : asyncData)
+            {
+                if(kv.second.wait_for(std::chrono::milliseconds(10)) != std::future_status::ready)
+                {
+                    ready = false;
+                    break;
+                }
+            }
+        } while(!ready);
+
+        setPBR(asyncData[Material::TextureType::eAlbedo].get(),
+               asyncData[Material::TextureType::eNormal].get(),
+               asyncData[Material::TextureType::eRoughness].get(),
+               asyncData[Material::TextureType::eMetallic].get(),
+               asyncData[Material::TextureType::eAmbientOcclusion].get());
+    }
 }
 
 void VkMaterial::setImage(const ImageData &imgData, const std::string &name)

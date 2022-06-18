@@ -27,8 +27,6 @@ public:
     void addObject(std::shared_ptr<Entity> other); // add with uuid
     void addNamedObject(std::shared_ptr<Entity> other, const std::string &name); // add with custom name
 
-    void removeObject(const std::string &name);
-
     void clear();
 
     std::weak_ptr<Entity> getObject(const std::string &name) const;
@@ -36,9 +34,9 @@ public:
     void setCamera(const Camera3D &cam);
     Camera3D &getCamera();
 
-    void setLightPosition(const glm::vec3 &pos, int id=0);
-    void setLightColor(const glm::vec3 &color, int id=0);
-    void setLightCount(int count);
+    void setLightPosition(const glm::vec3 &pos, uint32_t id=0);
+    void setLightColor(const glm::vec3 &color, uint32_t id=0);
+    void setLightCount(uint32_t count);
 
     size_t getObjectCount() const;
 

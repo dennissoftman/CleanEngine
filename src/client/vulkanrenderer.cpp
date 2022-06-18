@@ -9,9 +9,13 @@
 
 static const char *MODULE_NAME = "VulkanRenderer";
 
-#ifdef CLIENT_GLFW
-#include "client/gameclientglfw.hpp"
+#ifdef FRONTEND_GLFW
+#include "client/gamefrontendglfw.hpp"
 #endif
+
+// renderer properties
+uint32_t Renderer::MaxLightSourceCount = 16;
+//
 
 Renderer *Renderer::create()
 {
@@ -111,8 +115,8 @@ void VulkanRenderer::init(const VideoMode &mode)
     Logger &logger = ServiceLocator::getLogger();
 
     { // pre-init
-#ifdef CLIENT_GLFW
-    GLFWwindow *win = ((GameClientGLFW*)(GameClient::corePtr))->getWindowPtr();
+#ifdef FRONTEND_GLFW
+    GLFWwindow *win = ((GameFrontendGLFW*)(GameFrontend::corePtr))->getWindowPtr();
 
     NativeSurfaceProps surfProps;
 #ifdef __linux__
@@ -146,9 +150,47 @@ void VulkanRenderer::init(const VideoMode &mode)
 #endif
     }
 
-    (void)mode;
+    switch(mode.samples)
+    {
+        case 1:
+        {
+            m_samplingValue = vk::SampleCountFlagBits::e2;
+            break;
+        }
+        case 2:
+        {
+            m_samplingValue = vk::SampleCountFlagBits::e4;
+            break;
+        }
+        case 3:
+        {
+            m_samplingValue = vk::SampleCountFlagBits::e8;
+            break;
+        }
+        case 4:
+        {
+            m_samplingValue = vk::SampleCountFlagBits::e16;
+            break;
+        }
+        case 5:
+        {
+            m_samplingValue = vk::SampleCountFlagBits::e32;
+            break;
+        }
+        case 6:
+        {
+            m_samplingValue = vk::SampleCountFlagBits::e64;
+            break;
+        }
+        default:
+        {
+            m_samplingValue = vk::SampleCountFlagBits::e1;
+            break;
+        }
+    }
+
     { // instance
-        vk::ApplicationInfo appInfo("", 0,
+        vk::ApplicationInfo appInfo(APP_NAME, 0,
                                     "CleanEngine", VK_MAKE_VERSION(0, 0, 1),
                                     VK_API_VERSION_1_1);
         vk::InstanceCreateInfo cInfo(vk::InstanceCreateFlags(),
@@ -320,6 +362,20 @@ void VulkanRenderer::init(const VideoMode &mode)
             }
         }
 
+        vk::PresentModeKHR presentMode = vk::PresentModeKHR::eFifo;
+        if(!mode.vsync)
+        {
+            auto modes = m_pDev.getSurfacePresentModesKHR(m_vkSurface);
+            for(auto &m : modes)
+            {
+                if(m == vk::PresentModeKHR::eImmediate)
+                {
+                    presentMode = vk::PresentModeKHR::eImmediate;
+                    break;
+                }
+            }
+        }
+
         vk::SwapchainCreateInfoKHR cInfo(vk::SwapchainCreateFlagsKHR(),
                                          m_vkSurface,
                                          imageCount,
@@ -332,7 +388,7 @@ void VulkanRenderer::init(const VideoMode &mode)
                                          1, &m_queueInfo.familyIndex,
                                          vk::SurfaceTransformFlagBitsKHR::eIdentity,
                                          vk::CompositeAlphaFlagBitsKHR::eOpaque,
-                                         vk::PresentModeKHR::eImmediate,
+                                         presentMode,
                                          VK_TRUE);
         try
         {
@@ -826,14 +882,24 @@ void VulkanRenderer::updateCameraData(Camera3D &cam)
     m_lightingData.viewPos = glm::vec4(cam.getPosition(), 1.f);
 }
 
-void VulkanRenderer::updateLightPosition(const glm::vec4 &pos, int id)
+void VulkanRenderer::updateLightCount(uint32_t count)
 {
-    m_lightingData.lightPositions[id % 16] = pos;
+    for(uint32_t i=m_lightingData.lightCount; i < std::min(count, Renderer::MaxLightSourceCount); i++)
+    {
+        m_lightingData.lightPositions[i] = glm::vec4(0, 1, 0, 1);
+        m_lightingData.lightColors[i] = glm::vec4(1.f);
+    }
+    m_lightingData.lightCount = std::min(count, Renderer::MaxLightSourceCount);
 }
 
-void VulkanRenderer::updateLightColor(const glm::vec4 &color, int id)
+void VulkanRenderer::updateLightPosition(const glm::vec4 &pos, uint32_t id)
 {
-    m_lightingData.lightColors[id % 16] = color;
+    m_lightingData.lightPositions[std::min(id, Renderer::MaxLightSourceCount-1)] = pos;
+}
+
+void VulkanRenderer::updateLightColor(const glm::vec4 &color, uint32_t id)
+{
+    m_lightingData.lightColors[std::min(id, Renderer::MaxLightSourceCount-1)] = color;
 }
 
 std::string VulkanRenderer::getType() const
