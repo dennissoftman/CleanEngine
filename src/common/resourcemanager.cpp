@@ -1,6 +1,6 @@
 #include "common/resourcemanager.hpp"
 #include "common/servicelocator.hpp"
-
+#include <libtar.h>
 #include <fstream>
 #include <filesystem>
 
@@ -81,8 +81,7 @@ DataResource ResourceManager::getResource(const std::string &path, bool enableCa
             if(unzOpenCurrentFile(arcFile) != UNZ_OK)
                 throw std::runtime_error("failed to read archive file '" + targetPath + "'");
 
-            res.data = std::make_shared<char[]>(res.size+1);
-            res.data[res.size] = 0; // nul-terminator
+            res.data = std::make_shared<char[]>(res.size);
             found = true;
             unzReadCurrentFile(arcFile, res.data.get(), res.size);
 
@@ -101,9 +100,8 @@ DataResource ResourceManager::getResource(const std::string &path, bool enableCa
         fp.seekg(0, std::ios_base::end);
         res.size = fp.tellg();
         fp.seekg(0, std::ios_base::beg);
-        res.data = std::make_shared<char[]>(res.size+1);
+        res.data = std::make_shared<char[]>(res.size);
         fp.read(static_pointer_cast<char[]>(res.data).get(), res.size);
-        res.data[res.size] = 0; // nul-terminator
         fp.close();
     }
 

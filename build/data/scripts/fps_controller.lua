@@ -1,5 +1,5 @@
 local keyboardButtons = {0, 0, 0, 0}
-local cursorLocked = false
+local cursorLocked = true
 
 local function keyHandler(key, scancode, action, mods)
 
@@ -85,7 +85,8 @@ local function coinUpdater(obj, dt)
     obj:setPosition(vec3(2, math.sin(2 * Client.getElapsedTime())*0.25 + 1.25, 0))
 end
 
+SceneManager.getActiveScene():getCamera():setPosition(vec3(0, 2, 0))
 Client.onUpdate(updateHandler)
 Input.onKeyboard(keyHandler)
 Input.onMouseMove(mouseHandler)
--- Client.lockCursor()
+Client.lockCursor()

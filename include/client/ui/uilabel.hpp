@@ -21,8 +21,6 @@ public:
 
     virtual UIElement::UIType getType() const override;
 protected:
-    std::function<void(const char*, const glm::vec2 &)> m_drawCallback;
-
     glm::vec2 m_pos, m_size;
     std::string m_text;
 };

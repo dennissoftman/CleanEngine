@@ -3,7 +3,7 @@
 
 UILabel::UILabel()
 {
-    m_drawCallback = [](const char*, const glm::vec2&){  };
+
 }
 
 UILabel::~UILabel()
@@ -43,5 +43,5 @@ const glm::vec2 &UILabel::getSize() const
 
 UIElement::UIType UILabel::getType() const
 {
-    return UIElement::eLabel;
+    return UIElement::UIType::eLabel;
 }

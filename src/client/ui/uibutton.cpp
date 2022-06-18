@@ -17,5 +17,5 @@ void UIButton::onClick()
 
 UIElement::UIType UIButton::getType() const
 {
-    return UIElement::eButton;
+    return UIElement::UIType::eButton;
 }

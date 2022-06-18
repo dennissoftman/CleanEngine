@@ -1,28 +1,39 @@
-local function sphereUpdate(obj, dt)
+local function objUpdate(obj, dt)
     local rot = vec3(0, 0.35 * Client.getElapsedTime(), 0)
     obj:setEulerRotation(rot)
 end
 
+local bulbObj
 local function lightUpdate(dt)
-    scene = SceneManager.getActiveScene()
-    et = Client.getElapsedTime()
+    local scene = SceneManager.getActiveScene()
+    local et = Client.getElapsedTime()
     local newPos = vec3(math.sin(et), 1, math.cos(et))
     scene:setLightPosition(newPos, 0)
+    bulbObj:setPosition(newPos)
 end
 
 local floorMdl = ModelManager.getModel("floor")
-local sphereMdl = ModelManager.getModel("snowball")
+local bulbMdl  = ModelManager.getModel("bulb")
+local scifiMdl = ModelManager.getModel("scifi-storage")
 -- get scene
 local scene = SceneManager.getActiveScene()
 -- add floor
 local floorObj = StaticMesh.new()
 floorObj:setModel(floorMdl)
+floorObj:setScale(vec3(0.5))
 scene:addObject(floorObj)
 Client.onUpdate(lightUpdate)
--- add snowball
-local sphereObj = StaticMesh.new()
-sphereObj:setModel(sphereMdl)
-sphereObj:setPosition(vec3(0, 0.5, 0))
-sphereObj:setScale(vec3(0.25))
-sphereObj:onUpdate(sphereUpdate)
-scene:addObject(sphereObj)
+-- add container
+local pbrObj = StaticMesh.new()
+pbrObj:setModel(scifiMdl)
+pbrObj:setPosition(vec3(0, 0.5, 0))
+pbrObj:setScale(vec3(0.5))
+pbrObj:onUpdate(objUpdate)
+scene:addObject(pbrObj)
+-- add "light bulb"
+bulbObj = StaticMesh.new()
+bulbObj:setModel(bulbMdl)
+scene:addObject(bulbObj)
+-- initialize light properties
+scene:setLightCount(1)
+scene:setLightColor(vec3(10), 0)

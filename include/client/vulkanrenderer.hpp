@@ -187,8 +187,9 @@ public:
     void resize(const glm::ivec2 &size) override;
 
     void updateCameraData(Camera3D &cam) override;
-    void updateLightPosition(const glm::vec4 &pos, int id=0) override;
-    void updateLightColor(const glm::vec4 &color, int id=0) override;
+    void updateLightCount(uint32_t count) override;
+    void updateLightPosition(const glm::vec4 &pos, uint32_t id=0) override;
+    void updateLightColor(const glm::vec4 &color, uint32_t id=0) override;
 
     [[nodiscard]] std::string getType() const override;
 

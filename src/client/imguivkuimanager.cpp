@@ -2,14 +2,15 @@
 #include "client/vulkanrenderer.hpp"
 #include "common/servicelocator.hpp"
 
-#ifdef CLIENT_GLFW
+#ifdef FRONTEND_GLFW
 #include "imgui_impl_glfw.h"
-#include "client/gameclientglfw.hpp"
+#include "client/gamefrontendglfw.hpp"
 #endif
 #include "imgui_impl_vulkan.h"
 
 #include "client/ui/uilabel.hpp"
 #include "client/ui/uibutton.hpp"
+#include "client/ui/uispinbox.hpp"
 
 static const char *MODULE_NAME = "ImguiVkUIManager";
 
@@ -33,15 +34,15 @@ void ImguiVkUIManager::init(Renderer *rend)
 {
     Logger &logger = ServiceLocator::getLogger();
     {
-#ifdef CLIENT_GLFW
+#ifdef FRONTEND_GLFW
         m_renderer = dynamic_cast<VulkanRenderer*>(rend);
         if(m_renderer == nullptr)
             throw std::runtime_error("renderer is null");
 
         ImGui::CreateContext();
-        ImGui_ImplGlfw_InitForVulkan(((GameClientGLFW*)(GameClient::corePtr))->getWindowPtr(), true);
+        ImGui_ImplGlfw_InitForVulkan(((GameFrontendGLFW*)(GameFrontend::corePtr))->getWindowPtr(), true);
 #else
-#error UI without a client is a nonsence
+#error UI without a frontend is a nonsence
 #endif
     }
 
@@ -133,7 +134,7 @@ void ImguiVkUIManager::terminate()
     m_renderer->getDevice().waitIdle();
     m_renderer->getDevice().destroyDescriptorPool(m_descPool);
     ImGui_ImplVulkan_Shutdown();
-#ifdef CLIENT_GLFW
+#ifdef FRONTEND_GLFW
     ImGui_ImplGlfw_Shutdown();
 #endif
     ImGui::DestroyContext();
@@ -145,7 +146,7 @@ void ImguiVkUIManager::update(double dt)
 
     ImGui_ImplVulkan_NewFrame();
 
-#ifdef CLIENT_GLFW
+#ifdef FRONTEND_GLFW
     ImGui_ImplGlfw_NewFrame();
 #endif
     ImGui::NewFrame();
@@ -166,6 +167,16 @@ void ImguiVkUIManager::update(double dt)
                 if(ImGui::Button(btn->text().c_str()))
                 {
                     btn->onClick();
+                }
+                break;
+            }
+            case UIElement::eSpinBox:
+            {
+                UISpinBox *spb = dynamic_cast<UISpinBox*>(el.get());
+                float v = spb->getValue();
+                if(ImGui::SliderFloat(spb->getLabel().c_str(), &v, spb->getMinimum(), spb->getMaximum(), "%.2f", 0.01f))
+                {
+                    spb->onChangeValue(v);
                 }
                 break;
             }

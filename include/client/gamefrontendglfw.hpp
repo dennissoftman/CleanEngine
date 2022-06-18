@@ -1,7 +1,7 @@
 #ifndef GAMECLIENTGLFW_H
 #define GAMECLIENTGLFW_H
 
-#include "client/gameclient.hpp"
+#include "client/gamefrontend.hpp"
 
 #ifdef RENDERER_VULKAN
     #define GLFW_INCLUDE_VULKAN
@@ -23,11 +23,11 @@ class ScriptEngine;
 
 #include "server/scene3d.hpp"
 
-class GameClientGLFW : public GameClient
+class GameFrontendGLFW : public GameFrontend
 {
 public:
-    GameClientGLFW();
-    ~GameClientGLFW();
+    GameFrontendGLFW();
+    ~GameFrontendGLFW();
 
     void init() override;
     void run() override;
@@ -55,7 +55,7 @@ public:
 
     static void onWindowResized(GLFWwindow *win, int width, int height);
     //
-    static GameClientGLFW *corePtr;
+    static GameFrontendGLFW *corePtr;
 private:
     GLFWwindow *m_mainWindow;
     Renderer *m_mainRenderer;
@@ -63,7 +63,10 @@ private:
     boost::signals2::signal<void(double)> m_updateEvents;
     double m_elapsedTime, m_deltaTime;
 
+    // window options
     glm::ivec2 m_windowSize;
+    bool m_windowFullscreen, m_windowVSync;
+    uint32_t m_windowFpsCap, m_windowSamples;
 };
 
 #endif // GAMECLIENTGLFW_H

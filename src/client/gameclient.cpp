@@ -1,4 +1,4 @@
-#include "client/gameclient.hpp"
+#include "../../include/client/gameclient.hpp"
 
 GameClient::GameClient()
 {

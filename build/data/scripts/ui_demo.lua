@@ -1,19 +1,38 @@
-local function hostFunction()
-    Server.create("*:25541") -- create and join
-    Client.connect("localhost:25541")
+local lblPtr, flip, spinVal = nil, false, 0.0
+local function beepFunction()
+    if flip then
+        lblPtr:setText("beep "..(spinVal))
+        flip = false
+    else
+        lblPtr:setText("bop "..(spinVal))
+        flip = true
+    end
 end
 
-local targetIP = "192.168.1.62"
-local function joinFunction()
-    Client.connect(targetIP..":25541")
+local function changeFunction(a)
+    spinVal = a
 end
 
-hostBtn = Button.new()
-hostBtn:setText("Host")
-hostBtn:onClick(hostFunction)
-UI.addElement(hostBtn)
+local btnA = Button.new()
+btnA:setText("Work in")
+btnA:onClick(beepFunction)
+UI.addElement(btnA)
 
-joinBtn = Button.new()
-joinBtn:setText("Join")
-joinBtn:onClick(joinFunction)
-UI.addElement(joinBtn)
+local btnB = Button.new()
+btnB:setText("Progress")
+btnB:onClick(beepFunction)
+UI.addElement(btnB)
+
+-- Don't ask me why slider is spinbox
+-- I will fix that l8r
+local spinA = SpinBox.new()
+spinA:setMinimum(-10)
+spinA:setMaximum(10)
+spinA:onChangeValue(changeFunction)
+UI.addElement(spinA)
+
+lblPtr = Label.new()
+lblPtr:setText("beep")
+UI.addElement(lblPtr)
+
+Client.releaseCursor()

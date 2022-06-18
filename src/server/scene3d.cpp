@@ -8,8 +8,10 @@ UUIDv4::UUIDGenerator<std::mt19937_64> Scene3D::m_uuidGenerator;
 
 Scene3D::Scene3D()
 {
-    m_lightingData.value().lightPositions[0] = glm::vec4(0, 1, 0, 1);
-    m_lightingData.value().lightColors[0] = glm::vec4(1);
+    m_lightingData.value().lightCount = 1;
+    m_lightingData.value().lightPositions[0] = glm::vec4(-1.f, -1.f, -1.f, 1.f);
+    m_lightingData.value().lightColors[0] = glm::vec4(1.f);
+    m_lightingData.set_dirty();
 }
 
 Scene3D::~Scene3D()
@@ -21,6 +23,7 @@ void Scene3D::draw(Renderer *rend)
 {
     if(m_lightingData.is_dirty())
     {
+        rend->updateLightCount(m_lightingData.value().lightCount);
         for(int i=0; i < m_lightingData.value().lightCount; i++)
         {
             rend->updateLightPosition(m_lightingData.value().lightPositions[i], i);
@@ -67,14 +70,6 @@ void Scene3D::addNamedObject(std::shared_ptr<Entity> other, const std::string &n
     }
 }
 
-void Scene3D::removeObject(const std::string &name)
-{
-    // DO NOT REMOVE OBJECT IF IT HAS RIGIDBODY CONNECTED!
-    // SEGFAULT GUARANTEED
-    // to be fixed
-    m_objects.erase(name);
-}
-
 void Scene3D::clear()
 {
     m_objects.clear();
@@ -97,23 +92,23 @@ Camera3D &Scene3D::getCamera()
     return m_camera;
 }
 
-void Scene3D::setLightPosition(const glm::vec3 &pos, int id)
+void Scene3D::setLightPosition(const glm::vec3 &pos, uint32_t id)
 {
-    m_lightingData.value().lightPositions[id%16] = glm::vec4(pos, 1.f);
+    float old_w = m_lightingData.value().lightPositions[std::min(id, Renderer::MaxLightSourceCount-1)].w;
+    m_lightingData.value().lightPositions[std::min(id, Renderer::MaxLightSourceCount-1)] = glm::vec4(pos, old_w);
     m_lightingData.set_dirty();
 }
 
-void Scene3D::setLightColor(const glm::vec3 &color, int id)
+void Scene3D::setLightColor(const glm::vec3 &color, uint32_t id)
 {
-    m_lightingData.value().lightColors[id%16] = glm::vec4(color, 1.f);
+    float old_w = m_lightingData.value().lightColors[std::min(id, Renderer::MaxLightSourceCount-1)].w;
+    m_lightingData.value().lightColors[std::min(id, Renderer::MaxLightSourceCount-1)] = glm::vec4(color, old_w);
     m_lightingData.set_dirty();
 }
 
-void Scene3D::setLightCount(int count)
+void Scene3D::setLightCount(uint32_t count)
 {
-    if(count < 0 || count >= Renderer::MaxLightSourceCount)
-        throw std::runtime_error("invalid light source count");
-    m_lightingData.value().lightCount = count;
+    m_lightingData.value().lightCount = std::min(count, Renderer::MaxLightSourceCount);
     m_lightingData.set_dirty();
 }
 

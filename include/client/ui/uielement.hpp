@@ -17,6 +17,7 @@ public:
     enum UIType {
         eLabel,
         eButton,
+        eSpinBox
     };
 
     virtual UIType getType() const = 0;

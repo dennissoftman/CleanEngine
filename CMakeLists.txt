@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS_DEBUG_INIT "-Wall -Og -ggdb")
 
+set(APP_NAME "CleanEngine" CACHE STRING "Desired app name (not the .exe name)")
+
 option(USE_OPENGL "Compile using OpenGL renderer" OFF)
 option(USE_VULKAN "Compile using Vulkan renderer" ON)
 
@@ -41,7 +43,7 @@ set(COMMON_SOURCES
   ${CMAKE_SOURCE_DIR}/include/common/debuglogger.hpp
   ${CMAKE_SOURCE_DIR}/src/common/servicelocator.cpp
   ${CMAKE_SOURCE_DIR}/include/common/servicelocator.hpp
-  ${CMAKE_SOURCE_DIR}/include/client/gameclient.hpp
+  ${CMAKE_SOURCE_DIR}/include/client/gamefrontend.hpp
   ${CMAKE_SOURCE_DIR}/src/client/inputmanager.cpp
   ${CMAKE_SOURCE_DIR}/include/client/inputmanager.hpp
   ${CMAKE_SOURCE_DIR}/src/common/entities/camera3d.cpp
@@ -73,7 +75,12 @@ set(COMMON_SOURCES
   ${CMAKE_SOURCE_DIR}/include/client/ui/uilabel.hpp
   ${CMAKE_SOURCE_DIR}/src/client/ui/uibutton.cpp
   ${CMAKE_SOURCE_DIR}/include/client/ui/uibutton.hpp
+  ${CMAKE_SOURCE_DIR}/src/client/ui/uispinbox.cpp
+  ${CMAKE_SOURCE_DIR}/include/client/ui/uispinbox.hpp
+  ${CMAKE_SOURCE_DIR}/include/client/gameclient.hpp
   ${CMAKE_SOURCE_DIR}/include/server/gameserver.hpp
+  ${CMAKE_SOURCE_DIR}/src/common/cfgpath.cpp
+  ${CMAKE_SOURCE_DIR}/include/common/cfgpath.hpp
 )
 
 if(USE_VULKAN)
@@ -135,6 +142,7 @@ if(USE_VULKAN)
   # toml++
   find_package(tomlplusplus REQUIRED)
   target_link_libraries(CleanEngine tomlplusplus::tomlplusplus)
+  target_compile_definitions(CleanEngine PRIVATE APP_NAME="${APP_NAME}")
 
   # server-side
   if(USE_ENET)
@@ -166,9 +174,9 @@ if(USE_VULKAN)
   target_link_libraries(CleanEngine minizip::minizip)
 
   # SAIL
-  find_package(Sail REQUIRED)
+  find_package(SailC++ REQUIRED)
   find_package(SailManip REQUIRED)
-  target_link_libraries(CleanEngine SAIL::sail SAIL::sail-manip)
+  target_link_libraries(CleanEngine SAIL::sail-c++ SAIL::sail-manip)
 
   # minizip
   find_package(minizip REQUIRED)
@@ -220,14 +228,14 @@ if(USE_VULKAN)
     target_link_libraries(CleanEngine glfw)
 
     target_sources(CleanEngine PUBLIC
-      ${CMAKE_SOURCE_DIR}/src/client/gameclientglfw.cpp
-      ${CMAKE_SOURCE_DIR}/include/client/gameclientglfw.hpp
+      ${CMAKE_SOURCE_DIR}/src/client/gamefrontendglfw.cpp
+      ${CMAKE_SOURCE_DIR}/include/client/gamefrontendglfw.hpp
     )
-    target_compile_definitions(CleanEngine PRIVATE CLIENT_GLFW)
+    target_compile_definitions(CleanEngine PRIVATE FRONTEND_GLFW)
   else()
     target_sources(CleanEngine PUBLIC
-      ${CMAKE_SOURCE_DIR}/src/client/dummygameclient.cpp
-      ${CMAKE_SOURCE_DIR}/include/client/dummygameclient.hpp
+      ${CMAKE_SOURCE_DIR}/src/client/dummygamefrontend.cpp
+      ${CMAKE_SOURCE_DIR}/include/client/dummygamefrontend.hpp
     )
   endif()
 

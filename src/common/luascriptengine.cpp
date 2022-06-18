@@ -1,7 +1,7 @@
 #include "common/luascriptengine.hpp"
 #include "common/servicelocator.hpp"
 
-#include "client/gameclient.hpp"
+#include "client/gamefrontend.hpp"
 
 // entities
 #include "common/entities/staticmesh.hpp"
@@ -20,12 +20,17 @@ SOL_BASE_CLASSES(UILabel, UIElement);
 #include "client/ui/uibutton.hpp"
 SOL_BASE_CLASSES(UIButton, UIElement);
 
-SOL_DERIVED_CLASSES(UIElement, UILabel, UIButton);
+#include "client/ui/uispinbox.hpp"
+SOL_BASE_CLASSES(UISpinBox, UIElement);
+
+SOL_DERIVED_CLASSES(UIElement, UILabel, UIButton, UISpinBox);
 //
 
 #include <fstream>
 #include <functional>
 #include <memory>
+
+#include <future>
 
 static const char *MODULE_NAME = "LuaScriptEngine";
 
@@ -153,6 +158,7 @@ void LuaScriptEngine::init()
     m_globalState.new_usertype<Scene3D>("Scene3D",
                                         "addObject", &Scene3D::addObject,
                                         "getCamera", &Scene3D::getCamera,
+                                        "setLightCount", &Scene3D::setLightCount,
                                         "setLightPosition", &Scene3D::setLightPosition,
                                         "setLightColor", &Scene3D::setLightColor);
 
@@ -180,43 +186,76 @@ void LuaScriptEngine::init()
                                          "onUpdate", &Camera3D::updateSubscribe);
 
     // material
-    m_globalState.new_usertype<Material>("Material",
-                                         sol::factories([&](const std::string &imgPath, const std::string &name)
-                                                           {
-                                                               Material *mat = Material::create();
-                                                               DataResource imgData = ServiceLocator::getResourceManager().getResource(imgPath);
-                                                               ImageData img = ImageLoader::loadImageMemory(imgData.data.get(), imgData.size);
-                                                               mat->setImage(img, "diffuse");
-                                                               mat->init();
-                                                               ServiceLocator::getMatManager().addMaterial(mat, name);
-                                                           },
-                                                        [&](const glm::vec3 &color, const std::string &name)
-                                                           {
-                                                               Material *mat = Material::create();
-                                                               mat->setColor(glm::vec4(color, 1.f), "diffuse");
-                                                               mat->init();
-                                                               ServiceLocator::getMatManager().addMaterial(mat, name);
-                                                           },
-                                                        [&](const std::string &albedo, const std::string &normal, const std::string &roughness, const std::string &metallic, const std::string &ambient, const std::string &name)
-                                                           {
-                                                               Material *mat = Material::create();
-                                                               ImageData albedoData, normalData, roughnessData, metallicData, aoData;
-                                                               auto imageLoader = [&](const std::string &path) -> ImageData {
-                                                                   DataResource resData = ServiceLocator::getResourceManager().getResource(path);
-                                                                   return ImageLoader::loadImageMemory(resData.data.get(), resData.size);
-                                                               };
+    {
+        auto diff_overloads = sol::overload(
+            [&](const std::string &imgPath, const std::string &name)
+               {
+                   Material *mat = Material::create();
+                   DataResource imgData = ServiceLocator::getResourceManager().getResource(imgPath);
+                   ImageData img = ImageLoader::loadImageMemory(imgData.data.get(), imgData.size);
+                   mat->setImage(img, "diffuse");
+                   mat->init();
+                   ServiceLocator::getMatManager().addMaterial(mat, name);
+               },
+            [&](const glm::vec3 &color, const std::string &name)
+               {
+                   Material *mat = Material::create();
+                   mat->setColor(glm::vec4(color, 1.f), "diffuse");
+                   mat->init();
+                   ServiceLocator::getMatManager().addMaterial(mat, name);
+               }
+        );
+        auto pbr_overloads = sol::overload(
+            [&](const std::string &albedoPath, const std::string &normalPath, const std::string &roughnessPath,
+                const std::string &metallicPath, const std::string &ambientPath, const std::string &name)
+               {
+                   Material *mat = Material::create();
+                   auto imageLoader = [&](const DataResource &data) -> ImageData {
+                       return ImageLoader::loadImageMemory(data.data.get(), data.size);
+                   };
 
-                                                               albedoData = imageLoader(albedo);
-                                                               normalData = imageLoader(normal);
-                                                               roughnessData = imageLoader(roughness);
-                                                               metallicData = imageLoader(metallic);
-                                                               aoData = imageLoader(ambient);
+                   DataResource albedoData = ServiceLocator::getResourceManager().getResource(albedoPath),
+                                normalData = ServiceLocator::getResourceManager().getResource(normalPath),
+                                roughnessData = ServiceLocator::getResourceManager().getResource(roughnessPath),
+                                metallicData = ServiceLocator::getResourceManager().getResource(metallicPath),
+                                ambientData = ServiceLocator::getResourceManager().getResource(ambientPath);
 
-                                                               mat->setPBR(albedoData, normalData, roughnessData, metallicData, aoData);
-                                                               mat->init();
-                                                               ServiceLocator::getMatManager().addMaterial(mat, name);
-                                                           })
-                                        );
+                   std::map<Material::TextureType, std::future<ImageData>> futures;
+                   futures.emplace(Material::TextureType::eAlbedo, std::async(std::launch::async, imageLoader, albedoData));
+                   futures.emplace(Material::TextureType::eNormal, std::async(std::launch::async, imageLoader, normalData));
+                   futures.emplace(Material::TextureType::eRoughness, std::async(std::launch::async, imageLoader, roughnessData));
+                   futures.emplace(Material::TextureType::eMetallic, std::async(std::launch::async, imageLoader, metallicData));
+                   futures.emplace(Material::TextureType::eAmbientOcclusion, std::async(std::launch::async, imageLoader, ambientData));
+
+                   for(auto &kv : futures)
+                       kv.second.wait();
+//                   albedoData = imageLoader(albedoPath);
+//                   normalData = imageLoader(normalPath);
+//                   roughnessData = imageLoader(roughnessPath);
+//                   metallicData = imageLoader(metallicPath);
+//                   aoData = imageLoader(ambientPath);
+                   mat->setPBR(futures[Material::TextureType::eAlbedo].get(),
+                               futures[Material::TextureType::eNormal].get(),
+                               futures[Material::TextureType::eRoughness].get(),
+                               futures[Material::TextureType::eMetallic].get(),
+                               futures[Material::TextureType::eAmbientOcclusion].get());
+                   mat->init();
+                   ServiceLocator::getMatManager().addMaterial(mat, name);
+               },
+            [&](const std::string &pbrPath, const std::string &name)
+               {
+                   Material *mat = Material::create();
+                   DataResource pbrData = ServiceLocator::getResourceManager().getResource(pbrPath);
+                   mat->setPBR(pbrData);
+                   mat->init();
+                   ServiceLocator::getMatManager().addMaterial(mat, name);
+               }
+        );
+
+        m_globalState.create_named_table("Material",
+                                         "createDiffuse", diff_overloads,
+                                         "createPBR", pbr_overloads);
+    }
 
     m_globalState.new_usertype<StaticMesh>("StaticMesh",
                                            sol::factories([&]() -> std::shared_ptr<StaticMesh> { return std::make_shared<StaticMesh>(); }),
@@ -239,6 +278,17 @@ void LuaScriptEngine::init()
                                          "setText", &UIButton::setText,
                                          "getText", &UIButton::text,
                                          "onClick", &UIButton::clickSubscribe);
+    m_globalState.new_usertype<UISpinBox>("SpinBox",
+                                          sol::factories([&]() -> std::shared_ptr<UISpinBox> { return std::make_shared<UISpinBox>(); }),
+                                          "setLabel", &UISpinBox::setLabel,
+                                          "getLabel", &UISpinBox::getLabel,
+                                          "setMinimum", &UISpinBox::setMinimum,
+                                          "getMinimum", &UISpinBox::getMinimum,
+                                          "setMaximum", &UISpinBox::setMaximum,
+                                          "getMaximum", &UISpinBox::getMaximum,
+                                          "setValue", &UISpinBox::setValue,
+                                          "getValue", &UISpinBox::getValue,
+                                          "onChangeValue", &UISpinBox::changeValueSubscribe);
 
     //
 
@@ -256,7 +306,8 @@ void LuaScriptEngine::init()
             }
         }
 
-        sol::protected_function_result result = m_globalState.safe_script(static_pointer_cast<const char>(scData.data).get());
+        std::string scriptText(scData.data.get(), scData.size);
+        sol::protected_function_result result = m_globalState.safe_script(scriptText);
         if(!result.valid())
         {
             sol::error err = result;
@@ -306,32 +357,32 @@ void LuaScriptEngine::Debug_error(const std::string &msg)
 
 void LuaScriptEngine::Client_onUpdateEvent(const std::function<void (double)> &slot)
 {
-    GameClient::corePtr->updateSubscribe(slot);
+    GameFrontend::corePtr->updateSubscribe(slot);
 }
 
 double LuaScriptEngine::Client_getDeltaTime()
 {
-    return GameClient::corePtr->getDeltaTime();
+    return GameFrontend::corePtr->getDeltaTime();
 }
 
 double LuaScriptEngine::Client_getElapsedTime()
 {
-    return GameClient::corePtr->getElapsedTime();
+    return GameFrontend::corePtr->getElapsedTime();
 }
 
 void LuaScriptEngine::Client_lockCursor()
 {
-    GameClient::corePtr->lockCursor();
+    GameFrontend::corePtr->lockCursor();
 }
 
 void LuaScriptEngine::Client_releaseCursor()
 {
-    GameClient::corePtr->unlockCursor();
+    GameFrontend::corePtr->unlockCursor();
 }
 
 void LuaScriptEngine::Client_exit()
 {
-    GameClient::corePtr->terminate();
+    GameFrontend::corePtr->terminate();
 }
 
 void LuaScriptEngine::ModelManager_loadModel(const std::string &path, const std::string &name)
@@ -375,7 +426,7 @@ void LuaScriptEngine::AudioManager_playMusic(const std::string &name, bool loope
 
 Scene3D &LuaScriptEngine::SceneManager_getActiveScene()
 {
-    return GameClient::corePtr->getScene();
+    return GameFrontend::corePtr->getScene();
 }
 
 void LuaScriptEngine::UI_addElement(std::shared_ptr<UIElement> el)
