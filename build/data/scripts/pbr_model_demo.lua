@@ -53,4 +53,3 @@ lightColB = SpinBox.new()
 lightColB:setLabel("B")
 lightColB:setValue(1.0)
 UI.addElement(lightColB)
-

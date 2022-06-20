@@ -33,7 +33,7 @@ struct alignas(512) ustar_header_s
 
 struct DataResource
 {
-    std::shared_ptr<char[]> data;
+    std::shared_ptr<unsigned char[]> data;
     size_t size;
 };
 

@@ -87,6 +87,9 @@ void VkMaterial::setRenderer(VulkanRenderer *rend)
 
 TextureObject VkMaterial::createTexture(const ImageData &imgData)
 {
+    if(imgData.format != ImageFormat::eRGBA)
+        throw std::runtime_error("only RGBA textures are supported");
+
     Logger &logger = ServiceLocator::getLogger();
 
     VkBufferObject texStagingBufferObj = m_renderer->createBuffer(imgData.size,
@@ -706,7 +709,7 @@ void VkMaterial::setPBR(const DataResource &pbrData)
             if(ftype == ResourceManager::TarFileType::eRegType)
             {
                 esize = std::stol(header.size, nullptr, 8);
-                std::shared_ptr<char[]> buff = std::make_shared<char[]>(esize);
+                std::shared_ptr<unsigned char[]> buff = std::make_shared<unsigned char[]>(esize);
                 memcpy(buff.get(), (pbrData.data.get() + offset + ResourceManager::TarProperty::eBlockSize), esize);
                 imageDatas[header.name] = DataResource{buff, esize};
             }
@@ -726,28 +729,28 @@ void VkMaterial::setPBR(const DataResource &pbrData)
             }
         } while(offset < pbrData.size);
 
-        if(!imageDatas.contains("albedo.png"))
+        if(!imageDatas.contains("albedo"))
             throw std::runtime_error("no albedo texture");
-        if(!imageDatas.contains("normal.png"))
+        if(!imageDatas.contains("normal"))
             throw std::runtime_error("no normal map texture");
-        if(!imageDatas.contains("roughness.png"))
+        if(!imageDatas.contains("roughness"))
             throw std::runtime_error("no roughness texture");
-        if(!imageDatas.contains("metallic.png"))
+        if(!imageDatas.contains("metallic"))
             throw std::runtime_error("no metallic texture");
-        if(!imageDatas.contains("ao.png"))
+        if(!imageDatas.contains("ao"))
             throw std::runtime_error("no ambient occlusion texture");
 
         std::map<Material::TextureType, std::future<ImageData>> asyncData;
         asyncData.emplace(Material::TextureType::eAlbedo,
-                          std::async(std::launch::async, ImageLoader::loadImageResource, imageDatas["albedo.png"]));
+                          std::async(std::launch::async, ImageLoader::loadImageResource, imageDatas["albedo"]));
         asyncData.emplace(Material::TextureType::eNormal,
-                          std::async(std::launch::async, ImageLoader::loadImageResource, imageDatas["normal.png"]));
+                          std::async(std::launch::async, ImageLoader::loadImageResource, imageDatas["normal"]));
         asyncData.emplace(Material::TextureType::eRoughness,
-                          std::async(std::launch::async, ImageLoader::loadImageResource, imageDatas["roughness.png"]));
+                          std::async(std::launch::async, ImageLoader::loadImageResource, imageDatas["roughness"]));
         asyncData.emplace(Material::TextureType::eMetallic,
-                          std::async(std::launch::async, ImageLoader::loadImageResource, imageDatas["metallic.png"]));
+                          std::async(std::launch::async, ImageLoader::loadImageResource, imageDatas["metallic"]));
         asyncData.emplace(Material::TextureType::eAmbientOcclusion,
-                          std::async(std::launch::async, ImageLoader::loadImageResource, imageDatas["ao.png"]));
+                          std::async(std::launch::async, ImageLoader::loadImageResource, imageDatas["ao"]));
         bool ready;
         do
         {

@@ -6,8 +6,7 @@
 
 enum class ImageFormat
 {
-    eBW,
-    eGrayscale,
+    eUINT16,
     eRGB,
     eRGBA
 };

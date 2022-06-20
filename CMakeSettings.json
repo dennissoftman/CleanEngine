@@ -12,57 +12,35 @@
       "ctestCommandArgs": "",
       "variables": [
         {
-          "name": "COMPILE_GL",
+          "name": "USE_GL",
           "value": "False",
           "type": "BOOL"
         },
         {
-          "name": "COMPILE_VK",
+          "name": "USE_VK",
           "value": "True",
           "type": "BOOL"
         }
       ]
     },
     {
-      "name": "win64debugGL",
+      "name": "win64releaseVk",
       "generator": "Ninja",
-      "configurationType": "Debug",
-      "buildRoot": "${projectDir}\\build",
-      "installRoot": "${projectDir}\\out\\install\\${name}",
-      "buildCommandArgs": "",
-      "ctestCommandArgs": "",
+      "configurationType": "MinSizeRel",
       "inheritEnvironments": [ "msvc_x64_x64" ],
-      "variables": [
-        {
-          "name": "COMPILE_GL",
-          "value": "True",
-          "type": "BOOL"
-        },
-        {
-          "name": "COMPILE_VK",
-          "value": "False",
-          "type": "BOOL"
-        },
-        {
-          "name": "BULLET_MULTITHREADED",
-          "value": "True",
-          "type": "BOOL"
-        }
-      ]
-    },
-    {
-      "name": "win64releaseGL",
-      "generator": "Ninja",
-      "configurationType": "Release",
-      "buildRoot": "${projectDir}\\build-release",
+      "buildRoot": "${projectDir}\\build",
       "installRoot": "${projectDir}\\out\\install\\${name}",
       "cmakeCommandArgs": "",
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
-      "inheritEnvironments": [ "msvc_x64_x64" ],
       "variables": [
         {
-          "name": "BULLET_MULTITHREADED",
+          "name": "USE_GL",
+          "value": "False",
+          "type": "BOOL"
+        },
+        {
+          "name": "USE_VK",
           "value": "True",
           "type": "BOOL"
         }

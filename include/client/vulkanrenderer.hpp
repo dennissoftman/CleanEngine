@@ -257,6 +257,7 @@ private:
     vk::Format m_vkImageFormat;
     std::vector<vk::Image> m_vkSwapchainImages;
     std::vector<vk::ImageView> m_vkSwapchainImageViews;
+    std::vector<vk::Format> m_supportedImageFormats;
     vk::Format m_vkDepthFormat;
     VkImageObject m_vkDepthImageObject;
     vk::ImageView m_vkDepthImageView;
