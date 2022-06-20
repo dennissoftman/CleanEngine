@@ -96,7 +96,7 @@ void FmodAudioManager::loadSound(const std::string &path, const std::string &nam
     FMOD_CREATESOUNDEXINFO createInfo{};
     createInfo.cbsize = sizeof(FMOD_CREATESOUNDEXINFO);
     createInfo.length = sndData.size;
-    m_audioSystem->createSound(static_pointer_cast<const char>(sndData.data).get(),
+    m_audioSystem->createSound(reinterpret_pointer_cast<const char>(sndData.data).get(),
                                FMOD_OPENMEMORY | FMOD_CREATESAMPLE | FMOD_3D,
                                &createInfo, &newSound);
     if(newSound)
@@ -142,7 +142,7 @@ void FmodAudioManager::loadMusic(const std::string &path, const std::string &nam
     FMOD_CREATESOUNDEXINFO createInfo{};
     createInfo.cbsize = sizeof(FMOD_CREATESOUNDEXINFO);
     createInfo.length = musData.size;
-    FMOD_RESULT r = m_audioSystem->createStream(static_pointer_cast<const char>(musData.data).get(),
+    FMOD_RESULT r = m_audioSystem->createStream(reinterpret_pointer_cast<const char>(musData.data).get(),
                                                 FMOD_OPENMEMORY | FMOD_CREATESTREAM | FMOD_2D,
                                                 &createInfo, &newMusic);
     if(newMusic)

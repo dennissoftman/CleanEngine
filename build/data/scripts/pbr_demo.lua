@@ -37,3 +37,5 @@ scene:addObject(bulbObj)
 -- initialize light properties
 scene:setLightCount(1)
 scene:setLightColor(vec3(10), 0)
+
+

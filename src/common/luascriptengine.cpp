@@ -53,6 +53,7 @@ void LuaScriptEngine::init()
 {
     m_globalState.open_libraries(sol::lib::base,
                                  sol::lib::package,
+                                 sol::lib::coroutine,
                                  sol::lib::string,
 #ifndef NDEBUG
                                  sol::lib::debug,
@@ -306,7 +307,7 @@ void LuaScriptEngine::init()
             }
         }
 
-        std::string scriptText(scData.data.get(), scData.size);
+        std::string scriptText(reinterpret_pointer_cast<const char[]>(scData.data).get(), scData.size);
         sol::protected_function_result result = m_globalState.safe_script(scriptText);
         if(!result.valid())
         {
@@ -334,7 +335,7 @@ int LuaScriptEngine::luaRootLoader(lua_State *L)
     DataResource scriptData = ServiceLocator::getResourceManager().getResource(path, true);
     if(scriptData.size > 0)
     {
-        luaL_loadbuffer(L, scriptData.data.get(), scriptData.size, path.c_str());
+        luaL_loadbuffer(L, reinterpret_pointer_cast<const char[]>(scriptData.data).get(), scriptData.size, path.c_str());
         return 1;
     }
     return 0;

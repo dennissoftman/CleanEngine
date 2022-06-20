@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(CleanEngine LANGUAGES CXX VERSION 0.1)
+project(CleanEngine LANGUAGES C CXX VERSION 0.1)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -157,7 +157,6 @@ if(USE_VULKAN)
     message(error "Not yet supported")
   endif()
 
-
   # GLM
   find_package(glm REQUIRED)
   target_compile_definitions(CleanEngine PRIVATE GLM_FORCE_DEPTH_ZERO_TO_ONE) # depth fix
@@ -173,10 +172,17 @@ if(USE_VULKAN)
   find_package(minizip REQUIRED)
   target_link_libraries(CleanEngine minizip::minizip)
 
-  # SAIL
-  find_package(SailC++ REQUIRED)
-  find_package(SailManip REQUIRED)
-  target_link_libraries(CleanEngine SAIL::sail-c++ SAIL::sail-manip)
+  # stb libs
+  find_path(STB_INCLUDE_DIRS "stb.h")
+  target_include_directories(CleanEngine PRIVATE ${STB_INCLUDE_DIRS})
+
+  # dds support
+  target_sources(CleanEngine PRIVATE
+    ${CMAKE_SOURCE_DIR}/libs/dds/dds.c
+    ${CMAKE_SOURCE_DIR}/libs/dds/dds.h
+  )
+
+  #
 
   # minizip
   find_package(minizip REQUIRED)
