@@ -13,6 +13,7 @@ option(USE_VULKAN "Compile using Vulkan renderer" ON)
 
 option(USE_BULLET "Compile using Bullet physics engien" ON)
 option(BULLET_MULTITHREADED "Compile using multithreaded Bullet3 (experimental)" OFF)
+option(USE_PHYSX "Compile using PhysX physics engine" OFF)
 
 option(USE_GLFW "Use GLFW library" ON)
 
@@ -33,6 +34,7 @@ option(USE_STEAM "Enable Steam API" OFF)
 set(FMOD_DIR "C:/Program Files (x86)/FMOD SoundSystem/FMOD Studio API Windows" CACHE PATH "Path to FMOD SDK")
 
 set(COMMON_SOURCES
+  ${CMAKE_SOURCE_DIR}/include/argparse.hpp
   ${CMAKE_SOURCE_DIR}/include/client/renderer.hpp
   ${CMAKE_SOURCE_DIR}/include/client/shader.hpp
   ${CMAKE_SOURCE_DIR}/src/common/logger.cpp
@@ -60,8 +62,11 @@ set(COMMON_SOURCES
   ${CMAKE_SOURCE_DIR}/src/server/scenemanager.cpp
   ${CMAKE_SOURCE_DIR}/include/server/scenemanager.hpp
   ${CMAKE_SOURCE_DIR}/include/common/entities/entity.hpp
+  ${CMAKE_SOURCE_DIR}/src/common/entities/entity.cpp
   ${CMAKE_SOURCE_DIR}/src/common/entities/staticmesh.cpp
   ${CMAKE_SOURCE_DIR}/include/common/entities/staticmesh.hpp
+  ${CMAKE_SOURCE_DIR}/include/common/entities/bodycomponent.hpp
+  ${CMAKE_SOURCE_DIR}/src/common/entities/bodycomponent.cpp
   ${CMAKE_SOURCE_DIR}/src/server/scene3d.cpp
   ${CMAKE_SOURCE_DIR}/include/server/scene3d.hpp
   ${CMAKE_SOURCE_DIR}/include/server/physicsmanager.hpp
@@ -77,10 +82,22 @@ set(COMMON_SOURCES
   ${CMAKE_SOURCE_DIR}/include/client/ui/uibutton.hpp
   ${CMAKE_SOURCE_DIR}/src/client/ui/uispinbox.cpp
   ${CMAKE_SOURCE_DIR}/include/client/ui/uispinbox.hpp
+  ${CMAKE_SOURCE_DIR}/include/client/ui/uitextinput.hpp
+  ${CMAKE_SOURCE_DIR}/src/client/ui/uitextinput.cpp
   ${CMAKE_SOURCE_DIR}/include/client/gameclient.hpp
   ${CMAKE_SOURCE_DIR}/include/server/gameserver.hpp
   ${CMAKE_SOURCE_DIR}/src/common/cfgpath.cpp
   ${CMAKE_SOURCE_DIR}/include/common/cfgpath.hpp
+  ${CMAKE_SOURCE_DIR}/include/common/utils.hpp
+  ${CMAKE_SOURCE_DIR}/src/common/utils.cpp
+  ${CMAKE_SOURCE_DIR}/include/common/entities/component.hpp
+  ${CMAKE_SOURCE_DIR}/src/common/entities/component.cpp
+  ${CMAKE_SOURCE_DIR}/include/common/entities/networksynccomponent.hpp
+  ${CMAKE_SOURCE_DIR}/src/common/entities/networksynccomponent.cpp
+  ${CMAKE_SOURCE_DIR}/include/server/gamebackend.hpp
+  ${CMAKE_SOURCE_DIR}/src/server/gamebackend.cpp
+  ${CMAKE_SOURCE_DIR}/include/client/gamerendererdiligent.hpp
+  ${CMAKE_SOURCE_DIR}/src/client/gamerendererdiligent.cpp
 )
 
 if(USE_VULKAN)
@@ -173,8 +190,8 @@ if(USE_VULKAN)
   target_link_libraries(CleanEngine minizip::minizip)
 
   # stb libs
-  find_path(STB_INCLUDE_DIRS "stb.h")
-  target_include_directories(CleanEngine PRIVATE ${STB_INCLUDE_DIRS})
+  find_package(Stb REQUIRED)
+  target_include_directories(CleanEngine PRIVATE ${Stb_INCLUDE_DIR})
 
   # dds support
   target_sources(CleanEngine PRIVATE
@@ -267,8 +284,18 @@ if(USE_VULKAN)
     target_sources(CleanEngine PRIVATE
       ${CMAKE_SOURCE_DIR}/src/server/bulletphysicsmanager.cpp
       ${CMAKE_SOURCE_DIR}/include/server/bulletphysicsmanager.hpp
+      ${CMAKE_SOURCE_DIR}/include/common/entities/bulletbodycomponent.hpp
+      ${CMAKE_SOURCE_DIR}/src/common/entities/bulletbodycomponent.cpp
     )
-    target_compile_definitions(CleanEngine PRIVATE PHYSICS_BULLET)
+  elseif(USE_PHYSX)
+      find_package(PhysX REQUIRED)
+      target_compile_definitions(CleanEngine PRIVATE PX_SUPPORT_PVD=1 PX_PROFILE=1 PX_CHECKED=1)
+      target_link_libraries(CleanEngine PhysX::PhysX)
+
+      target_sources(CleanEngine PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/server/physxphysicsmanager.cpp
+        ${CMAKE_SOURCE_DIR}/include/server/physxphysicsmanager.hpp
+      )
   else()
     target_sources(CleanEngine PRIVATE
       ${CMAKE_SOURCE_DIR}/src/server/dummyphysicsmanager.cpp
@@ -288,7 +315,7 @@ if(USE_VULKAN)
     target_link_libraries(CleanEngine ${LUA_LIBRARIES})
 
     find_package(sol2 REQUIRED)
-    target_link_libraries(CleanEngine sol2::sol2)
+    target_link_libraries(CleanEngine sol2)
   else()
     target_sources(CleanEngine PUBLIC
       ${CMAKE_SOURCE_DIR}/src/common/dummyscriptengine.cpp
@@ -298,7 +325,7 @@ if(USE_VULKAN)
 
   if(MSVC)
     set_target_properties(CleanEngine PROPERTIES LINK_FLAGS_RELEASE "/ENTRY:mainCRTStartup /SUBSYSTEM:WINDOWS")
-    add_compile_options(/std:c++20 /arch:AVX2)
+    target_compile_options(CleanEngine PRIVATE /std:c++20 /arch:AVX2 /bigobj)
     add_compile_definitions(NOMINMAX)
     # Audio
     if(USE_FMOD)
@@ -315,10 +342,15 @@ if(USE_VULKAN)
         ${CMAKE_SOURCE_DIR}/libs/steamworks_sdk/redistributable_bin/win64/
       )
       target_link_libraries(CleanEngine steam_api64.lib)
+
+      target_sources(CleanEngine PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/client/steamgameservices.cpp
+        ${CMAKE_SOURCE_DIR}/include/client/steamgameservices.hpp
+      )
     else()
       target_sources(CleanEngine PRIVATE
-        ${CMAKE_SOURCE_DIR}/src/common/dummyservices.cpp
-        ${CMAKE_SOURCE_DIR}/include/common/dummyservices.hpp
+        ${CMAKE_SOURCE_DIR}/src/client/dummygameservices.cpp
+        ${CMAKE_SOURCE_DIR}/include/client/dummygameservices.hpp
       )
     endif()
 

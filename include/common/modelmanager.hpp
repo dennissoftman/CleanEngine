@@ -58,7 +58,7 @@ struct Model3D
     Material **pMaterials;
     size_t materialsCount;
 
-    Material* pMat;
+    const Material* pMat;
 
     const void *pUserData;
 };
@@ -72,7 +72,7 @@ public:
     const Model3D *getModel(const std::string &name) const;
 
     // temp
-    void setModelMaterial(const std::string& name, Material* mat);
+    void setModelMaterial(const std::string& name, const Material* mat);
 
     void addModel(Model3D *mdl, const std::string &name);
     void loadModel(const void *data, size_t size, const std:: string &name, const char *fmt="glb");

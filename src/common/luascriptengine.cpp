@@ -4,13 +4,22 @@
 #include "client/gamefrontend.hpp"
 
 // entities
-#include "common/entities/staticmesh.hpp"
-SOL_BASE_CLASSES(StaticMesh, Entity);
-
 #include "common/entities/camera3d.hpp"
 SOL_BASE_CLASSES(Camera3D, Entity);
 
-SOL_DERIVED_CLASSES(Entity, StaticMesh, Camera3D);
+SOL_DERIVED_CLASSES(Entity, Camera3D);
+
+// components
+#include "common/entities/staticmesh.hpp"
+SOL_BASE_CLASSES(StaticMesh, Component);
+
+#include "common/entities/bodycomponent.hpp"
+SOL_BASE_CLASSES(BodyComponent, Component);
+
+#include "common/entities/networksynccomponent.hpp"
+SOL_BASE_CLASSES(NetworkSyncComponent, Component);
+
+SOL_DERIVED_CLASSES(Component, StaticMesh, BodyComponent, NetworkSyncComponent);
 //
 
 // ui
@@ -23,13 +32,20 @@ SOL_BASE_CLASSES(UIButton, UIElement);
 #include "client/ui/uispinbox.hpp"
 SOL_BASE_CLASSES(UISpinBox, UIElement);
 
-SOL_DERIVED_CLASSES(UIElement, UILabel, UIButton, UISpinBox);
+#include "client/ui/uitextinput.hpp"
+SOL_BASE_CLASSES(UITextInput, UIElement);
+
+SOL_DERIVED_CLASSES(UIElement, UILabel, UIButton, UISpinBox, UITextInput);
+//
+
+// physics
+#include "server/physicsmanager.hpp"
 //
 
 #include <fstream>
 #include <functional>
 #include <memory>
-
+#include <format>
 #include <future>
 
 static const char *MODULE_NAME = "LuaScriptEngine";
@@ -78,7 +94,11 @@ void LuaScriptEngine::init()
 
         m_globalState.create_named_table("ModelManager",
                                          "loadModel", LuaScriptEngine::ModelManager_loadModel,
-                                         "getModel", LuaScriptEngine::ModelManager_getModel);
+                                         "getModel", LuaScriptEngine::ModelManager_getModel,
+                                         "setModelMaterial", LuaScriptEngine::ModelManager_setModelMaterial);
+
+        m_globalState.create_named_table("MaterialManager",
+                                         "getMaterial", LuaScriptEngine::MaterialManager_getMaterial);
 
         m_globalState.create_named_table("SceneManager",
                                          "getActiveScene", LuaScriptEngine::SceneManager_getActiveScene);
@@ -97,6 +117,16 @@ void LuaScriptEngine::init()
                                          "playSound", LuaScriptEngine::AudioManager_playSound,
                                          "loadMusic", LuaScriptEngine::AudioManager_loadMusic,
                                          "playMusic", LuaScriptEngine::AudioManager_playMusic);
+
+        m_globalState.create_named_table("Physics",
+                                         "explode", LuaScriptEngine::Physics_explode);
+
+        m_globalState.create_named_table("ResourceManager",
+                                         "getFile", LuaScriptEngine::ResourceManager_getFile);
+
+        m_globalState.create_named_table("NetworkManager",
+                                         "host", LuaScriptEngine::NetworkManager_host,
+                                         "connect", LuaScriptEngine::NetworkManager_connect);
     }
 
     // register object types
@@ -116,7 +146,9 @@ void LuaScriptEngine::init()
                                                   "y", &glm::vec2::y,
                                                   sol::meta_function::addition, [](const glm::vec2 &v1, const glm::vec2 &v2) -> glm::vec2 { return v1 + v2; },
                                                   sol::meta_function::subtraction, [](const glm::vec2 &v1, const glm::vec2 &v2) -> glm::vec2 { return v1 - v2; },
-                                                  sol::meta_function::multiplication, mul_overloads);
+                                                  sol::meta_function::length, [](const glm::vec3 &v) { return glm::length(v); },
+                                                  sol::meta_function::multiplication, mul_overloads,
+                                                  sol::meta_function::to_string, [](const glm::vec2 &v) { return std::format("vec2({}; {})", v.x, v.y); } );
         }
 
         { // vec3
@@ -135,7 +167,9 @@ void LuaScriptEngine::init()
                                                   "z", &glm::vec3::z,
                                                   sol::meta_function::addition, [](const glm::vec3 &v1, const glm::vec3 &v2) -> glm::vec3 { return v1 + v2; },
                                                   sol::meta_function::subtraction, [](const glm::vec3 &v1, const glm::vec3 &v2) -> glm::vec3 { return v1 - v2; },
-                                                  sol::meta_function::multiplication, mul_overloads);
+                                                  sol::meta_function::length, [](const glm::vec3 &v) { return glm::length(v); },
+                                                  sol::meta_function::multiplication, mul_overloads,
+                                                  sol::meta_function::to_string, [](const glm::vec3 &v) { return std::format("vec3({}; {}; {})", v.x, v.y, v.z); });
         }
 
         { // quaternion
@@ -147,17 +181,24 @@ void LuaScriptEngine::init()
             m_globalState.new_usertype<glm::quat>("quat",
                                                   sol::call_constructor,
                                                   sol::factories([&]() { return glm::quat(); },
-                                                                 [&](const glm::vec3 &angle) { return glm::quat(angle); }),
+                                                                 [&](const glm::vec3 &angle) { return glm::quat(angle); },
+                                                                 [&](float x, float y, float z, float w) { return glm::quat(w, x, y, z); } ),
                                                   "x", &glm::quat::x,
                                                   "y", &glm::quat::y,
                                                   "z", &glm::quat::z,
                                                   "w", &glm::quat::w,
-                                                  sol::meta_function::multiplication, mul_overloads);
+                                                  sol::meta_function::multiplication, mul_overloads,
+                                                  sol::meta_function::to_string, [](const glm::quat &v) { return std::format("quat({}; {}; {}; {})", v.x, v.y, v.z, v.w); });
         }
     }
 
+    m_globalState.new_usertype<UUIDv4::UUID>("UUID",
+                                             sol::call_constructor,
+                                             sol::factories([&](const std::string &val) { return UUIDv4::UUID(val); }));
+
     m_globalState.new_usertype<Scene3D>("Scene3D",
                                         "addObject", &Scene3D::addObject,
+                                        "getObject", &Scene3D::getObject,
                                         "getCamera", &Scene3D::getCamera,
                                         "setLightCount", &Scene3D::setLightCount,
                                         "setLightPosition", &Scene3D::setLightPosition,
@@ -165,21 +206,32 @@ void LuaScriptEngine::init()
 
     // defining object types
     m_globalState.new_usertype<Entity>("Entity",
-                                       sol::no_constructor,
+                                       sol::call_constructor,
+                                       sol::factories([&]() { return std::make_shared<Entity>(); },
+                                                      [&](const UUIDv4::UUID& id) { return std::make_shared<Entity>(id); } ),
+                                       "getID", &Entity::getID,
                                        "setPosition", &Entity::setPosition,
                                        "getPosition", &Entity::getPosition,
                                        "setRotation", &Entity::setRotation,
                                        "setEulerRotation", &Entity::setEulerRotation,
                                        "getRotation", &Entity::getRotation,
-                                       "setScale", &Entity::setScale);
+                                       "getEulerRotation", &Entity::getEulerRotation,
+                                       "setScale", &Entity::setScale,
+                                       "getScale", &Entity::getScale,
+                                       "onUpdate", &Entity::updateSubscribe,
+                                       "destroy", &Entity::destroy,
+                                       "onDestroy", &Entity::destroySubscribe,
+                                       "attachComponent", &Entity::attachComponent,
+                                       "removeComponent", &Entity::removeComponent);
 
     m_globalState.new_usertype<Camera3D>("Camera3D",
-                                         sol::factories([&]() -> std::shared_ptr<Camera3D> { return std::make_shared<Camera3D>(); }),
+                                         sol::call_constructor,
+                                         sol::factories([&]() { return std::make_shared<Camera3D>(); }),
                                          "setPosition", &Camera3D::setPosition,
                                          "getPosition", &Camera3D::getPosition,
                                          "setRotation", &Camera3D::setRotation,
-                                         "getRotation", &Camera3D::getRotation,
                                          "setEulerRotation", &Camera3D::setEulerRotation,
+                                         "getRotation", &Camera3D::getRotation,
                                          "getEulerRotation", &Camera3D::getEulerRotation,
                                          "front", &Camera3D::frontVector,
                                          "right", &Camera3D::rightVector,
@@ -258,28 +310,31 @@ void LuaScriptEngine::init()
                                          "createPBR", pbr_overloads);
     }
 
-    m_globalState.new_usertype<StaticMesh>("StaticMesh",
-                                           sol::factories([&]() -> std::shared_ptr<StaticMesh> { return std::make_shared<StaticMesh>(); }),
-                                           "setPosition", &StaticMesh::setPosition,
-                                           "getPosition", &StaticMesh::getPosition,
-                                           "setRotation", &StaticMesh::setRotation,
-                                           "getRotation", &StaticMesh::getRotation,
-                                           "setEulerRotation", &StaticMesh::setEulerRotation,
-                                           "getEulerRotation", &StaticMesh::getEulerRotation,
-                                           "setScale", &StaticMesh::setScale,
-                                           "setModel", &StaticMesh::setModel,
-                                           "onUpdate", &StaticMesh::updateSubscribe);
+    // components
+    m_globalState.new_usertype<StaticMesh>("MeshComponent",
+                                           sol::call_constructor,
+                                           sol::factories([&](std::shared_ptr<Entity> parent) { return std::make_shared<StaticMesh>(parent); }),
+                                           "setModel", &StaticMesh::setModel);
+
+    m_globalState.new_usertype<NetworkSyncComponent>("NetworkSyncComponent",
+                                                     sol::call_constructor,
+                                                     sol::factories([&](std::shared_ptr<Entity> parent) { return std::make_shared<NetworkSyncComponent>(parent); }));
 
     m_globalState.new_usertype<UILabel>("Label",
+                                        sol::call_constructor,
                                         sol::factories([&]() -> std::shared_ptr<UILabel> { return std::make_shared<UILabel>(); }),
                                         "setText", &UILabel::setText,
                                         "getText", &UILabel::text);
+
     m_globalState.new_usertype<UIButton>("Button",
+                                         sol::call_constructor,
                                          sol::factories([&]() -> std::shared_ptr<UIButton> { return std::make_shared<UIButton>(); }),
                                          "setText", &UIButton::setText,
                                          "getText", &UIButton::text,
                                          "onClick", &UIButton::clickSubscribe);
+
     m_globalState.new_usertype<UISpinBox>("SpinBox",
+                                          sol::call_constructor,
                                           sol::factories([&]() -> std::shared_ptr<UISpinBox> { return std::make_shared<UISpinBox>(); }),
                                           "setLabel", &UISpinBox::setLabel,
                                           "getLabel", &UISpinBox::getLabel,
@@ -291,6 +346,44 @@ void LuaScriptEngine::init()
                                           "getValue", &UISpinBox::getValue,
                                           "onChangeValue", &UISpinBox::changeValueSubscribe);
 
+    m_globalState.new_usertype<UITextInput>("TextInput",
+                                            sol::call_constructor,
+                                            sol::factories([&]() -> std::shared_ptr<UITextInput> { return std::make_shared<UITextInput>(); }),
+                                            "setLabel", &UITextInput::setLabel,
+                                            "getLabel", &UITextInput::getLabel,
+                                            "setValue", &UITextInput::setValue,
+                                            "getValue", &UITextInput::getValue,
+                                            "onChangeValue", &UITextInput::changeValueSubscribe);
+
+    // other classes
+    m_globalState.new_usertype<PhysicsBodyShapeInfo>("BodyShapeInfo",
+                                                     sol::call_constructor,
+                                                     sol::factories(
+                                                         [&]() { return PhysicsBodyShapeInfo(); },
+                                                         [&](float radius) { return PhysicsBodyShapeInfo(radius); },
+                                                         [&](const glm::vec3 &extents) { return PhysicsBodyShapeInfo(extents); }),
+                                                     "type", &PhysicsBodyShapeInfo::getShapeType);
+    m_globalState.new_usertype<PhysicsBodyProperties>("BodyProperties",
+                                                      sol::call_constructor,
+                                                      sol::factories(
+                                                          [&]() { return PhysicsBodyProperties(); },
+                                                          [&](float friction) { return PhysicsBodyProperties(friction); },
+                                                          [&](float friction, float restitution) { return PhysicsBodyProperties(friction, restitution); }));
+    m_globalState.new_usertype<PhysicsBodyCreateInfo>("BodyCreateInfo",
+                                                      sol::call_constructor,
+                                                      sol::factories(
+                                                        [&](const PhysicsBodyShapeInfo &shape) { return PhysicsBodyCreateInfo(shape); },
+                                                        [&](const PhysicsBodyShapeInfo &shape, float mass) { return PhysicsBodyCreateInfo(shape, mass); },
+                                                        [&](const PhysicsBodyShapeInfo &shape, float mass, const PhysicsBodyProperties &props) { return PhysicsBodyCreateInfo(shape, mass, props); },
+                                                        [&](const PhysicsBodyShapeInfo &shape, float mass, const PhysicsBodyProperties &props, const glm::vec3 &impulse) { return PhysicsBodyCreateInfo(shape, mass, props, impulse); }),
+                                                      "shape", &PhysicsBodyCreateInfo::getShapeInfo,
+                                                      "mass", &PhysicsBodyCreateInfo::getMass,
+                                                      "properties", &PhysicsBodyCreateInfo::getBodyProperties,
+                                                      "impulse", &PhysicsBodyCreateInfo::getImpulse);
+
+    m_globalState.new_usertype<BodyComponent>("BodyComponent",
+                                              sol::call_constructor,
+                                              sol::factories([&](const PhysicsBodyCreateInfo &cInfo, std::shared_ptr<Entity> parent) { return BodyComponent::createComponent(cInfo, parent); }));
     //
 
     // move init script to config file?
@@ -405,6 +498,16 @@ const Model3D *LuaScriptEngine::ModelManager_getModel(const std::string &name)
     return ServiceLocator::getModelManager().getModel(name);
 }
 
+void LuaScriptEngine::ModelManager_setModelMaterial(const std::string &mdlName, const Material *mat)
+{
+    ServiceLocator::getModelManager().setModelMaterial(mdlName, mat);
+}
+
+const Material *LuaScriptEngine::MaterialManager_getMaterial(const std::string &name)
+{
+    return ServiceLocator::getMatManager().getMaterial(name);
+}
+
 void LuaScriptEngine::AudioManager_loadSound(const std::string &path, const std::string &name)
 {
     ServiceLocator::getAudioManager().loadSound(path, name);
@@ -430,6 +533,13 @@ Scene3D &LuaScriptEngine::SceneManager_getActiveScene()
     return GameFrontend::corePtr->getScene();
 }
 
+std::string LuaScriptEngine::ResourceManager_getFile(const std::string &path)
+{
+    auto hdr = ServiceLocator::getResourceManager().getResource(path, true);
+    auto data = hdr.data.get();
+    return std::string(data, data+hdr.size);
+}
+
 void LuaScriptEngine::UI_addElement(std::shared_ptr<UIElement> el)
 {
     ServiceLocator::getUIManager().addElement(el);
@@ -453,4 +563,19 @@ void LuaScriptEngine::EventManager_onMouseMoveEvent(const clean::mouse_pos_callb
 void LuaScriptEngine::EventManager_onMouseScrollEvent(const clean::mouse_scroll_callback &slot)
 {
     ServiceLocator::getEventManager().mouseScrollSubscribe(slot);
+}
+
+void LuaScriptEngine::Physics_explode(const glm::vec3 &pos, float radius, float power)
+{
+    ServiceLocator::getPhysicsManager().explode(pos, radius, power);
+}
+
+bool LuaScriptEngine::NetworkManager_host(uint16_t port, int32_t max_clients)
+{
+    return ServiceLocator::getGameServer().host(NetworkServerProperties{port, max_clients});
+}
+
+bool LuaScriptEngine::NetworkManager_connect(const std::string &ip, uint16_t port)
+{
+    return ServiceLocator::getGameServer().connect(NetworkClientProperties{ip, port});
 }

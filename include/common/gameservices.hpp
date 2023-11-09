@@ -10,7 +10,7 @@ public:
     static GameServices *create();
 
     virtual void init() = 0; // init services
-
+    virtual void update(double dt) = 0;
     virtual void authorize() = 0; // log in?
 };
 

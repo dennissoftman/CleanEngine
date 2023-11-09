@@ -33,7 +33,7 @@ public:
     virtual void queueRenderObject(const Model3D *obj, const glm::mat4 &modelMatrix) = 0;
     virtual void draw() = 0;
 
-    virtual glm::ivec2 getSize() const = 0;
+    virtual const glm::ivec2& getSize() const = 0;
     virtual void resize(const glm::ivec2 &size) = 0;
 
     virtual void updateCameraData(Camera3D &cam) = 0;

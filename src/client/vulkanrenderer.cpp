@@ -25,6 +25,7 @@ Renderer *Renderer::create()
 VulkanRenderer::VulkanRenderer()
     : m_pDev(VK_NULL_HANDLE),
       m_queueInfo({}),
+      m_size(glm::ivec2(0)),
       m_currentSize(0, 0),
       m_vkDepthFormat(vk::Format::eUndefined),
       m_vkImageFormat(vk::Format::eUndefined),
@@ -464,6 +465,7 @@ void VulkanRenderer::init(const VideoMode &mode)
             return terminate();
         }
 
+        m_size = glm::ivec2(imageExtent.width, imageExtent.height);
         m_currentSize = imageExtent;
 
         // create image views
@@ -863,9 +865,9 @@ void VulkanRenderer::draw()
     m_currentFrame = (m_currentFrame+1) % m_vkSwapchainImages.size();
 }
 
-glm::ivec2 VulkanRenderer::getSize() const
+const glm::ivec2 &VulkanRenderer::getSize() const
 {
-    return {m_currentSize.width, m_currentSize.height};
+    return m_size;
 }
 
 void VulkanRenderer::resize(const glm::ivec2 &size)

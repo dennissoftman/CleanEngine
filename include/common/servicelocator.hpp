@@ -30,7 +30,8 @@
 #include "common/dummyscriptengine.hpp"
 
 #include "common/gameservices.hpp"
-#include "common/dummyservices.hpp"
+
+#include "server/gameserver.hpp"
 
 class ServiceLocator
 {
@@ -70,6 +71,10 @@ public:
     // physics management
     static PhysicsManager &getPhysicsManager();
     static void setPhysicsManager(PhysicsManager *mgr);
+
+    // network manager
+    static GameServer &getGameServer();
+    static void setGameServer(GameServer *mgr);
 
     // audio management
     static AudioManager &getAudioManager();
@@ -124,7 +129,9 @@ private:
 
     // game services
     static GameServices *m_gamesvcs;
-    static DummyServices m_defaultGameSvcs;
+
+    // game server
+    static GameServer *m_srvmgr;
 };
 
 #endif // SERVICELOCATOR_HPP

@@ -27,16 +27,19 @@ public:
 
     void update(double dt) override;
 
-    void createBody(const PhysicsBodyCreateInfo &cInfo, Entity *parent) override;
+    void* createBody(const PhysicsBodyCreateInfo &cInfo, const glm::vec3 &pos=glm::vec3(0.f), const glm::quat &rot=glm::quat(glm::vec3(0.f))) override;
 
     void setRaycastCallback(OnRaycastHitCallback callb) override;
     bool raycast(const glm::vec3 &pos, const glm::vec3 &dir, float len) override;
+    void explode(const glm::vec3 &pos, float radius, float power) override;
 
     static void OnContactBegin(btPersistentManifold* const& manifold);
     static void OnRaycastHit(btCollisionWorld::ClosestRayResultCallback &rayCallback);
 
     static BulletPhysicsManager *p_shared;
 private:
+    static void handleExplosion(btPersistentManifold* const& manifold);
+
     btCollisionConfiguration *m_collisionConfig;
     btCollisionDispatcher *m_dispatcher;
     btBroadphaseInterface *m_pairCache;

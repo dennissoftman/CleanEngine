@@ -9,11 +9,13 @@
 #include <sol/sol.hpp>
 #include <glm/vec3.hpp>
 
+#include "client/material.hpp"
 #include "client/inputmanager.hpp"
 
 class UIElement;
-class Model3D;
+struct Model3D;
 class Scene3D;
+class PhysicsBodyCreateInfo;
 
 class LuaScriptEngine : public ScriptEngine
 {
@@ -42,6 +44,10 @@ public:
     // Model manager
     static void ModelManager_loadModel(const std::string &path, const std::string &name);
     static const Model3D *ModelManager_getModel(const std::string &name);
+    static void ModelManager_setModelMaterial(const std::string &mdlName, const Material *mat);
+
+    // Material manager
+    static const Material *MaterialManager_getMaterial(const std::string &name);
 
     // Audio manager
     static void AudioManager_loadSound(const std::string &path, const std::string &name);
@@ -52,6 +58,9 @@ public:
     // Scene manager
     static Scene3D &SceneManager_getActiveScene();
 
+    // Resource manager
+    static std::string ResourceManager_getFile(const std::string &path);
+
     // UI
     static void UI_addElement(std::shared_ptr<UIElement> el);
 
@@ -60,6 +69,13 @@ public:
     static void EventManager_onMouseButtonEvent(const clean::mouse_button_callback &slot);
     static void EventManager_onMouseMoveEvent(const clean::mouse_pos_callback &slot);
     static void EventManager_onMouseScrollEvent(const clean::mouse_scroll_callback &slot);
+
+    // Physics
+    static void Physics_explode(const glm::vec3 &pos, float radius, float power);
+
+    // Networking
+    static bool NetworkManager_host(uint16_t port, int32_t max_clients);
+    static bool NetworkManager_connect(const std::string &ip, uint16_t port);
 private:
     // TODO: multiple states
     sol::state m_globalState;

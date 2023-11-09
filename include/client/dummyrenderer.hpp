@@ -15,12 +15,12 @@ public:
     void queueRenderObject(const Model3D *obj, const glm::mat4 &modelMatrix) override;
     void draw() override;
 
-    [[nodiscard]] glm::ivec2 getSize() const override;
+    const glm::ivec2& getSize() const override;
     void resize(const glm::ivec2 &size) override;
 
     void updateCameraData(Camera3D &cam) override;
 
-    [[nodiscard]] std::string getType() const override;
+    std::string getType() const override;
 };
 
 #endif // DUMMYRENDERER_HPP

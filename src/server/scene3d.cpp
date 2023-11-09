@@ -1,6 +1,7 @@
 #include "server/scene3d.hpp"
 #include "common/entities/entity.hpp"
-#include "common/servicelocator.hpp"
+#include <boost/bind.hpp>
+#include <format>
 
 static const char *MODULE_NAME = "Scene3D";
 
@@ -54,32 +55,35 @@ void Scene3D::terminate()
 
 void Scene3D::addObject(std::shared_ptr<Entity> other)
 {
-    addNamedObject(other, m_uuidGenerator.getUUID().str());
+    if(m_objects.find(other->getID()) == m_objects.end())
+        m_objects[other->getID()] = other;
 }
 
-void Scene3D::addNamedObject(std::shared_ptr<Entity> other, const std::string &name)
+void Scene3D::removeObject(std::shared_ptr<Entity> other)
 {
-    if(m_objects.find(name) == m_objects.end())
+    for (auto it = m_objects.begin(); it != m_objects.end(); ++it)
     {
-        other->setScene(this);
-        m_objects[name] = other;
+        if(it->second->getID() == other->getID())
+        {
+            // mark removed
+            it->second->destroy();
+            // remove from updates
+            m_objects.erase(it);
+            break;
+        }
     }
-    else
-    {
-        ServiceLocator::getLogger().error(MODULE_NAME, "Object already exists in scene");
-    }
+}
+
+std::weak_ptr<Entity> Scene3D::getObject(const UUIDv4::UUID &id) const
+{
+    if(m_objects.find(id) != m_objects.end())
+        return m_objects.at(id);
+    return std::weak_ptr<Entity>();
 }
 
 void Scene3D::clear()
 {
     m_objects.clear();
-}
-
-std::weak_ptr<Entity> Scene3D::getObject(const std::string &name) const
-{
-    if(m_objects.find(name) != m_objects.end())
-        return m_objects.at(name);
-    return std::weak_ptr<Entity>();
 }
 
 void Scene3D::setCamera(const Camera3D &cam)

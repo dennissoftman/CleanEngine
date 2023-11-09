@@ -9,6 +9,8 @@
 #include "imgui_impl_glfw.h"
 #endif
 
+#include "server/gamebackend.hpp"
+
 #include "common/cfgpath.hpp"
 #include <filesystem>
 #include <toml++/toml.h>
@@ -36,16 +38,11 @@ GameFrontendGLFW::~GameFrontendGLFW()
 
 void GameFrontendGLFW::onWindowResized(GLFWwindow *win, int width, int height)
 {
-    (void)win;
-    (void)width;
-    (void)height;
+    // TODO: resize window
 }
 
 void GameFrontendGLFW::onKeyboardEvent(GLFWwindow *win, int key, int scancode, int action, int mods)
 {
-    (void)win;
-    (void)mods;
-
     ServiceLocator::getEventManager().keyboardCallback(key,
                                                        scancode,
                                                        (action == GLFW_PRESS) ? 1 : ((action == GLFW_RELEASE) ? -1 : 0),
@@ -54,25 +51,25 @@ void GameFrontendGLFW::onKeyboardEvent(GLFWwindow *win, int key, int scancode, i
 
 void GameFrontendGLFW::onMouseButtonEvent(GLFWwindow *win, int button, int action, int mods)
 {
-    (void)win;
-    (void)mods;
-
     ServiceLocator::getEventManager().mouseButtonCallback(button,
                                                           (action == GLFW_PRESS) ? 1 : ((action == GLFW_RELEASE) ? -1 : 0));
 }
 
 void GameFrontendGLFW::onMousePositionEvent(GLFWwindow *win, double mx, double my)
 {
-    (void)win;
     ServiceLocator::getEventManager().mousePositionCallback(static_cast<int>(mx),
                                                             static_cast<int>(my));
 }
 
 void GameFrontendGLFW::onMouseScrollEvent(GLFWwindow *win, double sx, double sy)
 {
-    (void)win;
     ServiceLocator::getEventManager().mouseScrollCallback(static_cast<int>(sx),
                                                           static_cast<int>(sy));
+}
+
+void GameFrontendGLFW::onJoystickEvent(int jid, int event)
+{
+    ServiceLocator::getEventManager().joystickEventCallback(jid, event);
 }
 
 void GameFrontendGLFW::init()
@@ -187,6 +184,7 @@ void GameFrontendGLFW::init()
         glfwSetMouseButtonCallback(m_mainWindow, GameFrontendGLFW::onMouseButtonEvent);
         glfwSetCursorPosCallback(m_mainWindow, GameFrontendGLFW::onMousePositionEvent);
         glfwSetScrollCallback(m_mainWindow, GameFrontendGLFW::onMouseScrollEvent);
+        glfwSetJoystickCallback(GameFrontendGLFW::onJoystickEvent);
     }
 
     // ui
@@ -203,32 +201,38 @@ void GameFrontendGLFW::run()
 
 void GameFrontendGLFW::terminate()
 {
-    ServiceLocator::terminate();
     glfwTerminate();
 }
 
 void GameFrontendGLFW::mainLoop()
 {
-    AudioManager &audioManager = ServiceLocator::getAudioManager();
     UIManager &uiManager = ServiceLocator::getUIManager();
+    AudioManager &audioManager = ServiceLocator::getAudioManager();
+    GameServices &gameServices = ServiceLocator::getGameServices();
 
+    GameBackend *backend = GameBackend::corePtr;
     while (!glfwWindowShouldClose(m_mainWindow))
     {
         m_deltaTime = glfwGetTime() - m_elapsedTime;
         m_elapsedTime = glfwGetTime();
         glfwPollEvents();
 
-        // update gui
-        uiManager.update(m_deltaTime);
+        backend->update(m_deltaTime);
 
         // update scene
         m_currentScene.update(m_deltaTime);
 
-        // update sounds
+        // update audio
         audioManager.update(m_deltaTime);
+
+        // update ui
+        uiManager.update(m_deltaTime);
 
         // raise update event
         m_updateEvents(m_deltaTime);
+
+        // update game services
+        gameServices.update(m_deltaTime);
 
         // Draw objects on screen
         m_currentScene.draw(m_mainRenderer);

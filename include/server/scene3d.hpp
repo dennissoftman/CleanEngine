@@ -24,12 +24,12 @@ public:
 
     void terminate();
 
-    void addObject(std::shared_ptr<Entity> other); // add with uuid
-    void addNamedObject(std::shared_ptr<Entity> other, const std::string &name); // add with custom name
+    void addObject(std::shared_ptr<Entity> other);
+    void removeObject(std::shared_ptr<Entity> other);
+
+    std::weak_ptr<Entity> getObject(const UUIDv4::UUID& id) const;
 
     void clear();
-
-    std::weak_ptr<Entity> getObject(const std::string &name) const;
 
     void setCamera(const Camera3D &cam);
     Camera3D &getCamera();
@@ -40,11 +40,11 @@ public:
 
     size_t getObjectCount() const;
 
-private:
     static UUIDv4::UUIDGenerator<std::mt19937_64> m_uuidGenerator;
+private:
     Camera3D m_camera;
     // for now
-    std::unordered_map<std::string, std::shared_ptr<Entity>> m_objects;
+    std::unordered_map<UUIDv4::UUID, std::shared_ptr<Entity>> m_objects;
     clean::dirty_flag<LightingData> m_lightingData;
 };
 

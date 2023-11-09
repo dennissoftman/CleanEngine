@@ -2,6 +2,7 @@
 #define EVENTMANAGER_HPP
 
 #include <functional>
+#include <unordered_map>
 #include <boost/signals2.hpp>
 
 namespace clean
@@ -22,7 +23,15 @@ namespace clean
     typedef std::function<void(int, int)> mouse_pos_callback;
     typedef std::function<void(int, int)> mouse_scroll_callback;
     typedef std::function<void(int, int)> mouse_button_callback;
+    typedef std::function<void(int, int)> joystick_event_callback;
 }
+
+struct JoystickState
+{
+    bool isGamepad=true; // later on add more specifics
+    bool isConnected=false;
+    int id=0;
+};
 
 class InputManager
 {
@@ -59,7 +68,8 @@ public:
     void mouseScrollCallback(int sx, int sy);
     void mouseScrollSubscribe(const clean::mouse_scroll_callback &callb);
 
-    // TODO: joystick, etc.
+    void joystickEventCallback(int jid, int event);
+    void joystickEventSubscribe(const clean::joystick_event_callback &callb);
 private:
     boost::signals2::signal<void(double)> m_updateEvents;
 
@@ -67,6 +77,8 @@ private:
     boost::signals2::signal<void(int, int)> m_mouseBtnEvents;
     boost::signals2::signal<void(int, int)> m_mousePosEvents;
     boost::signals2::signal<void(int, int)> m_mouseScrollEvents;
+
+    std::unordered_map<int, JoystickState> m_connectedJoysticks;
 };
 
 #endif // EVENTMANAGER_HPP

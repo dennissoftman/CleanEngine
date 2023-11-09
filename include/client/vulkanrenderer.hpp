@@ -25,7 +25,7 @@ struct NativeSurfaceProps
     std::optional<xcb_connection_t*> connection;
     std::optional<xcb_window_t> window;
 
-    [[nodiscard]] bool isComplete() const
+     bool isComplete() const
     {
         return connection.has_value() && window.has_value();
     }
@@ -33,7 +33,7 @@ struct NativeSurfaceProps
     std::optional<HWND> hwnd;
     std::optional<HINSTANCE> hInstance;
 
-    [[nodiscard]] bool isComplete() const
+     bool isComplete() const
     {
         return hwnd.has_value() && hInstance.has_value();
     }
@@ -93,7 +93,7 @@ public:
         return m_meshes;
     }
 
-    [[nodiscard]] const Model3D *getParent() const
+     const Model3D *getParent() const
     {
         return m_parent;
     }
@@ -115,12 +115,12 @@ public:
         : m_renderObject(obj), m_modelMatrix(modelMatrix)
     { }
 
-    [[nodiscard]] const VkRenderObject *getRenderObject() const
+     const VkRenderObject *getRenderObject() const
     {
         return m_renderObject;
     }
 
-    [[nodiscard]] const glm::mat4 &getMatrix() const
+     const glm::mat4 &getMatrix() const
     {
         return m_modelMatrix;
     }
@@ -143,17 +143,17 @@ public:
         : m_cmdBuff(cmdBuff), m_imageIndex(imageIndex)
     {}
 
-    [[nodiscard]] std::string getType() const override
+     std::string getType() const override
     {
         return VULKAN_RENDERER_TYPE;
     }
 
-    [[nodiscard]] vk::CommandBuffer &getCmdBuffer()
+     vk::CommandBuffer &getCmdBuffer()
     {
         return m_cmdBuff;
     }
 
-    [[nodiscard]] uint32_t getImageIndex()
+     uint32_t getImageIndex()
     {
         return m_imageIndex;
     }
@@ -183,7 +183,7 @@ public:
     void queueRenderObject(VkRenderObject *obj, const glm::mat4 &modelMatrix);
     void draw() override;
 
-    [[nodiscard]] glm::ivec2 getSize() const override;
+    const glm::ivec2& getSize() const override;
     void resize(const glm::ivec2 &size) override;
 
     void updateCameraData(Camera3D &cam) override;
@@ -191,7 +191,7 @@ public:
     void updateLightPosition(const glm::vec4 &pos, uint32_t id=0) override;
     void updateLightColor(const glm::vec4 &color, uint32_t id=0) override;
 
-    [[nodiscard]] std::string getType() const override;
+    std::string getType() const override;
 
     void setNSP(const NativeSurfaceProps &nsp);
 
@@ -200,32 +200,31 @@ public:
     void addDeviceExtensions(const std::vector<const char*> &extensions);
     void addValidationLayers(const std::vector<const char*> &layers);
 
-    [[nodiscard]] vk::Instance &getInstance();
-    [[nodiscard]] vk::PhysicalDevice &getPhysicalDevice();
-    [[nodiscard]] vk::Device &getDevice();
-    [[nodiscard]] vk::Queue &getQueue();
-    [[nodiscard]] vk::RenderPass &getRenderPass();
-    [[nodiscard]] vk::Format getImageFormat() const;
-    [[nodiscard]] vk::SampleCountFlagBits getSamplingValue() const;
-    [[nodiscard]] uint32_t getImageCount() const;
-    [[nodiscard]] uint32_t getQueueFamilyIndex() const;
-    [[nodiscard]] vk::CommandBuffer getCommandBuffer() const; // current drawing command buffer
+    vk::Instance &getInstance();
+    vk::PhysicalDevice &getPhysicalDevice();
+    vk::Device &getDevice();
+    vk::Queue &getQueue();
+    vk::RenderPass &getRenderPass();
+    vk::Format getImageFormat() const;
+    vk::SampleCountFlagBits getSamplingValue() const;
+    uint32_t getImageCount() const;
+    uint32_t getQueueFamilyIndex() const;
+    vk::CommandBuffer getCommandBuffer() const; // current drawing command buffer
 
-    [[nodiscard]] VkBufferObject createBuffer(vk::DeviceSize size,
-                                              vk::BufferUsageFlags usage,
-                                              vk::MemoryPropertyFlags memProps);
-    [[nodiscard]] VkImageObject createImage(uint32_t width, uint32_t height,
-                                            vk::Format format,
-                                            uint32_t mipLevels,
-                                            vk::ImageTiling tiling,
-                                            vk::ImageUsageFlags usage,
-                                            vk::MemoryPropertyFlags memProps,
-                                            vk::SampleCountFlagBits samples=vk::SampleCountFlagBits::e1);
+    VkBufferObject createBuffer(vk::DeviceSize size,
+                                vk::BufferUsageFlags usage,
+                                vk::MemoryPropertyFlags memProps);
+    VkImageObject createImage(uint32_t width, uint32_t height,
+                              vk::Format format,uint32_t mipLevels,
+                              vk::ImageTiling tiling,
+                              vk::ImageUsageFlags usage,
+                              vk::MemoryPropertyFlags memProps,
+                              vk::SampleCountFlagBits samples=vk::SampleCountFlagBits::e1);
     void generateMipmaps(const VkImageObject &imageObject);
 
     const LightingData *getLightingData() const;
 
-    [[nodiscard]] vk::ImageView createImageView(const VkImageObject &imageObject,
+     vk::ImageView createImageView(const VkImageObject &imageObject,
                                                 vk::ImageAspectFlags aspect=vk::ImageAspectFlagBits::eColor);
     void registerMaterial(VkMaterial *mat);
 
@@ -239,7 +238,7 @@ public:
 private:
     void recordCommandBuffer(vk::CommandBuffer cmdBuff, uint32_t imgIndex);
     uint32_t getMemoryType(uint32_t memTypeBits, vk::MemoryPropertyFlags propFlags);
-    [[nodiscard]] VkRenderObject *createRenderObject(const Model3D *obj);
+     VkRenderObject *createRenderObject(const Model3D *obj);
 
     std::vector<const char*> m_instanceExtensions, m_deviceExtensions;
     std::vector<const char*> m_validationLayers;
@@ -251,6 +250,7 @@ private:
     QueueFamilyInfo m_queueInfo;
     std::vector<vk::Queue> m_vkQueues;
     NativeSurfaceProps m_nsp;
+    glm::ivec2 m_size;
     vk::Extent2D m_currentSize; // surface size
     vk::SurfaceKHR m_vkSurface;
     vk::SwapchainKHR m_vkSwapchain;

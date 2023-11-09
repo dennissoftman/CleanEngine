@@ -31,7 +31,7 @@ const Model3D *ModelManager::getModel(const std::string &name) const
     return m_models.at(name);
 }
 
-void ModelManager::setModelMaterial(const std::string& name, Material* mat)
+void ModelManager::setModelMaterial(const std::string& name, const Material* mat)
 {
     if (m_models.find(name) == m_models.end())
         throw std::runtime_error("Model not found");

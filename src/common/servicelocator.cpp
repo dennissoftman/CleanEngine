@@ -28,6 +28,8 @@ ScriptEngine *ServiceLocator::m_scengine = nullptr;
 
 GameServices *ServiceLocator::m_gamesvcs = nullptr;
 
+GameServer *ServiceLocator::m_srvmgr = nullptr;
+
 //
 
 void ServiceLocator::init()
@@ -35,6 +37,7 @@ void ServiceLocator::init()
     m_logger = &m_defaultLogger;
 
     m_resmgr = new ResourceManager();
+
     m_renderer = Renderer::create();
     m_matmgr = new MaterialManager();
     m_mdlmgr = new ModelManager();
@@ -45,10 +48,14 @@ void ServiceLocator::init()
     m_uimgr = UIManager::create();
     m_scengine = ScriptEngine::create();
     m_gamesvcs = GameServices::create();
+    m_srvmgr = GameServer::create();
 }
 
 void ServiceLocator::terminate()
 {
+    delete m_srvmgr;
+    m_srvmgr = nullptr;
+
     delete m_gamesvcs;
     m_gamesvcs = nullptr;
 
@@ -162,6 +169,17 @@ void ServiceLocator::setPhysicsManager(PhysicsManager *mgr)
 {
     if(mgr)
         m_physmgr = mgr;
+}
+
+GameServer &ServiceLocator::getGameServer()
+{
+    return *m_srvmgr;
+}
+
+void ServiceLocator::setGameServer(GameServer *mgr)
+{
+    if(mgr)
+        m_srvmgr = mgr;
 }
 
 AudioManager &ServiceLocator::getAudioManager()

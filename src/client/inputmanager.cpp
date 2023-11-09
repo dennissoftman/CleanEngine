@@ -1,4 +1,5 @@
 #include "client/inputmanager.hpp"
+#include <GLFW/glfw3.h>
 
 InputManager::InputManager()
 {
@@ -43,4 +44,37 @@ void InputManager::mouseScrollCallback(int sx, int sy)
 void InputManager::mouseScrollSubscribe(const clean::mouse_scroll_callback &callb)
 {
     m_mouseScrollEvents.connect(callb);
+}
+
+void InputManager::joystickEventCallback(int jid, int event)
+{
+    if(event == GLFW_CONNECTED)
+    {
+        if(m_connectedJoysticks.find(jid) == m_connectedJoysticks.end())
+            m_connectedJoysticks[jid] = JoystickState{};
+
+        JoystickState state = m_connectedJoysticks[jid];
+        state.isConnected = true;
+        if(glfwJoystickIsGamepad(jid) == GLFW_TRUE)
+            state.isGamepad = true;
+        else
+            state.isGamepad = false;
+
+        m_connectedJoysticks[jid] = state;
+        fprintf(stderr, "Joystick %d is connected\n", jid);
+    }
+    else if(event == GLFW_DISCONNECTED)
+    {
+        m_connectedJoysticks.erase(jid);
+        fprintf(stderr, "Joystick %d is disconnected\n", jid);
+    }
+    else
+    {
+        fprintf(stderr, "Unknown event id: %d\n", event);
+    }
+}
+
+void InputManager::joystickEventSubscribe(const clean::joystick_event_callback &callb)
+{
+
 }

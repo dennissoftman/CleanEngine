@@ -1,5 +1,6 @@
 #include "common/entities/camera3d.hpp"
 #include "common/servicelocator.hpp"
+#include "common/utils.hpp"
 
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/vector_angle.hpp>
@@ -8,52 +9,17 @@
 static const char *MODULE_NAME = "Camera3D";
 
 Camera3D::Camera3D(float fov, float aspect, float znear, float zfar)
-    : m_fov(fov), m_aspect(aspect), m_znear(znear), m_zfar(zfar),
-      m_position(glm::vec3()), m_rotation(glm::vec3()), m_scale(glm::vec3(1,1,1))
+    : Entity(), m_fov(fov), m_aspect(aspect), m_znear(znear), m_zfar(zfar)
 {
     m_viewMatrix = glm::mat4(1);
     m_projectionMatrix = glm::mat4(1);
+    m_id = Utils::uuidGenerator.getUUID();
 }
 
 void Camera3D::setPosition(const glm::vec3 &pos)
 {
-    m_position = pos;
+    Entity::setPosition(pos);
     m_viewMatrix.set_dirty();
-}
-
-const glm::vec3 &Camera3D::getPosition() const
-{
-    return m_position;
-}
-
-glm::vec3 Camera3D::getEulerRotation() const
-{
-    return glm::eulerAngles(m_rotation);
-}
-
-const glm::quat &Camera3D::getRotation() const
-{
-    return m_rotation;
-}
-
-const glm::vec3 &Camera3D::getScale() const
-{
-    return m_scale;
-}
-
-void Camera3D::setScene(Scene3D *parent)
-{
-    m_parentScene = parent;
-}
-
-Scene3D *Camera3D::getParentScene() const
-{
-    return m_parentScene;
-}
-
-const char *Camera3D::getType()
-{
-    return "Camera3D";
 }
 
 const glm::vec3 &Camera3D::frontVector()
@@ -110,16 +76,6 @@ const glm::mat4 &Camera3D::getProjectionMatrix()
     return m_projectionMatrix.value();
 }
 
-void Camera3D::updateSubscribe(const std::function<void (Entity*, double)> &callb)
-{
-    m_updateEvents.connect(callb);
-}
-
-void Camera3D::destroySubscribe(const std::function<void (Entity*)> &callb)
-{
-    m_destroyEvents.connect(callb);
-}
-
 void Camera3D::updateMatrices()
 {
     if(m_projectionMatrix.is_dirty())
@@ -143,24 +99,9 @@ void Camera3D::updateMatrices()
     }
 }
 
-void Camera3D::draw(Renderer *rend)
-{
-    (void)rend;
-}
-
-void Camera3D::update(double dt)
-{
-    m_updateEvents(this, dt);
-}
-
 void Camera3D::setVisible(bool yes)
 {
-    (void)yes;
-}
 
-void Camera3D::destroy()
-{
-    m_destroyEvents(this);
 }
 
 Camera3D &Camera3D::operator =(const Camera3D &other)
@@ -186,7 +127,7 @@ Camera3D &Camera3D::operator =(const Camera3D &other)
 
 void Camera3D::setRotation(const glm::quat &qrot)
 {
-    m_rotation = qrot;
+    Entity::setRotation(qrot);
     m_viewMatrix.set_dirty();
 }
 
@@ -197,5 +138,5 @@ void Camera3D::setEulerRotation(const glm::vec3 &rot)
 
 void Camera3D::setScale(const glm::vec3 &scale)
 {
-    (void)scale;
+
 }

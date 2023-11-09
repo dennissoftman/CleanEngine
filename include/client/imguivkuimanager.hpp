@@ -3,6 +3,7 @@
 
 #include "client/uimanager.hpp"
 #include "client/vulkanrenderer.hpp"
+#include <functional>
 
 class ImguiVkUIManager : public UIManager
 {

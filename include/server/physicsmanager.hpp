@@ -2,7 +2,7 @@
 #define PHYSICSMANAGER_HPP
 
 #include <variant>
-#include <glm/glm.hpp>
+#include <glm/gtx/quaternion.hpp>
 
 #include "common/modelmanager.hpp"
 
@@ -129,8 +129,9 @@ public:
 
     virtual void setRaycastCallback(OnRaycastHitCallback callb) = 0;
     virtual bool raycast(const glm::vec3 &pos, const glm::vec3 &dir, float len) = 0;
+    virtual void explode(const glm::vec3 &pos, float radius, float power) = 0;
 
-    virtual void createBody(const PhysicsBodyCreateInfo &cInfo, Entity *parent=nullptr) = 0;
+    virtual void* createBody(const PhysicsBodyCreateInfo &cInfo, const glm::vec3& pos=glm::vec3(0.f), const glm::quat& rot=glm::quat(glm::vec3(0.f))) = 0;
 };
 
 #endif

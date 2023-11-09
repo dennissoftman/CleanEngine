@@ -2,7 +2,11 @@
 #define ENTITY_HPP
 
 #include "client/renderer.hpp"
+#include "component.hpp"
 #include <functional>
+#include <glm/gtx/quaternion.hpp>
+#include <uuid/uuid_v4.h>
+#include <boost/signals2.hpp>
 
 class Scene3D;
 
@@ -11,33 +15,49 @@ class Entity;
 class Entity
 {
 public:
-    virtual ~Entity() {}
+    Entity();
+    Entity(const UUIDv4::UUID& id);
+    ~Entity();
 
-    virtual void draw(Renderer *rend) = 0;
-    virtual void update(double dt) = 0;
+    virtual void draw(Renderer *rend);
+    virtual void update(double dt);
 
-    virtual void setVisible(bool yes) = 0;
+    virtual UUIDv4::UUID getID() const;
+    virtual void setVisible(bool yes);
 
-    virtual void destroy() = 0;
+    virtual void destroy();
 
-    virtual void setPosition(const glm::vec3 &pos) = 0;
-    virtual void setRotation(const glm::quat &qrot) = 0;
-    virtual void setEulerRotation(const glm::vec3 &rot) = 0;
-    virtual void setScale(const glm::vec3 &scale) = 0;
+    virtual void setPosition(const glm::vec3 &pos);
+    virtual void setRotation(const glm::quat &qrot);
+    virtual void setEulerRotation(const glm::vec3 &rot);
+    virtual void setScale(const glm::vec3 &scale);
 
-    virtual const glm::vec3 &getPosition() const = 0;
-    virtual glm::vec3 getEulerRotation() const = 0;
-    virtual const glm::quat &getRotation() const = 0;
-    virtual const glm::vec3 &getScale() const = 0;
+    virtual const glm::vec3 &getPosition() const;
+    virtual glm::vec3 getEulerRotation() const;
+    virtual const glm::quat &getRotation() const;
+    virtual const glm::vec3 &getScale() const;
 
-    virtual const char *getType() = 0; // Entity, StaticMesh, etc.
+    virtual void setScene(Scene3D *parent);
+    virtual Scene3D *getParentScene() const;
 
-    virtual void setScene(Scene3D *parent) = 0;
-    virtual Scene3D *getParentScene() const = 0;
+    virtual void attachComponent(std::shared_ptr<Component> comp);
+    virtual void removeComponent(const char *name);
 
     // events
-    virtual void updateSubscribe(const std::function<void(Entity*, double)> &callb) = 0;
-    virtual void destroySubscribe(const std::function<void(Entity*)> &callb) = 0;
+    virtual void updateSubscribe(const std::function<void(Entity*, double)> &callb);
+    virtual void destroySubscribe(const std::function<void(Entity*)> &callb);
+
+protected:
+    UUIDv4::UUID m_id;
+    bool m_visible;
+    glm::vec3 m_position;
+    glm::quat m_rotation;
+    glm::vec3 m_scale;
+    Scene3D *m_parentScene;
+    std::unordered_map<const char*, std::shared_ptr<Component>> m_components;
+
+    boost::signals2::signal<void(Entity*, double)> m_updateEvents;
+    boost::signals2::signal<void(Entity*)> m_destroyEvents;
 };
 
 #endif // ENTITY_HPP

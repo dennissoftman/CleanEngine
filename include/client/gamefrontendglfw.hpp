@@ -45,13 +45,14 @@ public:
 
     GLFWwindow *getWindowPtr() const;
 
-    void updateSubscribe(const std::function<void(double)> &callb);
+    void updateSubscribe(const std::function<void(double)> &callb) override;
 
     // for events
     static void onKeyboardEvent(GLFWwindow *win, int key, int scancode, int action, int mods);
     static void onMouseButtonEvent(GLFWwindow *win, int button, int action, int mods);
     static void onMousePositionEvent(GLFWwindow *win, double mx, double my);
     static void onMouseScrollEvent(GLFWwindow *win, double sx, double sy);
+    static void onJoystickEvent(int jid, int event);
 
     static void onWindowResized(GLFWwindow *win, int width, int height);
     //

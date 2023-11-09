@@ -11,6 +11,7 @@
 #include "client/ui/uilabel.hpp"
 #include "client/ui/uibutton.hpp"
 #include "client/ui/uispinbox.hpp"
+#include "client/ui/uitextinput.hpp"
 
 static const char *MODULE_NAME = "ImguiVkUIManager";
 
@@ -158,7 +159,7 @@ void ImguiVkUIManager::update(double dt)
             case UIElement::eLabel:
             {
                 UILabel *lbl = dynamic_cast<UILabel*>(el.get());
-                ImGui::Text(lbl->text().c_str());
+                ImGui::Text("%s", lbl->text().c_str());
                 break;
             }
             case UIElement::eButton:
@@ -174,9 +175,22 @@ void ImguiVkUIManager::update(double dt)
             {
                 UISpinBox *spb = dynamic_cast<UISpinBox*>(el.get());
                 float v = spb->getValue();
-                if(ImGui::SliderFloat(spb->getLabel().c_str(), &v, spb->getMinimum(), spb->getMaximum(), "%.2f", 0.01f))
+                if(ImGui::SliderFloat(spb->getLabel().c_str(), &v, spb->getMinimum(), spb->getMaximum(), "%.2f"))
                 {
                     spb->onChangeValue(v);
+                }
+                break;
+            }
+            case UIElement::eTextInput:
+            {
+                UITextInput *inp = dynamic_cast<UITextInput*>(el.get());
+                std::string v = inp->getValue();
+                char buff[64];
+                memset(buff, 0, 64);
+                memcpy(buff, v.data(), v.size());
+                if(ImGui::InputText(inp->getLabel().c_str(), buff, 64))
+                {
+                    inp->onChangeValue(std::string(buff));
                 }
                 break;
             }

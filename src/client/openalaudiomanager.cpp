@@ -20,8 +20,6 @@ void OpenALAudioManager::init()
         throw std::runtime_error("failed to init openal");
     }
     m_context = alcCreateContext(m_device, nullptr);
-
-
 }
 
 void OpenALAudioManager::terminate()

@@ -1,6 +1,8 @@
 #include "server/bulletphysicsmanager.hpp"
 #include "common/servicelocator.hpp"
 #include "common/entities/entity.hpp"
+#include "common/entities/bulletbodycomponent.hpp"
+#include <format>
 
 static const char *MODULE_NAME = "BulletPhysicsManager";
 
@@ -38,13 +40,13 @@ void BulletPhysicsManager::init()
 #ifdef BULLET_MULTITHREADED
     btITaskScheduler *scheduler = nullptr;
 
-    if(scheduler = btGetOpenMPTaskScheduler())
+    if((scheduler = btGetOpenMPTaskScheduler()))
         logger.info(MODULE_NAME, "Using OpenMP task scheduler");
-    else if(scheduler = btGetTBBTaskScheduler())
+    else if((scheduler = btGetTBBTaskScheduler()))
         logger.info(MODULE_NAME, "Using Intel TBB task scheduler");
-    else if(scheduler = btGetPPLTaskScheduler())
+    else if((scheduler = btGetPPLTaskScheduler()))
         logger.info(MODULE_NAME, "Using Microsoft PPL task scheduler");
-    else if(scheduler = btCreateDefaultTaskScheduler())
+    else if((scheduler = btCreateDefaultTaskScheduler()))
         logger.info(MODULE_NAME, "Using threads task scheduler");
     else
     {
@@ -126,18 +128,18 @@ void BulletPhysicsManager::update(double dt)
         void *ptr = body->getUserPointer();
         if(ptr)
         {
+            BulletBodyComponent *comp = static_cast<BulletBodyComponent*>(ptr);
+
             const btTransform &t = body->getWorldTransform();
             const btVector3 &pos = t.getOrigin();
             const btQuaternion &rot = t.getRotation();
 
-            Entity *ent = static_cast<Entity*>(ptr);
-            ent->setPosition(glm::vec3(pos.x(), pos.y(), pos.z()));
-            ent->setRotation(glm::quat(rot.w(), rot.x(), rot.y(), rot.z()));
+            comp->updateTransform(pos, rot);
         }
     }
 }
 
-void BulletPhysicsManager::createBody(const PhysicsBodyCreateInfo &cInfo, Entity *parent)
+void *BulletPhysicsManager::createBody(const PhysicsBodyCreateInfo &cInfo, const glm::vec3 &pos, const glm::quat &rot)
 {
     const auto &shapeInfo = cInfo.getShapeInfo();
     btCollisionShape *bodyShape = nullptr;
@@ -158,31 +160,24 @@ void BulletPhysicsManager::createBody(const PhysicsBodyCreateInfo &cInfo, Entity
     case PhysicsShape::eTriangleMesh:
     {
         ServiceLocator::getLogger().warning(MODULE_NAME, "TriangleMesh shapes unsupported");
-        return;
+        return nullptr;
         break;
     }
     default:
-        return;
+        return nullptr;
     }
 
     btMotionState *bodyMotionState = new btDefaultMotionState();
-    if(parent)
-    {
-        btTransform t{};
-        const glm::vec3 &pos = parent->getPosition();
-        const glm::quat &rot = parent->getRotation();
-        t.setOrigin(btVector3(pos.x, pos.y, pos.z));
-        t.setRotation(btQuaternion(rot.x, rot.y, rot.z, rot.w));
-
-        bodyMotionState->setWorldTransform(t);
-    }
+    btTransform t{};
+    t.setOrigin(btVector3(pos.x, pos.y, pos.z));
+    t.setRotation(btQuaternion(rot.x, rot.y, rot.z, rot.w));
+    bodyMotionState->setWorldTransform(t);
 
     btVector3 bodyInertia{};
     if(cInfo.getMass() > 0)
         bodyShape->calculateLocalInertia(cInfo.getMass(), bodyInertia);
 
     btRigidBody *body = new btRigidBody(cInfo.getMass(), bodyMotionState, bodyShape, bodyInertia);
-    body->setUserPointer(parent);
     { // apply body modifiers
         const PhysicsBodyProperties &props = cInfo.getBodyProperties();
         body->setRestitution(props.getRestitution());
@@ -190,14 +185,18 @@ void BulletPhysicsManager::createBody(const PhysicsBodyCreateInfo &cInfo, Entity
 
         if(cInfo.getMass() > 0)
             body->setCollisionFlags(body->getCollisionFlags() | btCollisionObject::CF_CUSTOM_MATERIAL_CALLBACK);
+        else
+            body->setCollisionFlags(body->getCollisionFlags() | btCollisionObject::CF_STATIC_OBJECT);
 
         const glm::vec3 &startImpulse = cInfo.getImpulse();
         if(glm::length(startImpulse) > 0.f)
             body->applyCentralImpulse(btVector3(startImpulse.x, startImpulse.y, startImpulse.z));
 
     }
+
     m_world->addRigidBody(body);
     m_bodies.push_back(body);
+    return body;
 }
 
 void BulletPhysicsManager::setRaycastCallback(OnRaycastHitCallback callb)
@@ -227,6 +226,42 @@ bool BulletPhysicsManager::raycast(const glm::vec3 &pos, const glm::vec3 &dir, f
         }
     }
     return hasHit;
+}
+
+void BulletPhysicsManager::explode(const glm::vec3 &pos, float radius, float power)
+{
+    btVector3 fromWorld = btVector3(pos.x, pos.y, pos.z);
+    btVector3 toWorld;
+
+    std::mt19937 generator;
+    std::uniform_real_distribution<float> uniform01(0.f, 1.f);
+    std::vector<btRigidBody*> touchedBodies;
+    for(int i=0; i < 5000; i++)
+    {
+        // temp
+        float theta = 2.f * glm::pi<float>() * uniform01(generator);
+        float phi = acos(1.f - 2.f * uniform01(generator));
+        float x = sin(phi) * cos(theta);
+        float y = sin(phi) * sin(theta);
+        float z = cos(phi);
+        //
+        toWorld = btVector3(pos.x+x*radius, pos.y+y*radius, pos.z+z*radius);
+        btCollisionWorld::ClosestRayResultCallback rayCallback(fromWorld, toWorld);
+        m_world->rayTest(fromWorld, toWorld, rayCallback);
+
+        bool hasHit = rayCallback.hasHit();
+        if(hasHit)
+        {
+            btRigidBody *body = btRigidBody::upcast((btCollisionObject*)rayCallback.m_collisionObject);
+            if(std::find(touchedBodies.begin(), touchedBodies.end(), body) != touchedBodies.end())
+            {
+                i--;
+                continue;
+            }
+            body->applyCentralImpulse(btVector3(x, y, z) * power);
+            touchedBodies.push_back(body);
+        }
+    }
 }
 
 void BulletPhysicsManager::OnContactBegin(btPersistentManifold * const &manifold)

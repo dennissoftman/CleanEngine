@@ -4,6 +4,7 @@
 #include <fstream>
 #include <memory>
 #include <sstream>
+#include <format>
 
 static const char *MODULE_NAME = "FmodAudioManager";
 
@@ -113,6 +114,7 @@ void FmodAudioManager::playSound(const std::string &name, const SoundPropertiesI
 {
     if(m_preloadedSounds.find(name) == m_preloadedSounds.end())
         return;
+
     FMOD::Sound *sound = m_preloadedSounds[name];
     FMOD::Channel *channel;
     m_audioSystem->playSound(sound, nullptr, false, &channel);
