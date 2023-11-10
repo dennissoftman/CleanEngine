@@ -1,3 +1,5 @@
+#include <spdlog/spdlog.h>
+
 #include "common/dummyscriptengine.hpp"
 #include "common/servicelocator.hpp"
 
@@ -10,5 +12,5 @@ DummyScriptEngine::DummyScriptEngine()
 
 void DummyScriptEngine::init()
 {
-    ServiceLocator::getLogger().info(MODULE_NAME, "Script engine init completed");
+    spdlog::debug("Script engine init completed");
 }

@@ -16,8 +16,6 @@ public:
     void run();
 
     void stop();
-
-    static GameBackend *corePtr;
 private:
     std::atomic_flag m_doUpdate;
     double m_deltaTime;

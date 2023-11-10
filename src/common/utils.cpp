@@ -1,3 +1,4 @@
 #include "common/utils.hpp"
 
-UUIDv4::UUIDGenerator<std::mt19937_64> Utils::uuidGenerator = UUIDv4::UUIDGenerator<std::mt19937_64>();
+std::mt19937 Utils::rndGenerator = std::mt19937();
+uuids::uuid_random_generator Utils::uuidGenerator = uuids::uuid_random_generator(&Utils::rndGenerator);

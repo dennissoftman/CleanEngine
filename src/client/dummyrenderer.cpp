@@ -1,7 +1,7 @@
+#include <spdlog/spdlog.h>
+
 #include "client/dummyrenderer.hpp"
 #include "common/servicelocator.hpp"
-
-static const char *MODULE_NAME = "DummyRenderer";
 
 Renderer *Renderer::create()
 {
@@ -20,11 +20,10 @@ DummyRenderer::~DummyRenderer()
 
 void DummyRenderer::init(const VideoMode &mode)
 {
-    Logger &logger = ServiceLocator::getLogger();
-
     std::stringstream infostr;
     infostr << "VideoMode: (" << mode.width << "x" << mode.height << ")";
-    logger.info(MODULE_NAME, infostr.str());
+
+    spdlog::debug(infostr.str());
 }
 
 void DummyRenderer::queueRenderObject(const Model3D *obj, const glm::mat4 &modelMatrix)

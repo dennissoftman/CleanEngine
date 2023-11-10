@@ -1,6 +1,8 @@
 #ifndef STATICMESH_HPP
 #define STATICMESH_HPP
 
+#include <glm/glm.hpp>
+
 #include "common/entities/component.hpp"
 #include "common/modelmanager.hpp"
 
@@ -16,12 +18,9 @@ public:
     bool isDrawable() const override;
     const char *getName() const override;
 
-    void setModel(const Model3D *mdl);
-
     void updateMatrix();
 protected:
     std::string m_name;
-    const Model3D *rObj;
     glm::mat4 m_modelMatrix;
 };
 

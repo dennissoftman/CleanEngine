@@ -1,7 +1,8 @@
+#include <steam/steam_api.h>
+#include <spdlog/spdlog.h>
+
 #include "client/steamgameservices.hpp"
 #include "common/servicelocator.hpp"
-
-#include <steam/steam_api.h>
 
 static const char *MODULE_NAME = "SteamGameServices";
 
@@ -25,7 +26,7 @@ void SteamGameServices::init()
 {
     if(!SteamAPI_Init())
     {
-        ServiceLocator::getLogger().error(MODULE_NAME, "Failed to init SteamAPI");
+        spdlog::error("Failed to init SteamAPI");
         return;
     }
 }

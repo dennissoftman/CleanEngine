@@ -2,7 +2,6 @@
 #define DUMMYRENDERER_HPP
 
 #include "client/renderer.hpp"
-#include "common/logger.hpp"
 
 class DummyRenderer : public Renderer
 {
@@ -12,7 +11,6 @@ public:
 
     void init(const VideoMode &mode) override;
 
-    void queueRenderObject(const Model3D *obj, const glm::mat4 &modelMatrix) override;
     void draw() override;
 
     const glm::ivec2& getSize() const override;

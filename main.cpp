@@ -1,84 +1,59 @@
 #include <string>
 #include <stdexcept>
 #include <cstdio>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/basic_file_sink.h>
 
 #include "common/servicelocator.hpp"
-#include "common/debuglogger.hpp"
-
 #include "client/gamefrontend.hpp"
-
-#ifdef PHYSICS_BULLET
-#include "server/bulletphysicsmanager.hpp"
-#endif
-
-#include "client/audiomanager.hpp"
-
-#ifdef SERVICES_STEAM
-#include "common/steamservices.hpp"
-#endif
-
-static const char *MODULE_NAME = "Main";
+#include "server/gamebackend.hpp"
 
 int main()
 {
-    ServiceLocator::init(); // AT FIRST!
+    // init logging
+    spdlog::set_pattern("[%H:%M:%S %z] [%n] [%^---%L---%$] %v");
 #ifndef NDEBUG
-    FILE *debugFP = NULL;
+    std::shared_ptr<spdlog::logger> logger; // must be in highest main() context not to be destroyed
+    try
     {
-        debugFP = fopen("debug.log", "a");
-        DebugLogger *logger = new DebugLogger();
-        logger->addInfoFP(stdout);
-        logger->addInfoFP(debugFP);
-        logger->addWarningFP(stdout);
-        logger->addWarningFP(debugFP);
-        logger->addErrorFP(stderr);
-        logger->addErrorFP(debugFP);
-        ServiceLocator::setLogger(logger);
-
-        ServiceLocator::getLogger().info(MODULE_NAME, "Started logging");
+        spdlog::set_level(spdlog::level::debug);
+        logger = spdlog::basic_logger_mt(APP_NAME, "debug.log");
+        spdlog::set_default_logger(logger);
+    }
+    catch (const std::exception &e)
+    {
+        spdlog::error("Failed to init file logger");
     }
 #else // release
     {
-        DebugLogger *logger = new DebugLogger();
-        logger->addErrorFP(stderr);
-        ServiceLocator::setLogger(logger);
+        spdlog::set_level(spdlog::level::warn);
     }
 #endif
 
-#ifdef PHYSICS_BULLET
-    {
-        BulletPhysicsManager *bulletPhysicsManager = new BulletPhysicsManager();
-        bulletPhysicsManager->init();
-        ServiceLocator::setPhysicsManager(bulletPhysicsManager);
-    }
-#endif
-
-    { // Audio manager
-        AudioManager *audmgr = AudioManager::create();
-        audmgr->init();
-        ServiceLocator::setAudioManager(audmgr);
-    }
+    ServiceLocator::init();
+    std::atexit(ServiceLocator::terminate);
 
     ServiceLocator::getResourceManager().init(); // init configs
+/*
+    // init physics
+    ServiceLocator::getPhysicsManager().init();
+    // init audio
+    ServiceLocator::getAudioManager().init();
+    // init game services
+    ServiceLocator::getGameServices().init();
+    // init game services
+    ServiceLocator::getGameServices().init();
+    // init network manager
+    ServiceLocator::getGameServer().init();
+*/
+//    auto backend = std::make_unique<GameBackend>(GameBackend::create());
+//    backend->init();
 
-#ifdef SERVICES_STEAM
-    {
-        SteamServices *steamServices = new SteamServices();
-        steamServices->init();
-        ServiceLocator::setGameServices(steamServices);
-    }
-#endif
+    auto frontend = std::unique_ptr<GameFrontend>(GameFrontend::create());
+    frontend->init();
 
-    { // game client
-        GameFrontend *client = GameFrontend::create();
-        client->init();
-        client->run(); // blocking
-        delete client;
-    }
-
-#ifndef NDEBUG
-    fclose(debugFP);
-#endif
+    // backend->run(); // run in background
+    frontend->run(); // run in foreground
 
     return 0;
 }

@@ -1,11 +1,12 @@
-#include "server/physxphysicsmanager.hpp"
-#include "common/servicelocator.hpp"
-
 #include <PxPhysics.h>
 #include <PxPhysicsAPI.h>
 #include <thread>
 
 #include <format>
+#include <spdlog/spdlog.h>
+
+#include "server/physxphysicsmanager.hpp"
+#include "common/servicelocator.hpp"
 
 static const char *MODULE_NAME = "PhysXPhysicsManager";
 
@@ -33,13 +34,11 @@ PhysXPhysicsManager::~PhysXPhysicsManager()
 
 void PhysXPhysicsManager::init()
 {
-    Logger &logger = ServiceLocator::getLogger();
-
     // init physx
     m_foundation = PxCreateFoundation(PX_PHYSICS_VERSION, m_defaultAllocatorCallback, m_defaultErrorCallback);
     if(!m_foundation)
     {
-        logger.error(MODULE_NAME, "Failed to create PhysX foundation");
+        spdlog::error("Failed to create PhysX foundation");
         return;
     }
 
@@ -50,12 +49,12 @@ void PhysXPhysicsManager::init()
         m_pvdTransport = physx::PxDefaultPvdSocketTransportCreate("127.0.0.1", 5425, 100);
         if(!m_pvd->connect(*m_pvdTransport, physx::PxPvdInstrumentationFlag::eALL))
         {
-            logger.warning(MODULE_NAME, "Failed to connect PVD");
+            spdlog::warn("Failed to connect PVD");
         }
     }
     else
     {
-        logger.error(MODULE_NAME, "Failed to create PVD");
+        spdlog::error("Failed to create PVD");
     }
 #endif
 
@@ -64,12 +63,12 @@ void PhysXPhysicsManager::init()
     m_physics = PxCreatePhysics(PX_PHYSICS_VERSION, *m_foundation, m_toleranceScale, true, m_pvd);
     if(!m_physics)
     {
-        ServiceLocator::getLogger().error(MODULE_NAME, "Failed to create PhysX physics object");
+        spdlog::error("Failed to create PhysX physics object");
         return;
     }
 
     if(!PxInitExtensions(*m_physics, m_pvd))
-        logger.error(MODULE_NAME, "Failed to init PhysX extensions");
+        spdlog::error("Failed to init PhysX extensions");
 
     // initialize world
     physx::PxSceneDesc sceneDesc(m_physics->getTolerancesScale());
@@ -80,7 +79,7 @@ void PhysXPhysicsManager::init()
     m_scene = m_physics->createScene(sceneDesc);
     if(!m_scene)
     {
-        ServiceLocator::getLogger().error(MODULE_NAME, "Failed to create PhysX scene");
+        spdlog::error("Failed to create PhysX scene");
         return;
     }
 
@@ -94,11 +93,11 @@ void PhysXPhysicsManager::init()
     }
     else
     {
-        logger.error(MODULE_NAME, "PhysX PVD client unsupported");
+        spdlog::error("PhysX PVD client unsupported");
     }
 #endif
 
-    logger.info(MODULE_NAME, "Physics init completed");
+    spdlog::debug("Physics init completed");
 }
 
 void PhysXPhysicsManager::update(double dt)
@@ -168,7 +167,7 @@ void PhysXPhysicsManager::createBody(const PhysicsBodyCreateInfo &cInfo, Entity 
     }
     case PhysicsShape::eTriangleMesh:
     {
-        ServiceLocator::getLogger().warning(MODULE_NAME, "TriangleMesh shapes unsupported");
+        spdlog::error("TriangleMesh shapes unsupported");
         return;
         break;
     }
@@ -247,7 +246,7 @@ void PhysXPhysicsManager::terminate()
         m_foundation->release();
         m_foundation = nullptr;
     }
-    ServiceLocator::getLogger().info(MODULE_NAME, "Physics cleanup completed");
+    spdlog::debug("Physics cleanup completed");
 }
 
 void PhysXPhysicsManager::setRaycastCallback(OnRaycastHitCallback callb)

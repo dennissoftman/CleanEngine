@@ -1,8 +1,6 @@
 #include "server/gamebackend.hpp"
 #include "common/servicelocator.hpp"
 
-GameBackend* GameBackend::corePtr = nullptr;
-
 GameBackend *GameBackend::create()
 {
     return new GameBackend();
@@ -10,7 +8,7 @@ GameBackend *GameBackend::create()
 
 GameBackend::GameBackend()
 {
-    corePtr = this;
+    
 }
 
 GameBackend::~GameBackend()
@@ -25,13 +23,12 @@ void GameBackend::init()
 
 void GameBackend::update(double dt)
 {
-    m_deltaTime = dt;
-    m_doUpdate.test_and_set();
-    m_doUpdate.notify_one();
+    
 }
 
 void GameBackend::run()
 {
+    /*
     PhysicsManager &physManager = ServiceLocator::getPhysicsManager();
     GameServer &networkManager = ServiceLocator::getGameServer();
 
@@ -43,6 +40,7 @@ void GameBackend::run()
         physManager.update(m_deltaTime);
         networkManager.update(m_deltaTime);
     } while(m_shouldRun);
+    */
 }
 
 void GameBackend::stop()

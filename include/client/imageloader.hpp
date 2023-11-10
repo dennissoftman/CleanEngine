@@ -19,7 +19,7 @@ struct ImageData
     ImageFormat format;
 };
 
-class DataResource;
+struct DataResource;
 
 class ImageLoader
 {

@@ -3,11 +3,11 @@
 
 
 Entity::Entity()
-    : Entity(Utils::uuidGenerator.getUUID())
+    : Entity(Utils::uuidGenerator())
 {
 }
 
-Entity::Entity(const UUIDv4::UUID &id)
+Entity::Entity(const uuids::uuid &id)
     : m_id(id),
       m_visible(true),
       m_position(glm::vec3(0.f)),
@@ -43,7 +43,7 @@ void Entity::update(double dt)
     m_updateEvents(this, dt);
 }
 
-UUIDv4::UUID Entity::getID() const
+const uuids::uuid& Entity::getID() const
 {
     return m_id;
 }

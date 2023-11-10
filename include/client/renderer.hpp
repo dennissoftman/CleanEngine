@@ -1,8 +1,6 @@
 #ifndef RENDERER_HPP
 #define RENDERER_HPP
 
-#include "client/shader.hpp"
-#include "client/material.hpp"
 #include "common/modelmanager.hpp"
 
 #include <queue>
@@ -18,6 +16,8 @@ struct VideoMode
     int width, height;
     bool fullscreen, vsync;
     int samples;
+
+    void* osdata; // HWND or xcb_display_t
 };
 
 class Camera3D;
@@ -30,7 +30,6 @@ public:
 
     virtual void init(const VideoMode &mode) = 0;
 
-    virtual void queueRenderObject(const Model3D *obj, const glm::mat4 &modelMatrix) = 0;
     virtual void draw() = 0;
 
     virtual const glm::ivec2& getSize() const = 0;
@@ -43,8 +42,6 @@ public:
 
     // lowercase renderer identifier (gl, vk, dx, etc.)
     virtual std::string getType() const = 0;
-
-    static uint32_t MaxLightSourceCount;
 };
 
 #endif // RENDERER_HPP

@@ -1,10 +1,11 @@
-#include "client/fmodaudiomanager.hpp"
-#include "common/servicelocator.hpp"
-
 #include <fstream>
 #include <memory>
 #include <sstream>
 #include <format>
+#include <spdlog/spdlog.h>
+
+#include "client/fmodaudiomanager.hpp"
+#include "common/servicelocator.hpp"
 
 static const char *MODULE_NAME = "FmodAudioManager";
 
@@ -35,7 +36,7 @@ void FmodAudioManager::init()
         m_up.y = 1;
         m_audioSystem->set3DListenerAttributes(0, &m_pos, &m_vel, &m_forward, &m_up);
     }
-    ServiceLocator::getLogger().info(MODULE_NAME, "Init completed");
+    spdlog::debug("Init completed");
 
     m_musicChannelsPool.resize(8, nullptr);
 }
@@ -87,7 +88,7 @@ void FmodAudioManager::loadSound(const std::string &path, const std::string &nam
 {
     if(m_preloadedSounds.find(name) != m_preloadedSounds.end())
     {
-        ServiceLocator::getLogger().error(MODULE_NAME, "Sound resource '"+name+"' already exists");
+        spdlog::error("Sound resource '"+name+"' already exists");
         return;
     }
 
@@ -106,7 +107,7 @@ void FmodAudioManager::loadSound(const std::string &path, const std::string &nam
     {
         std::stringstream errorstr;
         errorstr << "Failed to load sound '" << path << "'";
-        ServiceLocator::getLogger().error(MODULE_NAME, errorstr.str());
+        spdlog::error(errorstr.str());
     }
 }
 
@@ -133,7 +134,7 @@ void FmodAudioManager::loadMusic(const std::string &path, const std::string &nam
 {
     if(m_musicStreams.find(name) != m_musicStreams.end())
     {
-        ServiceLocator::getLogger().error(MODULE_NAME, "Music resource '"+name+"' already exists");
+        spdlog::error("Music resource '"+name+"' already exists");
         return;
     }
 
@@ -153,7 +154,7 @@ void FmodAudioManager::loadMusic(const std::string &path, const std::string &nam
     {
         std::stringstream errorstr;
         errorstr << "Failed to load music '" << path << "'. FMOD error: " << r;
-        ServiceLocator::getLogger().error(MODULE_NAME, errorstr.str());
+        spdlog::error(errorstr.str());
     }
 }
 

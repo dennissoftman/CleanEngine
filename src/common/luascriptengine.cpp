@@ -1,3 +1,10 @@
+#include <fstream>
+#include <functional>
+#include <memory>
+#include <format>
+#include <future>
+#include <spdlog/spdlog.h>
+
 #include "common/luascriptengine.hpp"
 #include "common/servicelocator.hpp"
 
@@ -42,12 +49,6 @@ SOL_DERIVED_CLASSES(UIElement, UILabel, UIButton, UISpinBox, UITextInput);
 #include "server/physicsmanager.hpp"
 //
 
-#include <fstream>
-#include <functional>
-#include <memory>
-#include <format>
-#include <future>
-
 static const char *MODULE_NAME = "LuaScriptEngine";
 
 ScriptEngine *ScriptEngine::create()
@@ -91,14 +92,6 @@ void LuaScriptEngine::init()
                                          "lockCursor", LuaScriptEngine::Client_lockCursor,
                                          "releaseCursor", LuaScriptEngine::Client_releaseCursor,
                                          "exit", LuaScriptEngine::Client_exit);
-
-        m_globalState.create_named_table("ModelManager",
-                                         "loadModel", LuaScriptEngine::ModelManager_loadModel,
-                                         "getModel", LuaScriptEngine::ModelManager_getModel,
-                                         "setModelMaterial", LuaScriptEngine::ModelManager_setModelMaterial);
-
-        m_globalState.create_named_table("MaterialManager",
-                                         "getMaterial", LuaScriptEngine::MaterialManager_getMaterial);
 
         m_globalState.create_named_table("SceneManager",
                                          "getActiveScene", LuaScriptEngine::SceneManager_getActiveScene);
@@ -192,9 +185,9 @@ void LuaScriptEngine::init()
         }
     }
 
-    m_globalState.new_usertype<UUIDv4::UUID>("UUID",
-                                             sol::call_constructor,
-                                             sol::factories([&](const std::string &val) { return UUIDv4::UUID(val); }));
+    m_globalState.new_usertype<uuids::uuid>("UUID",
+                                            sol::call_constructor,
+                                            sol::factories([&](const std::string &val) { return uuids::uuid::from_string(val); }));
 
     m_globalState.new_usertype<Scene3D>("Scene3D",
                                         "addObject", &Scene3D::addObject,
@@ -208,7 +201,7 @@ void LuaScriptEngine::init()
     m_globalState.new_usertype<Entity>("Entity",
                                        sol::call_constructor,
                                        sol::factories([&]() { return std::make_shared<Entity>(); },
-                                                      [&](const UUIDv4::UUID& id) { return std::make_shared<Entity>(id); } ),
+                                                      [&](const uuids::uuid& id) { return std::make_shared<Entity>(id); } ),
                                        "getID", &Entity::getID,
                                        "setPosition", &Entity::setPosition,
                                        "getPosition", &Entity::getPosition,
@@ -238,84 +231,7 @@ void LuaScriptEngine::init()
                                          "up", &Camera3D::upVector,
                                          "onUpdate", &Camera3D::updateSubscribe);
 
-    // material
-    {
-        auto diff_overloads = sol::overload(
-            [&](const std::string &imgPath, const std::string &name)
-               {
-                   Material *mat = Material::create();
-                   DataResource imgData = ServiceLocator::getResourceManager().getResource(imgPath);
-                   ImageData img = ImageLoader::loadImageMemory(imgData.data.get(), imgData.size);
-                   mat->setImage(img, "diffuse");
-                   mat->init();
-                   ServiceLocator::getMatManager().addMaterial(mat, name);
-               },
-            [&](const glm::vec3 &color, const std::string &name)
-               {
-                   Material *mat = Material::create();
-                   mat->setColor(glm::vec4(color, 1.f), "diffuse");
-                   mat->init();
-                   ServiceLocator::getMatManager().addMaterial(mat, name);
-               }
-        );
-        auto pbr_overloads = sol::overload(
-            [&](const std::string &albedoPath, const std::string &normalPath, const std::string &roughnessPath,
-                const std::string &metallicPath, const std::string &ambientPath, const std::string &name)
-               {
-                   Material *mat = Material::create();
-                   auto imageLoader = [&](const DataResource &data) -> ImageData {
-                       return ImageLoader::loadImageMemory(data.data.get(), data.size);
-                   };
-
-                   DataResource albedoData = ServiceLocator::getResourceManager().getResource(albedoPath),
-                                normalData = ServiceLocator::getResourceManager().getResource(normalPath),
-                                roughnessData = ServiceLocator::getResourceManager().getResource(roughnessPath),
-                                metallicData = ServiceLocator::getResourceManager().getResource(metallicPath),
-                                ambientData = ServiceLocator::getResourceManager().getResource(ambientPath);
-
-                   std::map<Material::TextureType, std::future<ImageData>> futures;
-                   futures.emplace(Material::TextureType::eAlbedo, std::async(std::launch::async, imageLoader, albedoData));
-                   futures.emplace(Material::TextureType::eNormal, std::async(std::launch::async, imageLoader, normalData));
-                   futures.emplace(Material::TextureType::eRoughness, std::async(std::launch::async, imageLoader, roughnessData));
-                   futures.emplace(Material::TextureType::eMetallic, std::async(std::launch::async, imageLoader, metallicData));
-                   futures.emplace(Material::TextureType::eAmbientOcclusion, std::async(std::launch::async, imageLoader, ambientData));
-
-                   for(auto &kv : futures)
-                       kv.second.wait();
-//                   albedoData = imageLoader(albedoPath);
-//                   normalData = imageLoader(normalPath);
-//                   roughnessData = imageLoader(roughnessPath);
-//                   metallicData = imageLoader(metallicPath);
-//                   aoData = imageLoader(ambientPath);
-                   mat->setPBR(futures[Material::TextureType::eAlbedo].get(),
-                               futures[Material::TextureType::eNormal].get(),
-                               futures[Material::TextureType::eRoughness].get(),
-                               futures[Material::TextureType::eMetallic].get(),
-                               futures[Material::TextureType::eAmbientOcclusion].get());
-                   mat->init();
-                   ServiceLocator::getMatManager().addMaterial(mat, name);
-               },
-            [&](const std::string &pbrPath, const std::string &name)
-               {
-                   Material *mat = Material::create();
-                   DataResource pbrData = ServiceLocator::getResourceManager().getResource(pbrPath);
-                   mat->setPBR(pbrData);
-                   mat->init();
-                   ServiceLocator::getMatManager().addMaterial(mat, name);
-               }
-        );
-
-        m_globalState.create_named_table("Material",
-                                         "createDiffuse", diff_overloads,
-                                         "createPBR", pbr_overloads);
-    }
-
     // components
-    m_globalState.new_usertype<StaticMesh>("MeshComponent",
-                                           sol::call_constructor,
-                                           sol::factories([&](std::shared_ptr<Entity> parent) { return std::make_shared<StaticMesh>(parent); }),
-                                           "setModel", &StaticMesh::setModel);
-
     m_globalState.new_usertype<NetworkSyncComponent>("NetworkSyncComponent",
                                                      sol::call_constructor,
                                                      sol::factories([&](std::shared_ptr<Entity> parent) { return std::make_shared<NetworkSyncComponent>(parent); }));
@@ -395,7 +311,7 @@ void LuaScriptEngine::init()
             scData = ServiceLocator::getResourceManager().getResource(":/scripts/init.lua");
             if(scData.size == 0)
             {
-                ServiceLocator::getLogger().warning(MODULE_NAME, "Init script not found");
+                spdlog::warn("Init script not found");
                 return;
             }
         }
@@ -405,14 +321,14 @@ void LuaScriptEngine::init()
         if(!result.valid())
         {
             sol::error err = result;
-            ServiceLocator::getLogger().error(MODULE_NAME, "Script execution failed: " + std::string(err.what()));
+            spdlog::error("Script execution failed: " + std::string(err.what()));
         }
     }
     catch(const std::exception &e)
     {
-        ServiceLocator::getLogger().error(MODULE_NAME, std::string(e.what()));
+        spdlog::error(std::string(e.what()));
     }
-    ServiceLocator::getLogger().info(MODULE_NAME, "Script engine init completed");
+    spdlog::debug("Script engine init completed");
 }
 
 int LuaScriptEngine::luaRootLoader(lua_State *L)
@@ -436,17 +352,17 @@ int LuaScriptEngine::luaRootLoader(lua_State *L)
 
 void LuaScriptEngine::Debug_log(const std::string &msg)
 {
-    ServiceLocator::getLogger().info(MODULE_NAME, msg);
+    spdlog::info(msg);
 }
 
 void LuaScriptEngine::Debug_warning(const std::string &msg)
 {
-    ServiceLocator::getLogger().warning(MODULE_NAME, msg);
+    spdlog::warn(msg);
 }
 
 void LuaScriptEngine::Debug_error(const std::string &msg)
 {
-    ServiceLocator::getLogger().error(MODULE_NAME, msg);
+    spdlog::error(msg);
 }
 
 void LuaScriptEngine::Client_onUpdateEvent(const std::function<void (double)> &slot)
@@ -477,35 +393,6 @@ void LuaScriptEngine::Client_releaseCursor()
 void LuaScriptEngine::Client_exit()
 {
     GameFrontend::corePtr->terminate();
-}
-
-void LuaScriptEngine::ModelManager_loadModel(const std::string &path, const std::string &name)
-{
-    try
-    {
-        DataResource mdlData = ServiceLocator::getResourceManager().getResource(path);
-        ServiceLocator::getModelManager().loadModel(mdlData.data.get(), mdlData.size,
-                                                    name, path.substr(path.length()-path.find_last_of(".")).c_str());
-    }
-    catch(const std::exception &e)
-    {
-        ServiceLocator::getLogger().error(MODULE_NAME, "Failed to load model: " + std::string(e.what()));
-    }
-}
-
-const Model3D *LuaScriptEngine::ModelManager_getModel(const std::string &name)
-{
-    return ServiceLocator::getModelManager().getModel(name);
-}
-
-void LuaScriptEngine::ModelManager_setModelMaterial(const std::string &mdlName, const Material *mat)
-{
-    ServiceLocator::getModelManager().setModelMaterial(mdlName, mat);
-}
-
-const Material *LuaScriptEngine::MaterialManager_getMaterial(const std::string &name)
-{
-    return ServiceLocator::getMatManager().getMaterial(name);
 }
 
 void LuaScriptEngine::AudioManager_loadSound(const std::string &path, const std::string &name)

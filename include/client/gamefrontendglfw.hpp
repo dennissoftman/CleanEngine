@@ -3,17 +3,12 @@
 
 #include "client/gamefrontend.hpp"
 
-#ifdef RENDERER_VULKAN
-    #define GLFW_INCLUDE_VULKAN
-    #ifdef __linux__
-        #define GLFW_EXPOSE_NATIVE_X11
-        #include <X11/Xlib-xcb.h>
-    #elif _WIN32
-        #define GLFW_EXPOSE_NATIVE_WIN32
-    #endif
-    #include "client/vulkanrenderer.hpp"
-#elif RENDERER_OPENGL
-    #include "openglrenderer.hpp"
+#define GLFW_INCLUDE_VULKAN
+#ifdef __linux__
+    #define GLFW_EXPOSE_NATIVE_X11
+    #include <X11/Xlib-xcb.h>
+#elif _WIN32
+    #define GLFW_EXPOSE_NATIVE_WIN32
 #endif
 
 #include <GLFW/glfw3.h>

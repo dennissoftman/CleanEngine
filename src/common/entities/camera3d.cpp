@@ -13,7 +13,7 @@ Camera3D::Camera3D(float fov, float aspect, float znear, float zfar)
 {
     m_viewMatrix = glm::mat4(1);
     m_projectionMatrix = glm::mat4(1);
-    m_id = Utils::uuidGenerator.getUUID();
+    m_id = Utils::uuidGenerator();
 }
 
 void Camera3D::setPosition(const glm::vec3 &pos)

@@ -1,11 +1,12 @@
 #ifndef UTILS_HPP
 #define UTILS_HPP
 
-#include <uuid/uuid_v4.h>
+#include <stduuid/uuid.h>
 
 class Utils {
 public:
-    static UUIDv4::UUIDGenerator<std::mt19937_64> uuidGenerator;
+    static uuids::uuid_random_generator uuidGenerator;
+    static std::mt19937 rndGenerator;
 };
 
 #endif // UTILS_HPP

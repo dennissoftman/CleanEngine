@@ -1,11 +1,11 @@
-#include "common/resourcemanager.hpp"
-#include "common/servicelocator.hpp"
-
 #include <fstream>
 #include <filesystem>
-
 #include <cstring>
 #include <minizip/unzip.h>
+#include <spdlog/spdlog.h>
+
+#include "common/resourcemanager.hpp"
+#include "common/servicelocator.hpp"
 
 static const char *MODULE_NAME = "ResourceManager";
 
@@ -35,7 +35,7 @@ void ResourceManager::init()
                 }
                 else
                 {
-                    ServiceLocator::getLogger().error(MODULE_NAME, "Failed to open archive: '"+fpath+"'");
+                    spdlog::error("Failed to open archive: '"+fpath+"'");
                 }
             }
         }

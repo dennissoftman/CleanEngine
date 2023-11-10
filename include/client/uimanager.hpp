@@ -8,15 +8,16 @@ class UIManager
 {
     friend class Renderer;
 public:
-    virtual ~UIManager() {}
+    UIManager();
+    ~UIManager();
 
-    virtual void init(Renderer *rend) = 0;
+    void init(Renderer *rend);
 
-    virtual void update(double dt) = 0;
-    virtual void draw() =  0;
+    void update(double dt);
+    void draw();
 
-    virtual void addElement(std::shared_ptr<UIElement> el) = 0;
-    virtual void removeElement(std::shared_ptr<UIElement> el) = 0;
+    void addElement(std::shared_ptr<UIElement> el);
+    void removeElement(std::shared_ptr<UIElement> el);
 
     static UIManager *create();
 };

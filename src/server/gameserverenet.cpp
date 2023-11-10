@@ -1,8 +1,9 @@
-#include "server/gameserverenet.hpp"
-#include "common/servicelocator.hpp"
-
 #include <stdexcept>
 #include <enet/enet.h>
+#include <spdlog/spdlog.h>
+
+#include "server/gameserverenet.hpp"
+#include "common/servicelocator.hpp"
 
 GameServer *GameServer::corePtr = nullptr;
 
@@ -28,10 +29,9 @@ GameServerENET::~GameServerENET()
 
 void GameServerENET::init()
 {
-    Logger &logger = ServiceLocator::getLogger();
     if(enet_initialize() != 0)
     {
-        logger.error(MODULE_NAME, "Failed to initialize enet");
+        spdlog::error("Failed to initialize enet");
         return;
     }
 }
@@ -44,15 +44,13 @@ bool GameServerENET::host(const NetworkServerProperties &props)
         m_host = nullptr;
     }
 
-    Logger &logger = ServiceLocator::getLogger();
-
     ENetAddress addr{};
     addr.host = ENET_HOST_ANY;
     addr.port = props.port;
     m_host = enet_host_create(&addr, props.max_clients, 1, 0, 0);
     if(!m_host)
     {
-        logger.error(MODULE_NAME, "Failed to create enet host");
+        spdlog::error("Failed to create enet host");
         return false;
     }
     return true;
@@ -72,12 +70,10 @@ bool GameServerENET::connect(const NetworkClientProperties &props)
         m_host = nullptr;
     }
 
-    Logger &logger = ServiceLocator::getLogger();
-
     m_host = enet_host_create(nullptr, 1, 1, 0, 0);
     if(!m_host)
     {
-        logger.error(MODULE_NAME, "Failed to create enet host");
+        spdlog::error("Failed to create enet host");
         return false;
     }
 
@@ -88,7 +84,7 @@ bool GameServerENET::connect(const NetworkClientProperties &props)
     m_client = enet_host_connect(m_host, &addr, 1, 0);
     if(!m_client)
     {
-        logger.error(MODULE_NAME, "Failed to connect to enet host");
+        spdlog::error("Failed to connect to enet host");
         return false;
     }
 
@@ -103,7 +99,7 @@ bool GameServerENET::connect(const NetworkClientProperties &props)
     }
     else
     {
-        logger.error(MODULE_NAME, "Connection to host timed out");
+        spdlog::error("Connection to host timed out");
         enet_peer_reset(m_client);
     }
     return false;

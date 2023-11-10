@@ -51,7 +51,7 @@
 #define MAX_PATH 512  /* arbitrary value */
 #define PATH_SEPARATOR_CHAR '/'
 #define PATH_SEPARATOR_STRING "/"
-#elif defined(WIN32)
+#elif defined(_WIN32)
 #define CFGPATH_WINDOWS
 #include <shlobj.h>
 /* MAX_PATH is defined by the Windows API */

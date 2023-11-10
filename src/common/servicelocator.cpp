@@ -1,11 +1,9 @@
 #include "common/servicelocator.hpp"
 
 #include <memory>
+#include <spdlog/spdlog.h>
 
 //
-DummyLogger ServiceLocator::m_defaultLogger = DummyLogger();
-Logger *ServiceLocator::m_logger = nullptr;
-
 ResourceManager *ServiceLocator::m_resmgr = nullptr;
 
 Renderer *ServiceLocator::m_renderer = nullptr;
@@ -32,10 +30,10 @@ GameServer *ServiceLocator::m_srvmgr = nullptr;
 
 //
 
+static const char* MODULE_NAME = "ServiceLocator";
+
 void ServiceLocator::init()
 {
-    m_logger = &m_defaultLogger;
-
     m_resmgr = new ResourceManager();
 
     m_renderer = Renderer::create();
@@ -89,9 +87,7 @@ void ServiceLocator::terminate()
     delete m_resmgr;
     m_resmgr = nullptr;
 
-    if(m_logger != &m_defaultLogger)
-        delete m_logger;
-    m_logger = &m_defaultLogger;
+    spdlog::debug("Terminate OK");
 }
 
 Renderer &ServiceLocator::getRenderer()
@@ -224,15 +220,4 @@ void ServiceLocator::setGameServices(GameServices *svs)
 {
     if(svs)
         m_gamesvcs = svs;
-}
-
-Logger &ServiceLocator::getLogger()
-{
-    return *m_logger;
-}
-
-void ServiceLocator::setLogger(Logger *logger)
-{
-    if(logger)
-        m_logger = logger;
 }

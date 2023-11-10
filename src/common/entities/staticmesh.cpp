@@ -7,9 +7,9 @@
 #include <glm/gtx/quaternion.hpp>
 
 StaticMesh::StaticMesh(std::shared_ptr<Entity> parent)
-    : Component(parent), rObj(nullptr)
+    : Component(parent)
 {
-    m_name = "StaticMesh_" + Utils::uuidGenerator.getUUID().str();
+    m_name = "StaticMesh_" + uuids::to_string(Utils::uuidGenerator());
 }
 
 StaticMesh::~StaticMesh()
@@ -17,14 +17,9 @@ StaticMesh::~StaticMesh()
 
 }
 
-void StaticMesh::setModel(const Model3D *mdl)
-{
-    rObj = mdl;
-}
-
 void StaticMesh::draw(Renderer *rend)
 {
-    rend->queueRenderObject(rObj, m_modelMatrix);
+
 }
 
 void StaticMesh::update(double dt)
@@ -40,7 +35,7 @@ void StaticMesh::update(double dt)
 
 bool StaticMesh::isDrawable() const
 {
-    return (rObj != nullptr);
+    return false; // TODO:
 }
 
 const char *StaticMesh::getName() const

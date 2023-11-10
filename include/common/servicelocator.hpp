@@ -10,9 +10,6 @@
 
 #include "common/modelmanager.hpp"
 
-#include "common/logger.hpp"
-#include "common/dummylogger.hpp"
-
 #include "server/scenemanager.hpp"
 
 #include "client/inputmanager.hpp"
@@ -24,7 +21,6 @@
 #include "client/dummyaudiomanager.hpp"
 
 #include "client/uimanager.hpp"
-#include "client/dummyuimanager.hpp"
 
 #include "common/scriptengine.hpp"
 #include "common/dummyscriptengine.hpp"
@@ -40,10 +36,6 @@ public:
     static void init();
     // unregister all services
     static void terminate();
-
-    // logging
-    static Logger &getLogger();
-    static void setLogger(Logger *logger);
 
     // rendering
     static Renderer &getRenderer();
@@ -92,10 +84,6 @@ public:
     static GameServices &getGameServices();
     static void setGameServices(GameServices *svs);
 private:
-    // logging
-    static Logger *m_logger;
-    static DummyLogger m_defaultLogger;
-
     // rendering
     static Renderer *m_renderer;
 

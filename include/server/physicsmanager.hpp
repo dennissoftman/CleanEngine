@@ -10,8 +10,7 @@ enum class PhysicsShape
 {
     eUndefined,
     eBox,
-    eSphere,
-    eTriangleMesh
+    eSphere
 };
 
 class PhysicsBodyShapeInfo
@@ -33,13 +32,7 @@ public:
         m_data = radius;
     }
 
-    PhysicsBodyShapeInfo(const Mesh3D *mesh)
-        : m_shape(PhysicsShape::eTriangleMesh)
-    {
-        m_data = mesh;
-    }
-
-    std::variant<glm::vec3, float, const Mesh3D*> getShapeData() const
+    std::variant<glm::vec3, float> getShapeData() const
     {
         return m_data;
     }
@@ -51,7 +44,7 @@ public:
 
 private:
     PhysicsShape m_shape;
-    std::variant<glm::vec3, float, const Mesh3D*> m_data;
+    std::variant<glm::vec3, float> m_data;
 };
 
 class PhysicsBodyProperties

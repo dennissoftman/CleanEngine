@@ -1,3 +1,7 @@
+#include <filesystem>
+#include <toml++/toml.h>
+#include <spdlog/spdlog.h>
+
 #include "client/gamefrontendglfw.hpp"
 #include "common/servicelocator.hpp"
 
@@ -12,8 +16,6 @@
 #include "server/gamebackend.hpp"
 
 #include "common/cfgpath.hpp"
-#include <filesystem>
-#include <toml++/toml.h>
 
 GameFrontend *GameFrontend::corePtr = nullptr;
 static const char *MODULE_NAME = "GameFrontendGLFW";
@@ -38,7 +40,7 @@ GameFrontendGLFW::~GameFrontendGLFW()
 
 void GameFrontendGLFW::onWindowResized(GLFWwindow *win, int width, int height)
 {
-    // TODO: resize window
+    ServiceLocator::getRenderer().resize(glm::ivec2(width, height));
 }
 
 void GameFrontendGLFW::onKeyboardEvent(GLFWwindow *win, int key, int scancode, int action, int mods)
@@ -78,7 +80,7 @@ void GameFrontendGLFW::init()
     {
         const char *buff;
         glfwGetError(&buff);
-        ServiceLocator::getLogger().info(MODULE_NAME, buff);
+        spdlog::error(buff);
         throw std::runtime_error("Failed to init GLFW");
     }
 
@@ -107,7 +109,7 @@ void GameFrontendGLFW::init()
             }
             catch(const std::exception &e)
             {
-                ServiceLocator::getLogger().error(MODULE_NAME, "Config parsing error: " + std::string(e.what()));
+                spdlog::warn("Config parsing error: " + std::string(e.what()));
             }
         }
         else
@@ -124,20 +126,8 @@ void GameFrontendGLFW::init()
     }
     //
 
-#ifdef RENDERER_OPENGL
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_DEPTH_BITS, 32);
-    glfwWindowHint(GLFW_SAMPLES, m_windowSamples);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-
-#elif RENDERER_VULKAN
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-#else
-#error No graphics API specified
-#endif
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
     if(m_windowFullscreen) // windowed fullscreen
     {
@@ -160,7 +150,7 @@ void GameFrontendGLFW::init()
     {
         const char *buff;
         glfwGetError(&buff);
-        ServiceLocator::getLogger().info(MODULE_NAME, buff);
+        spdlog::error(buff);
         throw std::runtime_error("Failed to create GLFW window");
     }
     glfwMakeContextCurrent(m_mainWindow);
@@ -174,9 +164,15 @@ void GameFrontendGLFW::init()
 
     { // renderer
         m_mainRenderer = &ServiceLocator::getRenderer();
-        m_mainRenderer->init(VideoMode(m_windowSize.x, m_windowSize.y,
-                                       m_windowFullscreen, m_windowVSync,
-                                       m_windowSamples));
+        auto videoMode = VideoMode(m_windowSize.x, m_windowSize.y,
+                                   m_windowFullscreen, m_windowVSync,
+                                   m_windowSamples);
+#ifdef _WIN32
+        videoMode.osdata = glfwGetWin32Window(m_mainWindow);
+#elif __linux__
+        videoMode.osdata = glfwGetX11Window(m_mainWindow);
+#endif
+        m_mainRenderer->init(videoMode);
     }
 
     { // events
@@ -210,14 +206,14 @@ void GameFrontendGLFW::mainLoop()
     AudioManager &audioManager = ServiceLocator::getAudioManager();
     GameServices &gameServices = ServiceLocator::getGameServices();
 
-    GameBackend *backend = GameBackend::corePtr;
+    // GameBackend *backend = GameBackend::corePtr;
     while (!glfwWindowShouldClose(m_mainWindow))
     {
         m_deltaTime = glfwGetTime() - m_elapsedTime;
         m_elapsedTime = glfwGetTime();
         glfwPollEvents();
 
-        backend->update(m_deltaTime);
+        // backend->update(m_deltaTime);
 
         // update scene
         m_currentScene.update(m_deltaTime);
@@ -238,11 +234,6 @@ void GameFrontendGLFW::mainLoop()
         m_currentScene.draw(m_mainRenderer);
 
         m_mainRenderer->draw();
-
-        // =====================================================================================
-#ifdef RENDERER_OPENGL
-        glfwSwapBuffers(m_mainWindow);
-#endif
     }
 }
 

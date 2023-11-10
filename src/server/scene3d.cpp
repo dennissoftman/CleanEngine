@@ -3,16 +3,9 @@
 #include <boost/bind.hpp>
 #include <format>
 
-static const char *MODULE_NAME = "Scene3D";
-
-UUIDv4::UUIDGenerator<std::mt19937_64> Scene3D::m_uuidGenerator;
-
 Scene3D::Scene3D()
 {
-    m_lightingData.value().lightCount = 1;
-    m_lightingData.value().lightPositions[0] = glm::vec4(-1.f, -1.f, -1.f, 1.f);
-    m_lightingData.value().lightColors[0] = glm::vec4(1.f);
-    m_lightingData.set_dirty();
+
 }
 
 Scene3D::~Scene3D()
@@ -22,16 +15,6 @@ Scene3D::~Scene3D()
 
 void Scene3D::draw(Renderer *rend)
 {
-    if(m_lightingData.is_dirty())
-    {
-        rend->updateLightCount(m_lightingData.value().lightCount);
-        for(int i=0; i < m_lightingData.value().lightCount; i++)
-        {
-            rend->updateLightPosition(m_lightingData.value().lightPositions[i], i);
-            rend->updateLightColor(m_lightingData.value().lightColors[i], i);
-        }
-        m_lightingData.clear_dirty();
-    }
     rend->updateCameraData(m_camera);
     //
     for(auto &kv : m_objects)
@@ -74,7 +57,7 @@ void Scene3D::removeObject(std::shared_ptr<Entity> other)
     }
 }
 
-std::weak_ptr<Entity> Scene3D::getObject(const UUIDv4::UUID &id) const
+std::weak_ptr<Entity> Scene3D::getObject(const uuids::uuid &id) const
 {
     if(m_objects.find(id) != m_objects.end())
         return m_objects.at(id);
@@ -98,22 +81,17 @@ Camera3D &Scene3D::getCamera()
 
 void Scene3D::setLightPosition(const glm::vec3 &pos, uint32_t id)
 {
-    float old_w = m_lightingData.value().lightPositions[std::min(id, Renderer::MaxLightSourceCount-1)].w;
-    m_lightingData.value().lightPositions[std::min(id, Renderer::MaxLightSourceCount-1)] = glm::vec4(pos, old_w);
-    m_lightingData.set_dirty();
+    
 }
 
 void Scene3D::setLightColor(const glm::vec3 &color, uint32_t id)
 {
-    float old_w = m_lightingData.value().lightColors[std::min(id, Renderer::MaxLightSourceCount-1)].w;
-    m_lightingData.value().lightColors[std::min(id, Renderer::MaxLightSourceCount-1)] = glm::vec4(color, old_w);
-    m_lightingData.set_dirty();
+    
 }
 
 void Scene3D::setLightCount(uint32_t count)
 {
-    m_lightingData.value().lightCount = std::min(count, Renderer::MaxLightSourceCount);
-    m_lightingData.set_dirty();
+    
 }
 
 size_t Scene3D::getObjectCount() const

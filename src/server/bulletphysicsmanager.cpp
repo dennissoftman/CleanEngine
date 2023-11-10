@@ -1,8 +1,10 @@
+#include <format>
+#include <spdlog/spdlog.h>
+
 #include "server/bulletphysicsmanager.hpp"
 #include "common/servicelocator.hpp"
 #include "common/entities/entity.hpp"
 #include "common/entities/bulletbodycomponent.hpp"
-#include <format>
 
 static const char *MODULE_NAME = "BulletPhysicsManager";
 
@@ -31,8 +33,6 @@ BulletPhysicsManager::~BulletPhysicsManager()
 
 void BulletPhysicsManager::init()
 {
-    Logger &logger = ServiceLocator::getLogger();
-
     m_collisionConfig = new btDefaultCollisionConfiguration();
     m_dispatcher = new btCollisionDispatcher(m_collisionConfig);
     m_pairCache = new btDbvtBroadphase();
@@ -41,22 +41,22 @@ void BulletPhysicsManager::init()
     btITaskScheduler *scheduler = nullptr;
 
     if((scheduler = btGetOpenMPTaskScheduler()))
-        logger.info(MODULE_NAME, "Using OpenMP task scheduler");
+        spdlog::debug("Using OpenMP task scheduler");
     else if((scheduler = btGetTBBTaskScheduler()))
-        logger.info(MODULE_NAME, "Using Intel TBB task scheduler");
+        spdlog::debug("Using Intel TBB task scheduler");
     else if((scheduler = btGetPPLTaskScheduler()))
-        logger.info(MODULE_NAME, "Using Microsoft PPL task scheduler");
+        spdlog::debug("Using Microsoft PPL task scheduler");
     else if((scheduler = btCreateDefaultTaskScheduler()))
-        logger.info(MODULE_NAME, "Using threads task scheduler");
+        spdlog::debug("Using threads task scheduler");
     else
     {
         scheduler = btGetSequentialTaskScheduler();
-        logger.info(MODULE_NAME, "Multithreading not available, falling down to one thread");
+        spdlog::debug("Multithreading not available, falling down to one thread");
     }
 
     if(!scheduler)
     {
-        logger.error(MODULE_NAME, "Failed to create task scheduler");
+        spdlog::error("Failed to create task scheduler");
         return terminate();
     }
     btSetTaskScheduler(scheduler);
@@ -81,7 +81,7 @@ void BulletPhysicsManager::init()
 
     gContactStartedCallback = BulletPhysicsManager::OnContactBegin;
 
-    ServiceLocator::getLogger().info(MODULE_NAME, "Physics init completed");
+    spdlog::debug("Physics init completed");
 }
 
 void BulletPhysicsManager::terminate()
@@ -155,12 +155,6 @@ void *BulletPhysicsManager::createBody(const PhysicsBodyCreateInfo &cInfo, const
     {
         float radius = std::get<float>(shapeInfo.getShapeData());
         bodyShape = new btSphereShape(radius);
-        break;
-    }
-    case PhysicsShape::eTriangleMesh:
-    {
-        ServiceLocator::getLogger().warning(MODULE_NAME, "TriangleMesh shapes unsupported");
-        return nullptr;
         break;
     }
     default:

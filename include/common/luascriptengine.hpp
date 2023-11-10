@@ -9,7 +9,6 @@
 #include <sol/sol.hpp>
 #include <glm/vec3.hpp>
 
-#include "client/material.hpp"
 #include "client/inputmanager.hpp"
 
 class UIElement;
@@ -41,13 +40,13 @@ public:
     static void Client_releaseCursor();
     static void Client_exit();
 
-    // Model manager
-    static void ModelManager_loadModel(const std::string &path, const std::string &name);
-    static const Model3D *ModelManager_getModel(const std::string &name);
-    static void ModelManager_setModelMaterial(const std::string &mdlName, const Material *mat);
+    // // Model manager
+    // static void ModelManager_loadModel(const std::string &path, const std::string &name);
+    // static const Model3D *ModelManager_getModel(const std::string &name);
+    // static void ModelManager_setModelMaterial(const std::string &mdlName, const Material *mat);
 
-    // Material manager
-    static const Material *MaterialManager_getMaterial(const std::string &name);
+    // // Material manager
+    // static const Material *MaterialManager_getMaterial(const std::string &name);
 
     // Audio manager
     static void AudioManager_loadSound(const std::string &path, const std::string &name);
