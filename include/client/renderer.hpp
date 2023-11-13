@@ -30,6 +30,7 @@ public:
 
     virtual void init(const VideoMode &mode) = 0;
 
+    virtual void update(double dt) = 0;
     virtual void draw() = 0;
 
     virtual const glm::ivec2& getSize() const = 0;

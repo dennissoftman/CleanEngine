@@ -50,22 +50,31 @@ class GameRendererDiligent : public Renderer
 public:
     GameRendererDiligent();
 
-    void init(const VideoMode &mode);
-    void draw();
-    const glm::ivec2& getSize() const;
-    void resize(const glm::ivec2 &size);
-    void updateCameraData(Camera3D &cam);
-    void updateLightCount(uint32_t count);
-    void updateLightPosition(const glm::vec4 &pos, uint32_t id);
-    void updateLightColor(const glm::vec4 &color, uint32_t id);
-    std::string getType() const;
+    void init(const VideoMode &mode) override;
+    void update(double dt) override;
+    void draw() override;
+    const glm::ivec2& getSize() const override;
+    void resize(const glm::ivec2 &size) override;
+    void updateCameraData(Camera3D &cam) override;
+    void updateLightCount(uint32_t count) override;
+    void updateLightPosition(const glm::vec4 &pos, uint32_t id) override;
+    void updateLightColor(const glm::vec4 &color, uint32_t id) override;
+    std::string getType() const override;
 
 private:
     glm::ivec2 m_size;
 
-    Diligent::RefCntAutoPtr<Diligent::IRenderDevice>  m_pDevice;
+    Diligent::RefCntAutoPtr<Diligent::IRenderDevice> m_pDevice;
     Diligent::RefCntAutoPtr<Diligent::IDeviceContext> m_pImmediateContext;
-    Diligent::RefCntAutoPtr<Diligent::ISwapChain>     m_pSwapChain;
+    Diligent::RefCntAutoPtr<Diligent::ISwapChain> m_pSwapChain;
+    Diligent::RefCntAutoPtr<Diligent::IShaderResourceBinding> m_pSRB;
+    Diligent::RefCntAutoPtr<Diligent::IBuffer> m_VSConstants;
+    Diligent::RefCntAutoPtr<Diligent::IBuffer> m_CubeVertexBuffer;
+    Diligent::RefCntAutoPtr<Diligent::IBuffer> m_CubeIndexBuffer;
+    Diligent::float4x4 m_WorldViewProjMatrix;
+    double m_elapsedTime;
+    Diligent::float4x4 GetSurfacePretransformMatrix(const Diligent::float3& f3CameraViewAxis) const;
+    Diligent::float4x4 GetAdjustedProjectionMatrix(float FOV, float NearPlane, float FarPlane) const;
     // TEMPORARY
     Diligent::RefCntAutoPtr<Diligent::IPipelineState> m_pPSO;
 };

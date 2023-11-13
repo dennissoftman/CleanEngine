@@ -224,6 +224,9 @@ void GameFrontendGLFW::mainLoop()
         // update ui
         uiManager.update(m_deltaTime);
 
+        // update renderer
+        m_mainRenderer->update(m_deltaTime);
+
         // raise update event
         m_updateEvents(m_deltaTime);
 
