@@ -1,0 +1,14 @@
+*.dll
+*.lib
+*.exe
+
+*.so
+
+*.dylib
+
+build/*
+libs/*
+.cache/*
+.vs/*
+.vscode/*
+CMakeSettings.json

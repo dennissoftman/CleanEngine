@@ -11,10 +11,10 @@ public:
     Component(std::shared_ptr<Entity> parent);
     virtual ~Component();
 
-    virtual void draw(Renderer *rend);
-    virtual void update(double dt);
-    std::shared_ptr<Entity> getParent();
-    virtual bool isDrawable() const;
+    virtual void draw(Renderer *rend) = 0;
+    virtual void update(double dt) = 0;
+    std::shared_ptr<Entity> getParent() const;
+    virtual bool isDrawable() const = 0;
 
     virtual const char *getName() const;
 protected:

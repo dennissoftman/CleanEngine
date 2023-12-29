@@ -12,6 +12,7 @@ public:
     void init() override;
     void update(double dt) override;
     void authorize() override;
+    std::vector<FriendDetails> getFriends() const override;
 };
 
 #endif // DUMMYSERVICES_HPP

@@ -1,7 +1,5 @@
 #include "common/entities/bodycomponent.hpp"
 
-
-
 BodyComponent::BodyComponent(const PhysicsBodyCreateInfo &cInfo, std::shared_ptr<Entity> parent)
     : Component(parent), m_bodyInfo(cInfo)
 {

@@ -9,13 +9,9 @@
 #include "common/luascriptengine.hpp"
 
 #include "client/uimanager.hpp"
-#ifdef UI_IMGUI
-#include "imgui_impl_glfw.h"
-#endif
 
 #include "server/gamebackend.hpp"
 
-#include "common/cfgpath.hpp"
 
 GameFrontend *GameFrontend::corePtr = nullptr;
 static const char *MODULE_NAME = "GameFrontendGLFW";
@@ -27,8 +23,7 @@ GameFrontend *GameFrontend::create()
 
 GameFrontendGLFW::GameFrontendGLFW()
     : m_mainWindow(nullptr),
-      m_elapsedTime(0), m_deltaTime(0),
-      m_windowSize(glm::ivec2(1280, 720))
+      m_elapsedTime(0), m_deltaTime(0)
 {
     GameFrontend::corePtr = this;
 }
@@ -85,27 +80,23 @@ void GameFrontendGLFW::init()
     }
 
     // load configs
+    VideoMode videoMode;
     {
-        std::string cPath = CfgPath::configDirectoryPath(APP_NAME);
-        std::string optionsPath = cPath + "options.toml";
+        std::string optionsPath = "./options.toml";
         if(std::filesystem::exists(optionsPath))
         {
             try
             {
                 auto res = toml::parse_file(optionsPath);
 
-                int scrWidth  = res["width"].value_or(1280);
-                int scrHeight = res["height"].value_or(720);
-                bool fullscreen = res["fullscreen"].value_or(false);
-                bool vsync    = res["vsync"].value_or(false);
-                int fpsCap    = res["fpsCap"].value_or(300);
-                int samples   = res["msaaSamples"].value_or(1);
-
-                m_windowSize    = glm::ivec2(scrWidth, scrHeight);
-                m_windowFullscreen = fullscreen;
-                m_windowVSync   = vsync;
-                m_windowFpsCap  = fpsCap;
-                m_windowSamples = samples;
+                videoMode.setWidth(res["width"].value_or(1280))
+                         .setHeight(res["height"].value_or(720))
+                         .setFullscreen(res["fullscreen"].value_or(false))
+                         .setVsync(res["vsync"].value_or(false))
+                         .setSamples(res["msaaSamples"].value_or(1))
+                         .setShadowMapResolution(res["shadowMapResolution"].value_or(512))
+                         .setFSRScaling(res["fsrScaling"].value_or(1.0f))
+                         .setRenderingBackend(res["renderingBackend"].value_or("vk"));
             }
             catch(const std::exception &e)
             {
@@ -120,8 +111,10 @@ void GameFrontendGLFW::init()
             fout << "height = 720" << std::endl;
             fout << "fullscreen = false" << std::endl;
             fout << "vsync = false" << std::endl;
-            fout << "fpsCap = 300" << std::endl;
             fout << "msaaSamples = 1" << std::endl;
+            fout << "shadowMapResolution = 512" << std::endl;
+            fout << "renderingBackend = \"vk\"" << std::endl;
+            fout << "fsrScaling = 1.0" << std::endl;
         }
     }
     //
@@ -129,7 +122,7 @@ void GameFrontendGLFW::init()
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
-    if(m_windowFullscreen) // windowed fullscreen
+    if(videoMode.fullscreen()) // windowed fullscreen
     {
         GLFWmonitor *mon = glfwGetPrimaryMonitor();
         const GLFWvidmode *vidMode = glfwGetVideoMode(mon);
@@ -137,12 +130,12 @@ void GameFrontendGLFW::init()
         glfwWindowHint(GLFW_GREEN_BITS, vidMode->greenBits);
         glfwWindowHint(GLFW_BLUE_BITS, vidMode->blueBits);
         glfwWindowHint(GLFW_REFRESH_RATE, vidMode->refreshRate);
-        m_mainWindow = glfwCreateWindow(m_windowSize.x, m_windowSize.y,
+        m_mainWindow = glfwCreateWindow(videoMode.width(), videoMode.height(),
                                         APP_NAME, mon, nullptr);
     }
     else
     {
-        m_mainWindow = glfwCreateWindow(m_windowSize.x, m_windowSize.y,
+        m_mainWindow = glfwCreateWindow(videoMode.width(), videoMode.height(),
                                         APP_NAME, nullptr, nullptr);
     }
 
@@ -157,20 +150,12 @@ void GameFrontendGLFW::init()
 
     glfwSetWindowSizeCallback(m_mainWindow, GameFrontendGLFW::onWindowResized);
 
-    if(m_windowVSync)
-        glfwSwapInterval(1);
-    else
-        glfwSwapInterval(0);
-
     { // renderer
         m_mainRenderer = &ServiceLocator::getRenderer();
-        auto videoMode = VideoMode(m_windowSize.x, m_windowSize.y,
-                                   m_windowFullscreen, m_windowVSync,
-                                   m_windowSamples);
 #ifdef _WIN32
-        videoMode.osdata = glfwGetWin32Window(m_mainWindow);
+        videoMode.setOSData(glfwGetWin32Window(m_mainWindow));
 #elif __linux__
-        videoMode.osdata = glfwGetX11Window(m_mainWindow);
+        videoMode.setOSData(glfwGetX11Window(m_mainWindow));
 #endif
         m_mainRenderer->init(videoMode);
     }
@@ -205,18 +190,18 @@ void GameFrontendGLFW::mainLoop()
     UIManager &uiManager = ServiceLocator::getUIManager();
     AudioManager &audioManager = ServiceLocator::getAudioManager();
     GameServices &gameServices = ServiceLocator::getGameServices();
+    SceneManager &sceneManager = ServiceLocator::getSceneManager();
+    PhysicsManager& physManager = ServiceLocator::getPhysicsManager();
 
-    // GameBackend *backend = GameBackend::corePtr;
     while (!glfwWindowShouldClose(m_mainWindow))
     {
         m_deltaTime = glfwGetTime() - m_elapsedTime;
         m_elapsedTime = glfwGetTime();
         glfwPollEvents();
 
-        // backend->update(m_deltaTime);
-
+        physManager.update(m_deltaTime);
         // update scene
-        m_currentScene.update(m_deltaTime);
+        sceneManager.update(m_deltaTime);
 
         // update audio
         audioManager.update(m_deltaTime);
@@ -234,15 +219,10 @@ void GameFrontendGLFW::mainLoop()
         gameServices.update(m_deltaTime);
 
         // Draw objects on screen
-        m_currentScene.draw(m_mainRenderer);
+        sceneManager.draw(m_mainRenderer);
 
         m_mainRenderer->draw();
     }
-}
-
-Scene3D &GameFrontendGLFW::getScene()
-{
-    return m_currentScene;
 }
 
 double GameFrontendGLFW::getDeltaTime() const

@@ -1,13 +1,12 @@
-#include <fstream>
-#include <filesystem>
-#include <cstring>
-#include <minizip/unzip.h>
 #include <spdlog/spdlog.h>
 
 #include "common/resourcemanager.hpp"
 #include "common/servicelocator.hpp"
 
-static const char *MODULE_NAME = "ResourceManager";
+#include "common/loaders/fileresourceloader.hpp"
+#include "common/loaders/zipresourceloader.hpp"
+#include "common/loaders/bigresourceloader.hpp"
+
 
 ResourceManager::ResourceManager()
 {
@@ -21,91 +20,40 @@ ResourceManager::~ResourceManager()
 
 void ResourceManager::init()
 {
-    for(auto &it : std::filesystem::directory_iterator(std::filesystem::current_path()/"data"))
-    {
-        if(std::filesystem::is_regular_file(it.path()))
-        {
-            const std::string &fpath = it.path().string();
-            if(fpath.ends_with(".gar"))
-            {
-                unzFile fp = unzOpen(fpath.c_str());
-                if(fp)
-                {
-                    m_resourceArchives.emplace(fpath, fp);
-                }
-                else
-                {
-                    spdlog::error("Failed to open archive: '"+fpath+"'");
-                }
-            }
-        }
-    }
+    m_resourceLoaders.emplace_back(std::make_shared<FileResourceLoader>(std::vector{std::string("./data/")}));
+    // TODO: iterate through data folder and enumerate all zip files (.gar, .jar, .zip, etc.)
+    m_resourceLoaders.emplace_back(std::make_shared<ZipResourceLoader>(std::vector{std::string("./data/base.gar")}));
+    // TEMPORARY: hardcode the path to the INI.big file
+    m_resourceLoaders.emplace_back(std::make_shared<BigResourceLoader>(std::vector{
+        std::string("D:\\Games\\Command and Conquer Generals Zero Hour\\Command and Conquer Generals\\INI.big"),
+        std::string("D:\\Games\\Command and Conquer Generals Zero Hour\\Command and Conquer Generals\\Textures.big"),
+        std::string("D:\\Games\\Command and Conquer Generals Zero Hour\\Command and Conquer Generals\\W3D.big"),
+        std::string("D:\\Games\\Command and Conquer Generals Zero Hour\\Command and Conquer Generals Zero Hour\\CWC\\_499_CWC.cwc")}));
+
+    spdlog::debug("Resource manager initialized with {} loaders", m_resourceLoaders.size());
 }
 
 void ResourceManager::terminate()
 {
-    m_cachedResources.clear();
-    for(auto &kv : m_resourceArchives)
-        unzClose(kv.second);
-    m_resourceArchives.clear();
+    m_resourceLoaders.clear();
 }
 
-DataResource ResourceManager::getResource(const std::string &path, bool enableCaching)
+bool ResourceManager::contains(const std::string &path) const
 {
-    // simple caching
-    if(m_cachedResources.find(path) != m_cachedResources.end())
-        return m_cachedResources[path];
-
-    DataResource res{};
-    if(path.starts_with(":/")) // archive
+    for(auto &loader : m_resourceLoaders)
     {
-        std::string targetPath = path.substr(2); // remove ':/'
-        bool found = false;
-        for(auto &arc : m_resourceArchives)
-        {
-            unzFile arcFile = arc.second;
-
-            if(unzLocateFile(arcFile, targetPath.c_str(), 0) != UNZ_OK)
-                continue;
-
-            unz_file_info fInfo{};
-            unzGetCurrentFileInfo(arcFile, &fInfo,
-                                  nullptr, 0L,
-                                  nullptr, 0L,
-                                  nullptr, 0L);
-
-            res.size = fInfo.uncompressed_size;
-            if(res.size == 0)
-                continue;
-
-            if(unzOpenCurrentFile(arcFile) != UNZ_OK)
-                throw std::runtime_error("failed to read archive file '" + targetPath + "'");
-
-            res.data = std::make_shared<unsigned char[]>(res.size);
-            found = true;
-            unzReadCurrentFile(arcFile, res.data.get(), res.size);
-
-            unzCloseCurrentFile(arcFile); // close file in archive
-            break;
-        }
-        if(!found)
-            throw std::runtime_error("file '" + path + "' not found");
+        if(loader->contains(path))
+            return true;
     }
-    else
+    return false;
+}
+
+std::shared_ptr<DataResource> ResourceManager::get(const std::string &path, bool enableCaching) const
+{
+    for(auto &loader : m_resourceLoaders)
     {
-        std::ifstream fp;
-        fp.open(path, std::ios_base::binary);
-        if(!fp.is_open())
-            throw std::runtime_error("file '" + path + "' not found");
-        fp.seekg(0, std::ios_base::end);
-        res.size = fp.tellg();
-        fp.seekg(0, std::ios_base::beg);
-        res.data = std::make_shared<unsigned char[]>(res.size);
-        fp.read(reinterpret_pointer_cast<char[]>(res.data).get(), res.size);
-        fp.close();
+        if(loader->contains(path))
+            return loader->get(path, enableCaching);
     }
-
-    if(enableCaching)
-        m_cachedResources[path] = res;
-    return res;
+    throw std::runtime_error(fmt::format("Resource '{}' not found", path));
 }

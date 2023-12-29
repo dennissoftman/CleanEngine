@@ -18,8 +18,6 @@ public:
     virtual double getDeltaTime() const = 0;
     virtual double getElapsedTime() const = 0;
 
-    virtual Scene3D &getScene() = 0;
-
     virtual void lockCursor() = 0;
     virtual void unlockCursor() = 0;
 

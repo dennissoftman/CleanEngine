@@ -29,3 +29,8 @@ void DummyGameServices::authorize()
 {
 
 }
+
+std::vector<FriendDetails> DummyGameServices::getFriends() const
+{
+    return std::vector<FriendDetails>{};
+}

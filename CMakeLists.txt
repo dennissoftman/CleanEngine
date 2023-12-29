@@ -1,10 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(CleanEngine LANGUAGES CXX VERSION 0.1)
+project(CleanEngine LANGUAGES C CXX VERSION 0.1)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS_DEBUG_INIT "-Wall -Og -ggdb")
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(APP_NAME "CleanEngine" CACHE STRING "Desired app name (not the .exe name)")
 
@@ -47,33 +48,52 @@ set(COMMON_SOURCES
     ${CMAKE_SOURCE_DIR}/include/client/inputmanager.hpp
     ${CMAKE_SOURCE_DIR}/src/common/entities/camera3d.cpp
     ${CMAKE_SOURCE_DIR}/include/common/entities/camera3d.hpp
-    ${CMAKE_SOURCE_DIR}/src/client/imageloader.cpp
-    ${CMAKE_SOURCE_DIR}/include/client/imageloader.hpp
     ${CMAKE_SOURCE_DIR}/src/client/materialmanager.cpp
     ${CMAKE_SOURCE_DIR}/include/client/materialmanager.hpp
-    ${CMAKE_SOURCE_DIR}/src/common/modelmanager.cpp
+    ${CMAKE_SOURCE_DIR}/include/common/3d/meshprimitive.hpp
+    ${CMAKE_SOURCE_DIR}/src/common/3d/meshprimitive.cpp
+    ${CMAKE_SOURCE_DIR}/include/common/3d/animationprimitive.hpp
+    ${CMAKE_SOURCE_DIR}/src/common/3d/animationprimitive.cpp
+    ${CMAKE_SOURCE_DIR}/include/common/3d/modelprimitive.hpp
+    ${CMAKE_SOURCE_DIR}/src/common/3d/modelprimitive.cpp
     ${CMAKE_SOURCE_DIR}/include/common/modelmanager.hpp
+    ${CMAKE_SOURCE_DIR}/src/common/modelmanager.cpp
+    ${CMAKE_SOURCE_DIR}/include/common/importers/w3d/defines.hpp
+    ${CMAKE_SOURCE_DIR}/include/common/importers/w3d/enum.hpp
+    ${CMAKE_SOURCE_DIR}/include/common/importers/w3d/struct.hpp
+    ${CMAKE_SOURCE_DIR}/src/common/importers/w3d/struct.cpp
+    ${CMAKE_SOURCE_DIR}/include/common/importers/w3d/loader.hpp
+    ${CMAKE_SOURCE_DIR}/src/common/importers/w3d/loader.cpp
+    ${CMAKE_SOURCE_DIR}/include/common/importers/w3dimporter.hpp
+    ${CMAKE_SOURCE_DIR}/src/common/importers/w3dimporter.cpp
     ${CMAKE_SOURCE_DIR}/include/common/scriptengine.hpp
     ${CMAKE_SOURCE_DIR}/include/client/audiomanager.hpp
     ${CMAKE_SOURCE_DIR}/src/server/scenemanager.cpp
     ${CMAKE_SOURCE_DIR}/include/server/scenemanager.hpp
     ${CMAKE_SOURCE_DIR}/include/common/entities/entity.hpp
     ${CMAKE_SOURCE_DIR}/src/common/entities/entity.cpp
-    ${CMAKE_SOURCE_DIR}/src/common/entities/staticmesh.cpp
+    ${CMAKE_SOURCE_DIR}/include/common/entities/meshcomponent.hpp
+    ${CMAKE_SOURCE_DIR}/src/common/entities/meshcomponent.cpp
     ${CMAKE_SOURCE_DIR}/include/common/entities/staticmesh.hpp
+    ${CMAKE_SOURCE_DIR}/src/common/entities/staticmesh.cpp
     ${CMAKE_SOURCE_DIR}/include/common/entities/bodycomponent.hpp
     ${CMAKE_SOURCE_DIR}/src/common/entities/bodycomponent.cpp
     ${CMAKE_SOURCE_DIR}/src/server/scene3d.cpp
     ${CMAKE_SOURCE_DIR}/include/server/scene3d.hpp
     ${CMAKE_SOURCE_DIR}/include/server/physicsmanager.hpp
+    ${CMAKE_SOURCE_DIR}/include/common/loaders/basicresourceloader.hpp
+    ${CMAKE_SOURCE_DIR}/include/common/loaders/fileresourceloader.hpp
+    ${CMAKE_SOURCE_DIR}/src/common/loaders/fileresourceloader.cpp
+    ${CMAKE_SOURCE_DIR}/include/common/loaders/zipresourceloader.hpp
+    ${CMAKE_SOURCE_DIR}/src/common/loaders/zipresourceloader.cpp
+    ${CMAKE_SOURCE_DIR}/include/common/loaders/bigresourceloader.hpp
+    ${CMAKE_SOURCE_DIR}/src/common/loaders/bigresourceloader.cpp
     ${CMAKE_SOURCE_DIR}/src/common/resourcemanager.cpp
     ${CMAKE_SOURCE_DIR}/include/common/resourcemanager.hpp
     ${CMAKE_SOURCE_DIR}/include/common/gameservices.hpp
     ${CMAKE_SOURCE_DIR}/include/common/dirty_flag.hpp
     ${CMAKE_SOURCE_DIR}/include/client/gameclient.hpp
     ${CMAKE_SOURCE_DIR}/include/server/gameserver.hpp
-    ${CMAKE_SOURCE_DIR}/src/common/cfgpath.cpp
-    ${CMAKE_SOURCE_DIR}/include/common/cfgpath.hpp
     ${CMAKE_SOURCE_DIR}/include/common/utils.hpp
     ${CMAKE_SOURCE_DIR}/src/common/utils.cpp
     ${CMAKE_SOURCE_DIR}/include/common/entities/component.hpp
@@ -82,6 +102,8 @@ set(COMMON_SOURCES
     ${CMAKE_SOURCE_DIR}/src/common/entities/networksynccomponent.cpp
     ${CMAKE_SOURCE_DIR}/include/server/gamebackend.hpp
     ${CMAKE_SOURCE_DIR}/src/server/gamebackend.cpp
+    ${CMAKE_SOURCE_DIR}/include/common/entities/animatedmodel.hpp
+    ${CMAKE_SOURCE_DIR}/src/common/entities/animatedmodel.cpp
 )
 
 target_sources(CleanEngine PRIVATE ${COMMON_SOURCES})
@@ -96,6 +118,10 @@ target_include_directories(CleanEngine PUBLIC
 # boost
 find_package(Boost REQUIRED)
 target_link_libraries(CleanEngine Boost::boost)
+
+# fmt
+find_package(fmt REQUIRED)
+target_link_libraries(CleanEngine fmt::fmt)
 
 # spdlog
 find_package(spdlog REQUIRED)
@@ -207,6 +233,7 @@ if(USE_STEAM)
             ${CMAKE_SOURCE_DIR}/libs/steamworks_sdk/redistributable_bin/win64/
         )
         target_link_libraries(CleanEngine steam_api64.lib)
+        install(FILES ${CMAKE_SOURCE_DIR}/libs/steamworks_sdk/redistributable_bin/win64/steam_api64.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
         target_sources(CleanEngine PRIVATE
             ${CMAKE_SOURCE_DIR}/src/client/steamgameservices.cpp
@@ -240,13 +267,28 @@ if(USE_HEADLESS_MODE)
         ${CMAKE_SOURCE_DIR}/include/client/dummyrenderer.hpp
     )
 else()
+    if(MSVC)
+        set(PLATFORM_WIN32 1)
+        target_compile_definitions(CleanEngine PRIVATE PLATFORM_WIN32)
+    elseif(UNIX)
+        set(PLATFORM_LINUX 1)
+        target_compile_definitions(CleanEngine PRIVATE PLATFORM_LINUX)
+    endif()
+
     # DiligentEngine graphics engine dependency
     add_subdirectory(${CMAKE_SOURCE_DIR}/DiligentCore)
     add_subdirectory(${CMAKE_SOURCE_DIR}/DiligentFX)
+    add_subdirectory(${CMAKE_SOURCE_DIR}/DiligentTools)
     target_include_directories(CleanEngine PRIVATE
         ${CMAKE_SOURCE_DIR}/DiligentCore
         ${CMAKE_SOURCE_DIR}/DiligentFX
         ${CMAKE_SOURCE_DIR}/DiligentTools
+    )
+
+    target_link_libraries(CleanEngine
+        Diligent-Common
+        Diligent-Imgui
+        Diligent-TextureLoader
     )
 
     target_sources(CleanEngine PRIVATE
@@ -276,15 +318,9 @@ else()
         target_link_libraries(CleanEngine ${X11_LIBRARIES} X11::X11_xcb -ldl -lpthread)
     endif()
 
-    # stb libs
-    find_package(Stb REQUIRED)
-    target_include_directories(CleanEngine PRIVATE ${Stb_INCLUDE_DIR})
-
-    # dds support
-    target_sources(CleanEngine PRIVATE
-        ${CMAKE_SOURCE_DIR}/libs/dds/dds.c
-        ${CMAKE_SOURCE_DIR}/libs/dds/dds.h
-    )
+    # soil2 image loader
+    find_package(soil2 REQUIRED)
+    target_link_libraries(CleanEngine soil2)
 
     if(USE_OPENAL)
         target_sources(CleanEngine PRIVATE
@@ -336,38 +372,6 @@ else()
         target_sources(CleanEngine PUBLIC
             ${CMAKE_SOURCE_DIR}/src/client/dummygamefrontend.cpp
             ${CMAKE_SOURCE_DIR}/include/client/dummygamefrontend.hpp
-        )
-    endif()
-
-    if(USE_IMGUI)
-        find_package(Freetype REQUIRED)
-        target_link_libraries(CleanEngine ${FREETYPE_LIBRARIES})
-
-        find_package(imgui REQUIRED)
-        target_include_directories(CleanEngine PRIVATE
-            ${IMGUI_INCLUDE_DIR}
-        )
-        target_link_libraries(CleanEngine imgui::imgui)
-
-        target_sources(CleanEngine PRIVATE
-            ${CMAKE_SOURCE_DIR}/libs/imgui_backends/src/imgui_impl_vulkan.cpp
-            ${CMAKE_SOURCE_DIR}/libs/imgui_backends/include/imgui_impl_vulkan.h
-        )
-        if(USE_GLFW)
-            target_sources(CleanEngine PRIVATE
-                ${CMAKE_SOURCE_DIR}/libs/imgui_backends/src/imgui_impl_glfw.cpp
-                ${CMAKE_SOURCE_DIR}/libs/imgui_backends/include/imgui_impl_glfw.h
-            )
-        endif()
-
-        target_include_directories(CleanEngine PRIVATE
-            ${CMAKE_SOURCE_DIR}/libs/imgui_backends/include
-        )
-        target_compile_definitions(CleanEngine PRIVATE UI_IMGUI)
-    else()
-        target_sources(CleanEngine PRIVATE
-            ${CMAKE_SOURCE_DIR}/src/client/dummyuimanager.cpp
-            ${CMAKE_SOURCE_DIR}/include/client/dummyuimanager.hpp
         )
     endif()
 endif()

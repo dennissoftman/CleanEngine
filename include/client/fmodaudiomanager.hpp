@@ -35,7 +35,7 @@ private:
 
     std::unordered_map<std::string, FMOD::Sound*> m_preloadedSounds;
     std::unordered_map<std::string, FMOD::Sound*> m_musicStreams;
-    std::vector<DataResource> m_musicResources;
+    std::vector<std::shared_ptr<DataResource>> m_musicResources;
 
     std::vector<FMOD::Channel*> m_musicChannelsPool;
 

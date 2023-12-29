@@ -92,13 +92,13 @@ void FmodAudioManager::loadSound(const std::string &path, const std::string &nam
         return;
     }
 
-    DataResource sndData = ServiceLocator::getResourceManager().getResource(path);
+    auto sndData = ServiceLocator::getResourceManager().get(path);
 
     FMOD::Sound *newSound = nullptr;
     FMOD_CREATESOUNDEXINFO createInfo{};
     createInfo.cbsize = sizeof(FMOD_CREATESOUNDEXINFO);
-    createInfo.length = sndData.size;
-    m_audioSystem->createSound(reinterpret_pointer_cast<const char>(sndData.data).get(),
+    createInfo.length = static_cast<unsigned int>(sndData->data.size());
+    m_audioSystem->createSound(sndData->data.data(),
                                FMOD_OPENMEMORY | FMOD_CREATESAMPLE | FMOD_3D,
                                &createInfo, &newSound);
     if(newSound)
@@ -138,14 +138,14 @@ void FmodAudioManager::loadMusic(const std::string &path, const std::string &nam
         return;
     }
 
-    DataResource musData = ServiceLocator::getResourceManager().getResource(path, true);
+    auto musData = ServiceLocator::getResourceManager().get(path, true);
     m_musicResources.push_back(musData);
 
     FMOD::Sound *newMusic = nullptr;
     FMOD_CREATESOUNDEXINFO createInfo{};
     createInfo.cbsize = sizeof(FMOD_CREATESOUNDEXINFO);
-    createInfo.length = musData.size;
-    FMOD_RESULT r = m_audioSystem->createStream(reinterpret_pointer_cast<const char>(musData.data).get(),
+    createInfo.length = static_cast<unsigned int>(musData->data.size());
+    FMOD_RESULT r = m_audioSystem->createStream(musData->data.data(),
                                                 FMOD_OPENMEMORY | FMOD_CREATESTREAM | FMOD_2D,
                                                 &createInfo, &newMusic);
     if(newMusic)

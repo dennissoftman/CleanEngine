@@ -30,8 +30,6 @@ public:
 
     void mainLoop();
 
-    Scene3D &getScene() override;
-
     double getDeltaTime() const override;
     double getElapsedTime() const override;
 
@@ -55,14 +53,8 @@ public:
 private:
     GLFWwindow *m_mainWindow;
     Renderer *m_mainRenderer;
-    Scene3D m_currentScene;
     boost::signals2::signal<void(double)> m_updateEvents;
     double m_elapsedTime, m_deltaTime;
-
-    // window options
-    glm::ivec2 m_windowSize;
-    bool m_windowFullscreen, m_windowVSync;
-    uint32_t m_windowFpsCap, m_windowSamples;
 };
 
 #endif // GAMECLIENTGLFW_H

@@ -4,8 +4,6 @@
 #include <variant>
 #include <glm/gtx/quaternion.hpp>
 
-#include "common/modelmanager.hpp"
-
 enum class PhysicsShape
 {
     eUndefined,

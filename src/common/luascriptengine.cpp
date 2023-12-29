@@ -19,6 +19,11 @@ SOL_DERIVED_CLASSES(Entity, Camera3D);
 // components
 #include "common/entities/staticmesh.hpp"
 SOL_BASE_CLASSES(StaticMesh, Component);
+SOL_DERIVED_CLASSES(MeshComponent, StaticMesh);
+
+#include "common/entities/animatedmodel.hpp"
+SOL_BASE_CLASSES(AnimatedModelComponent, Component);
+SOL_DERIVED_CLASSES(StaticMesh, AnimatedModelComponent);
 
 #include "common/entities/bodycomponent.hpp"
 SOL_BASE_CLASSES(BodyComponent, Component);
@@ -26,7 +31,7 @@ SOL_BASE_CLASSES(BodyComponent, Component);
 #include "common/entities/networksynccomponent.hpp"
 SOL_BASE_CLASSES(NetworkSyncComponent, Component);
 
-SOL_DERIVED_CLASSES(Component, StaticMesh, BodyComponent, NetworkSyncComponent);
+SOL_DERIVED_CLASSES(Component, StaticMesh, AnimatedModelComponent, BodyComponent, NetworkSyncComponent);
 //
 
 // ui
@@ -45,11 +50,12 @@ SOL_BASE_CLASSES(UITextInput, UIElement);
 SOL_DERIVED_CLASSES(UIElement, UILabel, UIButton, UISpinBox, UITextInput);
 //
 
+// game services
+#include "common/gameservices.hpp"
+
 // physics
 #include "server/physicsmanager.hpp"
-//
 
-static const char *MODULE_NAME = "LuaScriptEngine";
 
 ScriptEngine *ScriptEngine::create()
 {
@@ -83,43 +89,97 @@ void LuaScriptEngine::init()
     // init functions, namespaces, etc.
     {
         m_globalState.create_named_table("Debug",
-                                         "log", LuaScriptEngine::Debug_log);
+                                         "log", []<typename... Args>(const std::string& msg, Args &&...args) { spdlog::info(msg, args); },
+                                         "warn", []<typename... Args>(const std::string& msg, Args &&...args) { spdlog::warn(msg, args); },
+                                         "error", []<typename... Args>(const std::string& msg, Args &&...args) { spdlog::error(msg, args); });
 
         m_globalState.create_named_table("Client",
-                                         "onUpdate", LuaScriptEngine::Client_onUpdateEvent,
-                                         "getDeltaTime", LuaScriptEngine::Client_getDeltaTime,
-                                         "getElapsedTime", LuaScriptEngine::Client_getElapsedTime,
-                                         "lockCursor", LuaScriptEngine::Client_lockCursor,
-                                         "releaseCursor", LuaScriptEngine::Client_releaseCursor,
-                                         "exit", LuaScriptEngine::Client_exit);
+                                         "onUpdate", [](const std::function<void (double)> &slot) { GameFrontend::corePtr->updateSubscribe(slot); },
+                                         "getDeltaTime", []() { return GameFrontend::corePtr->getDeltaTime(); },
+                                         "getElapsedTime", []() { return GameFrontend::corePtr->getElapsedTime(); },
+                                         "lockCursor", []() { GameFrontend::corePtr->lockCursor(); },
+                                         "releaseCursor", []() { GameFrontend::corePtr->unlockCursor(); },
+                                         "exit", []() { GameFrontend::corePtr->terminate(); });
+
+        m_globalState.create_named_table("GameServices",
+                                         "getFriends", []() { return ServiceLocator::getGameServices().getFriends(); });
 
         m_globalState.create_named_table("SceneManager",
-                                         "getActiveScene", LuaScriptEngine::SceneManager_getActiveScene);
+                                         "getActiveScene", []() { return ServiceLocator::getSceneManager().activeScene(); });
 
         m_globalState.create_named_table("Input",
-                                         "onKeyboard", LuaScriptEngine::EventManager_onKeyEvent,
-                                         "onMouseButton", LuaScriptEngine::EventManager_onMouseButtonEvent,
-                                         "onMouseMove", LuaScriptEngine::EventManager_onMouseMoveEvent,
-                                         "onMouseScroll", LuaScriptEngine::EventManager_onMouseScrollEvent);
+                                         "onKeyboard", [](const clean::key_callback &slot) { ServiceLocator::getEventManager().keyboardSubscribe(slot); },
+                                         "onMouseButton", [](const clean::mouse_button_callback &slot) { ServiceLocator::getEventManager().mouseButtonSubscribe(slot); },
+                                         "onMouseMove", [](const clean::mouse_pos_callback &slot) { ServiceLocator::getEventManager().mousePositionSubscribe(slot); },
+                                         "onMouseScroll", [](const clean::mouse_scroll_callback &slot) { ServiceLocator::getEventManager().mouseScrollSubscribe(slot); });
 
         m_globalState.create_named_table("UI",
-                                         "addElement", LuaScriptEngine::UI_addElement);
+                                         "addElement", [](std::shared_ptr<UIElement> el) { ServiceLocator::getUIManager().addElement(el); });
+
+        m_globalState.create_named_table("ModelManager",
+                                         "loadModel", [](const std::string &path, const std::string& name) {
+                                            try
+                                            {
+                                                ServiceLocator::getModelManager().import_model(path, name);
+                                                return true;
+                                            }
+                                            catch(const std::exception &e)
+                                            {
+                                                spdlog::error("Failed to load model '{}': {}", name, e.what());
+                                                return false;
+                                            }
+                                        },
+                                        "getModelId", [](const std::string &name) {
+                                            try
+                                            {
+                                                return ServiceLocator::getModelManager().getModelId(name);
+                                            }
+                                            catch(const std::exception &e)
+                                            {
+                                                spdlog::error("Failed to get model id for '{}': {}", name, e.what());
+                                                return (size_t)-1;
+                                            }
+                                        },
+                                        "getAnimation", [](const std::string& modelName, const std::string& animName) {
+                                            try
+                                            {
+                                                return ServiceLocator::getModelManager().getAnimation(modelName, animName);
+                                            }
+                                            catch (const std::exception& e)
+                                            {
+                                                spdlog::error("Failed to get animation '{}' for model '{}'", animName, modelName);
+                                                return std::shared_ptr<AnimationPrimitive>(nullptr);
+                                            }
+                                        });
+
+        m_globalState.create_named_table("MaterialManager",
+                                         "createMaterial", sol::factories([&](const glm::vec3 &color, const std::string &name) { return ServiceLocator::getMatManager().createMaterial(color, name); },
+                                                                          [&](const std::string &path, const std::string &name) { return ServiceLocator::getMatManager().createMaterial(path, name); }));
 
         m_globalState.create_named_table("AudioManager",
-                                         "loadSound", LuaScriptEngine::AudioManager_loadSound,
-                                         "playSound", LuaScriptEngine::AudioManager_playSound,
-                                         "loadMusic", LuaScriptEngine::AudioManager_loadMusic,
-                                         "playMusic", LuaScriptEngine::AudioManager_playMusic);
-
-        m_globalState.create_named_table("Physics",
-                                         "explode", LuaScriptEngine::Physics_explode);
+                                         "loadSound", [](const std::string &path, const std::string& name) { return ServiceLocator::getAudioManager().loadSound(path, name); },
+                                         "playSound", [](const std::string &name, const glm::vec3 &pos) { ServiceLocator::getAudioManager().playSound(name, SoundPropertiesInfo{1.f, 1.f, pos, glm::vec3()}); },
+                                         "loadMusic", [](const std::string &path, const std::string& name) { return ServiceLocator::getAudioManager().loadMusic(path, name); },
+                                         "playMusic", [](const std::string &name, bool looped) { ServiceLocator::getAudioManager().playMusic(name, MusicPropertiesInfo{1.f, 1.f, looped}); });
 
         m_globalState.create_named_table("ResourceManager",
-                                         "getFile", LuaScriptEngine::ResourceManager_getFile);
+                                         "getFile", [](const std::string& path) {
+                                            std::shared_ptr<DataResource> res;
+                                            try
+                                            {
+                                                res = ServiceLocator::getResourceManager().get(path, true);
+                                            }
+                                            catch(const std::exception &e)
+                                            {
+                                                spdlog::error(fmt::format("Failed to load file '{}': {}", path, e.what()));
+                                                return std::string();
+                                            }
+                                            return std::string(res->data.data(), res->data.size());
+                                        });
 
         m_globalState.create_named_table("NetworkManager",
-                                         "host", LuaScriptEngine::NetworkManager_host,
-                                         "connect", LuaScriptEngine::NetworkManager_connect);
+                                         "host", [](uint16_t port, int32_t max_clients) { return ServiceLocator::getGameServer().host(NetworkServerProperties{port, max_clients}); },
+                                         "connect", [](const std::string &ip, uint16_t port) { return ServiceLocator::getGameServer().connect(NetworkClientProperties{ip, port}); });
     }
 
     // register object types
@@ -185,6 +245,11 @@ void LuaScriptEngine::init()
         }
     }
 
+    m_globalState.new_usertype<FriendDetails>("FriendDetails",
+                                              sol::constructors<FriendDetails()>(),
+                                              "name", &FriendDetails::name,
+                                              "isOnline", &FriendDetails::isOnline);
+
     m_globalState.new_usertype<uuids::uuid>("UUID",
                                             sol::call_constructor,
                                             sol::factories([&](const std::string &val) { return uuids::uuid::from_string(val); }));
@@ -235,6 +300,18 @@ void LuaScriptEngine::init()
     m_globalState.new_usertype<NetworkSyncComponent>("NetworkSyncComponent",
                                                      sol::call_constructor,
                                                      sol::factories([&](std::shared_ptr<Entity> parent) { return std::make_shared<NetworkSyncComponent>(parent); }));
+
+    m_globalState.new_usertype<StaticMesh>("StaticMeshComponent",
+                                           sol::call_constructor,
+                                           sol::factories([&](std::shared_ptr<Entity> parent) { return StaticMesh::createComponent(parent); }),
+                                           "setModelId", &StaticMesh::setModelId);
+
+    m_globalState.new_usertype<AnimatedModelComponent>("AnimatedModelComponent",
+                                                       sol::call_constructor,
+                                                       sol::factories([&](std::shared_ptr<Entity> parent) { return std::make_shared<AnimatedModelComponent>(parent); }),
+                                                       "setModelId", &AnimatedModelComponent::setModelId,
+                                                       "setAnimation", &AnimatedModelComponent::setAnimation,
+                                                       "trigger", &AnimatedModelComponent::trigger);
 
     m_globalState.new_usertype<UILabel>("Label",
                                         sol::call_constructor,
@@ -305,18 +382,9 @@ void LuaScriptEngine::init()
     // move init script to config file?
     try
     {
-        DataResource scData = ServiceLocator::getResourceManager().getResource("data/scripts/init.lua");
-        if(scData.size == 0)
-        {
-            scData = ServiceLocator::getResourceManager().getResource(":/scripts/init.lua");
-            if(scData.size == 0)
-            {
-                spdlog::warn("Init script not found");
-                return;
-            }
-        }
+        auto scData = ServiceLocator::getResourceManager().get("scripts/init.lua");
 
-        std::string scriptText(reinterpret_pointer_cast<const char[]>(scData.data).get(), scData.size);
+        std::string scriptText(scData->data.data(), scData->data.size());
         sol::protected_function_result result = m_globalState.safe_script(scriptText);
         if(!result.valid())
         {
@@ -326,7 +394,8 @@ void LuaScriptEngine::init()
     }
     catch(const std::exception &e)
     {
-        spdlog::error(std::string(e.what()));
+        spdlog::error(fmt::format("Failed to load init script: {}", e.what()));
+        return;
     }
     spdlog::debug("Script engine init completed");
 }
@@ -335,134 +404,19 @@ int LuaScriptEngine::luaRootLoader(lua_State *L)
 {
     std::string path = sol::stack::get<std::string>(L, 1); // get path argument
 
-    if(!path.starts_with(":/") && !path.starts_with("/"))
-        path = "data/scripts/" + path;
-
     if(!path.ends_with(".lua"))
         path += ".lua";
 
-    DataResource scriptData = ServiceLocator::getResourceManager().getResource(path, true);
-    if(scriptData.size > 0)
+    try
     {
-        luaL_loadbuffer(L, reinterpret_pointer_cast<const char[]>(scriptData.data).get(), scriptData.size, path.c_str());
+        auto res = ServiceLocator::getResourceManager().get(path, true);
+        luaL_loadbuffer(L, res->data.data(), res->data.size(), path.c_str());
         return 1;
     }
+    catch(const std::exception& e)
+    {
+        spdlog::error(fmt::format("Failed to load script '{}': {}", path, e.what()));
+        return 0;
+    }
     return 0;
-}
-
-void LuaScriptEngine::Debug_log(const std::string &msg)
-{
-    spdlog::info(msg);
-}
-
-void LuaScriptEngine::Debug_warning(const std::string &msg)
-{
-    spdlog::warn(msg);
-}
-
-void LuaScriptEngine::Debug_error(const std::string &msg)
-{
-    spdlog::error(msg);
-}
-
-void LuaScriptEngine::Client_onUpdateEvent(const std::function<void (double)> &slot)
-{
-    GameFrontend::corePtr->updateSubscribe(slot);
-}
-
-double LuaScriptEngine::Client_getDeltaTime()
-{
-    return GameFrontend::corePtr->getDeltaTime();
-}
-
-double LuaScriptEngine::Client_getElapsedTime()
-{
-    return GameFrontend::corePtr->getElapsedTime();
-}
-
-void LuaScriptEngine::Client_lockCursor()
-{
-    GameFrontend::corePtr->lockCursor();
-}
-
-void LuaScriptEngine::Client_releaseCursor()
-{
-    GameFrontend::corePtr->unlockCursor();
-}
-
-void LuaScriptEngine::Client_exit()
-{
-    GameFrontend::corePtr->terminate();
-}
-
-void LuaScriptEngine::AudioManager_loadSound(const std::string &path, const std::string &name)
-{
-    ServiceLocator::getAudioManager().loadSound(path, name);
-}
-
-void LuaScriptEngine::AudioManager_playSound(const std::string &name, const glm::vec3 &pos)
-{
-    ServiceLocator::getAudioManager().playSound(name, SoundPropertiesInfo{1.f, 1.f, pos, glm::vec3()});
-}
-
-void LuaScriptEngine::AudioManager_loadMusic(const std::string &path, const std::string &name)
-{
-    ServiceLocator::getAudioManager().loadMusic(path, name);
-}
-
-void LuaScriptEngine::AudioManager_playMusic(const std::string &name, bool looped)
-{
-    ServiceLocator::getAudioManager().playMusic(name, MusicPropertiesInfo{1.f, 1.f, looped});
-}
-
-Scene3D &LuaScriptEngine::SceneManager_getActiveScene()
-{
-    return GameFrontend::corePtr->getScene();
-}
-
-std::string LuaScriptEngine::ResourceManager_getFile(const std::string &path)
-{
-    auto hdr = ServiceLocator::getResourceManager().getResource(path, true);
-    auto data = hdr.data.get();
-    return std::string(data, data+hdr.size);
-}
-
-void LuaScriptEngine::UI_addElement(std::shared_ptr<UIElement> el)
-{
-    ServiceLocator::getUIManager().addElement(el);
-}
-
-void LuaScriptEngine::EventManager_onKeyEvent(const clean::key_callback &slot)
-{
-    ServiceLocator::getEventManager().keyboardSubscribe(slot);
-}
-
-void LuaScriptEngine::EventManager_onMouseButtonEvent(const clean::mouse_button_callback &slot)
-{
-    ServiceLocator::getEventManager().mouseButtonSubscribe(slot);
-}
-
-void LuaScriptEngine::EventManager_onMouseMoveEvent(const clean::mouse_pos_callback &slot)
-{
-    ServiceLocator::getEventManager().mousePositionSubscribe(slot);
-}
-
-void LuaScriptEngine::EventManager_onMouseScrollEvent(const clean::mouse_scroll_callback &slot)
-{
-    ServiceLocator::getEventManager().mouseScrollSubscribe(slot);
-}
-
-void LuaScriptEngine::Physics_explode(const glm::vec3 &pos, float radius, float power)
-{
-    ServiceLocator::getPhysicsManager().explode(pos, radius, power);
-}
-
-bool LuaScriptEngine::NetworkManager_host(uint16_t port, int32_t max_clients)
-{
-    return ServiceLocator::getGameServer().host(NetworkServerProperties{port, max_clients});
-}
-
-bool LuaScriptEngine::NetworkManager_connect(const std::string &ip, uint16_t port)
-{
-    return ServiceLocator::getGameServer().connect(NetworkClientProperties{ip, port});
 }

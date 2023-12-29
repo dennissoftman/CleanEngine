@@ -8,21 +8,22 @@
 #include "client/gamefrontend.hpp"
 #include "server/gamebackend.hpp"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 int main()
 {
     // init logging
-    spdlog::set_pattern("[%H:%M:%S %z] [%n] [%^---%L---%$] %v");
+    spdlog::set_pattern("[%H:%M:%S %z] [%^---%L---%$] %v");
 #ifndef NDEBUG
-    std::shared_ptr<spdlog::logger> logger; // must be in highest main() context not to be destroyed
     try
     {
         spdlog::set_level(spdlog::level::debug);
-        logger = spdlog::basic_logger_mt(APP_NAME, "debug.log");
-        spdlog::set_default_logger(logger);
     }
     catch (const std::exception &e)
     {
-        spdlog::error("Failed to init file logger");
+        spdlog::error(fmt::format("Failed to init file logger: {}", e.what()));
     }
 #else // release
     {
@@ -35,17 +36,15 @@ int main()
 
     ServiceLocator::getResourceManager().init(); // init configs
 /*
+    // init network manager
+    ServiceLocator::getGameServer().init();
+*/
     // init physics
     ServiceLocator::getPhysicsManager().init();
     // init audio
     ServiceLocator::getAudioManager().init();
     // init game services
     ServiceLocator::getGameServices().init();
-    // init game services
-    ServiceLocator::getGameServices().init();
-    // init network manager
-    ServiceLocator::getGameServer().init();
-*/
 //    auto backend = std::make_unique<GameBackend>(GameBackend::create());
 //    backend->init();
 

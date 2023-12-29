@@ -1,0 +1,4 @@
+data/base.gar filter=lfs diff=lfs merge=lfs -text
+data/models/cube.obj filter=lfs diff=lfs merge=lfs -text
+data/models/pistol.fbx filter=lfs diff=lfs merge=lfs -text
+data/models/shotgun.fbx filter=lfs diff=lfs merge=lfs -text

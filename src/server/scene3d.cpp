@@ -1,7 +1,8 @@
+#include <format>
+
 #include "server/scene3d.hpp"
 #include "common/entities/entity.hpp"
-#include <boost/bind.hpp>
-#include <format>
+
 
 Scene3D::Scene3D()
 {

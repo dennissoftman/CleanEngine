@@ -13,6 +13,7 @@ public:
     void update(double dt) override;
     void terminate();
     void authorize() override;
+    std::vector<FriendDetails> getFriends() const override;
 
 private:
     double m_lastUpdateTime, m_lastCallbackTime;
